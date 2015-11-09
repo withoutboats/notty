@@ -3,6 +3,7 @@ use std::iter::IntoIterator;
 
 use cfg;
 use datatypes::{Coords, Direction, Movement};
+use datatypes::Direction::*;
 use datatypes::Movement::*;
 
 /// A concrete, rectangular region of the screen.
@@ -52,39 +53,40 @@ impl Region {
     /// Calculate the movement from one coordinate to another within this region.
     pub fn move_within(&self, Coords {x, y}: Coords, movement: Movement) -> Coords {
         match movement {
-            Position(coords)            => self.xy_within(coords),
-            Column(n)                   => Coords {x: self.x_within(n), y: y},
-            Row(n)                      => Coords {x: x, y: self.y_within(n)},
-            UpToEdge                    => Coords {x: x, y: self.top},
-            DownToEdge                  => Coords {x: x, y: self.bottom - 1},
-            LeftToEdge                  => Coords {x: self.left, y: y},
-            RightToEdge                 => Coords {x: self.right - 1, y: y},
-            ToBeginning                 => Coords {x: self.left, y: self.top},
-            ToEnd                       => Coords {x: self.right - 1, y: self.bottom - 1},
-            Up(n) | UpIndex(n)          => {
+            Position(coords)                    => self.xy_within(coords),
+            Column(n)                           => Coords {x: self.x_within(n), y: y},
+            Row(n)                              => Coords {x: x, y: self.y_within(n)},
+            ToEdge(Up)                          => Coords {x: x, y: self.top},
+            ToEdge(Down)                        => Coords {x: x, y: self.bottom - 1},
+            ToEdge(Left)                        => Coords {x: self.left, y: y},
+            ToEdge(Right)                       => Coords {x: self.right - 1, y: y},
+            ToBeginning                         => Coords {x: self.left, y: self.top},
+            ToEnd                               => Coords {x: self.right - 1, y: self.bottom - 1},
+            To(Up, n) | IndexTo(Up, n)          => {
                 Coords {x: x, y: cmp::max(self.top, y.saturating_sub(n))}
             }
-            Down(n) | DownIndex(n)      => {
+            To(Down, n) | IndexTo(Down, n)      => {
                 Coords {x: x, y: cmp::min(y.saturating_add(n), self.bottom - 1)}
             }
-            Left(n) | LeftIndex(n)      => {
+            To(Left, n) | IndexTo(Left, n)      => {
                 Coords {x: cmp::max(self.left, x.saturating_sub(n)), y: y}
             }
-            Right(n) | RightIndex(n)    => {
+            To(Right, n) | IndexTo(Right, n)    => {
                 Coords {x: cmp::min(x.saturating_add(n), self.right - 1), y: y}
             }
-            LeftTab(n)                  => {
+            Tab(Left, n)                        => {
                 let tab = ((x / cfg::TAB_STOP).saturating_sub(n)) * cfg::TAB_STOP;
                 Coords {x: cmp::max(tab, self.left), y: y}
             }
-            RightTab(n)                 => {
+            Tab(Right, n)                       => {
                 let tab = ((x / cfg::TAB_STOP) + n) * cfg::TAB_STOP;
                 Coords {x: cmp::min(tab, self.right - 1), y: y}
             }
-            PreviousLine(n)             => {
+            Tab(..)                             => unimplemented!(),
+            PreviousLine(n)                     => {
                 Coords {x: 0, y: cmp::max(y.saturating_sub(n), self.top)}
             }
-            NextLine(n)                 => {
+            NextLine(n)                         => {
                 Coords {x: 0, y: cmp::min(y.saturating_add(n), self.bottom - 1)}
             }
         }
@@ -187,6 +189,7 @@ mod tests {
 
     use datatypes::{Coords, Movement};
     use datatypes::Movement::*;
+    use datatypes::Direction::*;
 
     static REGION: &'static Region = &Region { left: 0, top: 10, right: 100, bottom: 100 }; 
 
@@ -210,16 +213,16 @@ mod tests {
         (Coords { x:50, y:50 }, Row(0), true, Coords { x:50, y:10 }),
         (Coords { x:50, y:50 }, Row(10), true, Coords { x:50, y:10 }),
         (Coords { x:50, y:50 }, Row(100), true, Coords { x:50, y:99 }),
-        (Coords { x:50, y:50 }, UpToEdge, true, Coords { x:50, y:10 }),
-        (Coords { x:50, y:50 }, DownToEdge, true, Coords { x:50, y:99 }),
-        (Coords { x:50, y:50 }, LeftToEdge, true, Coords { x:0, y:50 }),
-        (Coords { x:50, y:50 }, RightToEdge, true, Coords { x:99, y:50 }),
+        (Coords { x:50, y:50 }, ToEdge(Up), true, Coords { x:50, y:10 }),
+        (Coords { x:50, y:50 }, ToEdge(Down), true, Coords { x:50, y:99 }),
+        (Coords { x:50, y:50 }, ToEdge(Left), true, Coords { x:0, y:50 }),
+        (Coords { x:50, y:50 }, ToEdge(Right), true, Coords { x:99, y:50 }),
         (Coords { x:50, y:50 }, ToBeginning, true, Coords { x:0, y:10 }),
         (Coords { x:50, y:50 }, ToEnd, true, Coords { x:99, y:99 }),
-        (Coords { x:50, y:50 }, Up(5), true, Coords { x:50, y:45 }),
-        (Coords { x:50, y:50 }, Down(5), true, Coords { x:50, y:55 }),
-        (Coords { x:50, y:50 }, Left(5), false, Coords { x:45, y:50 }),
-        (Coords { x:50, y:50 }, Right(5), false, Coords { x:55, y:50 }),
+        (Coords { x:50, y:50 }, To(Up, 5), true, Coords { x:50, y:45 }),
+        (Coords { x:50, y:50 }, To(Down, 5), true, Coords { x:50, y:55 }),
+        (Coords { x:50, y:50 }, To(Left, 5), false, Coords { x:45, y:50 }),
+        (Coords { x:50, y:50 }, To(Right, 5), false, Coords { x:55, y:50 }),
         (Coords { x:50, y:50 }, PreviousLine(1), true, Coords { x:0, y:49 }),
         (Coords { x:50, y:50 }, NextLine(1), true, Coords { x:0, y:51 }),
     ];

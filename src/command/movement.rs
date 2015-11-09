@@ -1,6 +1,7 @@
 use command::prelude::*;
 use datatypes::Movement;
 use datatypes::Movement::*;
+use datatypes::Direction::*;
 
 #[derive(Copy, Clone)]
 pub struct Move {
@@ -21,25 +22,27 @@ impl Command for Move {
     }
     fn repr(&self) -> String {
         match self.movement {
-            Up(n)               => format!("MOVE UP {}", n),
-            Down(n)             => format!("MOVE DOWN {}", n),
-            Left(n)             => format!("MOVE LEFT {}", n),
-            Right(n)            => format!("MOVE RIGHT {}", n),
+            To(Up, n)           => format!("MOVE UP {}", n),
+            To(Down, n)         => format!("MOVE DOWN {}", n),
+            To(Left, n)         => format!("MOVE LEFT {}", n),
+            To(Right, n)        => format!("MOVE RIGHT {}", n),
             PreviousLine(n)     => format!("MOVE PREV LINE {}", n),
             NextLine(n)         => format!("MOVE NEXT LINE {}", n),
-            LeftTab(n)          => format!("MOVE LEFT TAB {}", n),
-            RightTab(n)         => format!("MOVE RIGHT TAB {}", n),
-            UpIndex(n)          => format!("MOVE UP INDEX {}", n),
-            DownIndex(n)        => format!("MOVE DOWN INDEX {}", n),
-            LeftIndex(n)        => format!("MOVE LEFT INDEX {}", n),
-            RightIndex(n)       => format!("MOVE RIGHT INDEX {}", n),
+            Tab(Up, n)          => format!("MOVE UP TAB {}", n),
+            Tab(Down, n)        => format!("MOVE DOWN TAB {}", n),
+            Tab(Left, n)        => format!("MOVE LEFT TAB {}", n),
+            Tab(Right, n)       => format!("MOVE RIGHT TAB {}", n),
+            IndexTo(Up, n)      => format!("MOVE UP INDEX {}", n),
+            IndexTo(Down, n)    => format!("MOVE DOWN INDEX {}", n),
+            IndexTo(Left, n)    => format!("MOVE LEFT INDEX {}", n),
+            IndexTo(Right, n)   => format!("MOVE RIGHT INDEX {}", n),
             Column(n)           => format!("MOVE TO COL {}", n),
             Row(n)              => format!("MOVE TO ROW {}", n),
             Position(coords)    => format!("MOVE TO {},{}", coords.x, coords.y),
-            UpToEdge            => String::from("MOVE UP TO EDGE"),
-            DownToEdge          => String::from("MOVE DOWN TO EDGE"),
-            LeftToEdge          => String::from("MOVE LEFT TO EDGE"),
-            RightToEdge         => String::from("MOVE RIGHT TO EDGE"),
+            ToEdge(Up)          => String::from("MOVE UP TO EDGE"),
+            ToEdge(Down)        => String::from("MOVE DOWN TO EDGE"),
+            ToEdge(Left)        => String::from("MOVE LEFT TO EDGE"),
+            ToEdge(Right)       => String::from("MOVE RIGHT TO EDGE"),
             ToBeginning         => String::from("MOVE TO BEGINNING"),
             ToEnd               => String::from("MOVE TO END"),
         }

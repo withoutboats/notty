@@ -38,10 +38,10 @@ impl AnsiCode {
         }
         match (self.terminal, self.private_mode, self.preterminal) {
             (b'@', 0, 0)        => wrap(InsertBlank::new(self.arg(0,1))),
-            (b'A', 0, 0)        => wrap(Move::new(Up(self.arg(0,1)), )),
-            (b'B', 0, 0)        => wrap(Move::new(Down(self.arg(0,1)), )),
-            (b'C', 0, 0)        => wrap(Move::new(Right(self.arg(0,1)), )),
-            (b'D', 0, 0)        => wrap(Move::new(Left(self.arg(0,1)), )),
+            (b'A', 0, 0)        => wrap(Move::new(To(Up, self.arg(0,1)), )),
+            (b'B', 0, 0)        => wrap(Move::new(To(Down, self.arg(0,1)), )),
+            (b'C', 0, 0)        => wrap(Move::new(To(Right, self.arg(0,1)), )),
+            (b'D', 0, 0)        => wrap(Move::new(To(Left, self.arg(0,1)), )),
             (b'E', 0, 0)        => wrap(Move::new(NextLine(self.arg(0,1)), )),
             (b'F', 0, 0)        => wrap(Move::new(PreviousLine(self.arg(0,1)), )),
             (b'G', 0, 0)        => wrap(Move::new(Column(self.arg(0,1)-1), )),
@@ -49,7 +49,7 @@ impl AnsiCode {
                 x: self.arg(1,1)-1,
                 y: self.arg(0,1)-1,
             }))),
-            (b'I', 0, 0)        => wrap(Move::new(RightTab(self.arg(0,1)), )),
+            (b'I', 0, 0)        => wrap(Move::new(Tab(Right, self.arg(0,1)), )),
             (b'J', 0, 0)        => match self.arg(0, 0) {
                 0   => wrap(Erase::new(CursorTo(ToEnd))),
                 1   => wrap(Erase::new(CursorTo(ToBeginning))),
@@ -59,8 +59,8 @@ impl AnsiCode {
             },
             (b'J', b'?', 0)     => wrap(NoFeature(self.csi_code())),
             (b'K', 0, 0)        => match self.arg(0, 0) {
-                0   => wrap(Erase::new(CursorTo(RightToEdge))),
-                1   => wrap(Erase::new(CursorTo(LeftToEdge))),
+                0   => wrap(Erase::new(CursorTo(ToEdge(Right)))),
+                1   => wrap(Erase::new(CursorTo(ToEdge(Left)))),
                 2   => wrap(Erase::new(CursorRow)),
                 _   => None
             },
@@ -68,18 +68,18 @@ impl AnsiCode {
             (b'L', 0, 0)        => wrap(InsertRows::new(self.arg(0,1), true)),
             (b'M', 0, 0)        => wrap(RemoveRows::new(self.arg(0,1), true)),
             (b'P', 0, 0)        => wrap(RemoveChars::new(self.arg(0,1))),
-            (b'S', 0, 0)        => wrap(ScrollScreen::new(Down(self.arg(0,1)))),
-            (b'T', 0, 0)        => wrap(ScrollScreen::new(Up(self.arg(0,1)))),
+            (b'S', 0, 0)        => wrap(ScrollScreen::new(To(Down, self.arg(0,1)))),
+            (b'T', 0, 0)        => wrap(ScrollScreen::new(To(Up, self.arg(0,1)))),
             (b'T', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'X', 0, 0)        => wrap(Erase::new(CursorTo(Right(self.arg(0,1))))),
-            (b'Z', 0, 0)        => wrap(Move::new(LeftTab(self.arg(0,1)), )),
+            (b'X', 0, 0)        => wrap(Erase::new(CursorTo(To(Right, self.arg(0,1))))),
+            (b'Z', 0, 0)        => wrap(Move::new(Tab(Left, self.arg(0,1)), )),
             (b'`', 0, 0)        => wrap(Move::new(Column(self.arg(0,1)-1), )),
-            (b'a', 0, 0)        => wrap(Move::new(Right(self.arg(0,1)), )),
+            (b'a', 0, 0)        => wrap(Move::new(To(Right, self.arg(0,1)), )),
             (b'b', 0, 0)        => wrap(NoFeature(self.csi_code())),
             (b'c', 0, 0)        => wrap(NoFeature(self.csi_code())),
             (b'c', b'>', 0)     => wrap(NoFeature(self.csi_code())),
             (b'd', 0, 0)        => wrap(Move::new(Row(self.arg(0,1)-1), )),
-            (b'e', 0, 0)        => wrap(Move::new(Down(self.arg(0,1)), )),
+            (b'e', 0, 0)        => wrap(Move::new(To(Down, self.arg(0,1)), )),
             (b'f', 0, 0)        => wrap(Move::new(Position(Coords {
                 x: self.arg(1,1)-1,
                 y: self.arg(0,1)-1
@@ -92,7 +92,7 @@ impl AnsiCode {
                 _   => None,
             }),
             (b'h', b'?', 0)     => command_series!(|x| match *x {
-                1       => wrap(SetInputMode(InputMode::Application)),
+                1       => wrap(SetInputMode(Application)),
                 6       => panic!("not yet implemented: mode {}", 6), // DECOM
                 7       => panic!("not yet implemented: mode {}", 7), // DECAWM
                 12      => wrap(SetCursorStyle(Blink(true))),
@@ -135,7 +135,7 @@ impl AnsiCode {
                 _   => None,
             }),
             (b'l', b'?', 0)      => command_series!(|x| match *x {
-                1       => wrap(SetInputMode(InputMode::Ansi)),
+                1       => wrap(SetInputMode(Ansi)),
                 6       => panic!("not yet implemented: mode {}", 6),
                 7       => panic!("not yet implemented: mode {}", 7),
                 12      => wrap(SetCursorStyle(Blink(false))),

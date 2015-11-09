@@ -13,8 +13,9 @@ pub use self::region::Region;
 pub use self::vector::Vector;
 
 pub mod args {
-    pub use super::{Area, Coords, Color, InputMode, Movement, Region, Style};
+    pub use super::{Coords, Color, Region};
     pub use super::Area::*;
+    pub use super::Direction::*;
     pub use super::InputMode::*;
     pub use super::Movement::*;
     pub use super::Style::*;

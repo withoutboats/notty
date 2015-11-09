@@ -3,9 +3,10 @@ use std::cmp::{self, Ordering};
 use unicode_width::*;
 
 use cfg;
+use datatypes::{Area, CellData, Coords, Movement, Region, Style, Vector};
 use datatypes::Area::*;
 use datatypes::Movement::*;
-use datatypes::{Area, CellData, Coords, Movement, Region, Style, Vector};
+use datatypes::Direction::*;
 
 use screen::{CharCell, Cursor, Grid, Styles};
 
@@ -75,7 +76,7 @@ impl CharGrid {
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
-                self.cursor.navigate(&mut self.grid, Right(1));
+                self.cursor.navigate(&mut self.grid, To(Right, 1));
             }
             CellData::Grapheme(c)   => {
                 let width = c.width() as u32;
@@ -86,14 +87,14 @@ impl CharGrid {
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
-                self.cursor.navigate(&mut self.grid, Right(1));
+                self.cursor.navigate(&mut self.grid, To(Right, 1));
             }
             CellData::ExtensionChar(c)  => {
-                self.cursor.navigate(&mut self.grid, Left(1));
+                self.cursor.navigate(&mut self.grid, To(Left, 1));
                 if !self.grid[self.cursor.coords].extend_by(c) {
-                    self.cursor.navigate(&mut self.grid, Right(1));
+                    self.cursor.navigate(&mut self.grid, To(Right, 1));
                     self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                    self.cursor.navigate(&mut self.grid, Right(1));
+                    self.cursor.navigate(&mut self.grid, To(Right, 1));
                 }
             }
             _                       => unimplemented!(),
@@ -117,7 +118,7 @@ impl CharGrid {
     }
 
     pub fn insert_blank_at(&mut self, n: u32) {
-        let vector = Vector::new(self.cursor.coords, RightToEdge, self.grid.bounds()).skip(1)
+        let vector = Vector::new(self.cursor.coords, ToEdge(Right), self.grid.bounds()).skip(1)
                             .collect::<Vec<_>>();
         for coords in vector.into_iter().rev().skip(n as usize) {
             self.grid.moveover(coords, Coords {x: coords.x + n, y: coords.y});
@@ -125,7 +126,7 @@ impl CharGrid {
     }
 
     pub fn remove_at(&mut self, n: u32) {
-        self.in_area(CursorTo(RightToEdge), |grid, coords| {
+        self.in_area(CursorTo(ToEdge(Right)), |grid, coords| {
             if coords.x + n < grid.width as u32 {
                 grid.moveover(Coords {x: coords.x + n, y: coords.y}, coords);
             }
@@ -270,7 +271,7 @@ mod tests {
     use super::*;
 
     use cfg;
-    use datatypes::{CellData, Coords, Movement};
+    use datatypes::{CellData, Coords, Direction, Movement};
     use screen::{CharCell, Cursor, Grid, Styles};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
@@ -325,8 +326,8 @@ mod tests {
     fn move_cursor() {
         run_test(|mut grid, h| {
             let movements = vec![
-                (Movement::DownToEdge, Coords {x:0, y:9}),
-                (Movement::RightTab(1), Coords{x:cfg::TAB_STOP, y:9}),
+                (Movement::ToEdge(Direction::Down), Coords {x:0, y:9}),
+                (Movement::Tab(Direction::Right, 1), Coords{x:cfg::TAB_STOP, y:9}),
                 (Movement::NextLine(1), Coords{x:0, y:h-1}),
             ];
             for (mov, coords) in movements {

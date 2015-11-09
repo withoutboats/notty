@@ -1,5 +1,6 @@
 use cfg;
 use datatypes::{Coords, Direction};
+use datatypes::Direction::*;
 
 use self::Movement::*;
 
@@ -7,26 +8,16 @@ use self::Movement::*;
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Movement {
     Position(Coords),
-    Up(u32),
-    Down(u32),
-    Left(u32),
-    Right(u32),
-    PreviousLine(u32),
-    NextLine(u32),
-    LeftTab(u32),
-    RightTab(u32),
+    To(Direction, u32),
+    ToEdge(Direction),
+    IndexTo(Direction, u32),
+    Tab(Direction, u32),
     Column(u32),
     Row(u32),
+    PreviousLine(u32),
+    NextLine(u32),
     ToBeginning,
     ToEnd,
-    UpIndex(u32),
-    DownIndex(u32),
-    LeftIndex(u32),
-    RightIndex(u32),
-    UpToEdge,
-    DownToEdge,
-    LeftToEdge,
-    RightToEdge,
 }
 
 impl Movement {
@@ -38,28 +29,20 @@ impl Movement {
             match *self {
                 Column(_)               => Column(0),
                 Row(_)                  => Row(0),
-                Up(_) | UpToEdge        => UpToEdge,
-                Down(_) | DownToEdge    => DownToEdge,
-                Left(_) | LeftToEdge    => LeftToEdge,
-                Right(_) | RightToEdge  => RightToEdge,
+                To(d, _)
+                    | IndexTo(d, _)
+                    | Tab(d, _)         => ToEdge(d),
                 _                       => *self
             }
         } else {
             match *self {
                 Column(_)               => Column(n),
                 Row(_)                  => Row(n),
-                Up(_) | UpToEdge        => Up(n),
-                Down(_) | DownToEdge    => Down(n),
-                Left(_) | LeftToEdge    => Left(n),
-                Right(_) | RightToEdge  => Right(n),
+                To(d, _) | ToEdge(d)    => To(d, n),
+                IndexTo(d, _)           => IndexTo(d, n),
                 PreviousLine(_)         => PreviousLine(n),
                 NextLine(_)             => NextLine(n),
-                UpIndex(_)              => UpIndex(n),
-                DownIndex(_)            => DownIndex(n),
-                LeftIndex(_)            => LeftIndex(n),
-                RightIndex(_)           => RightIndex(n),
-                LeftTab(_)              => LeftTab(n),
-                RightTab(_)             => RightTab(n),
+                Tab(d, _)               => Tab(d, n),
                 _                       => *self
             }
         }
@@ -69,12 +52,10 @@ impl Movement {
     /// as a direction and a magnitude.
     pub fn as_direction(&self) -> Option<(u32, Direction)> {
         match *self {
-            Up(n) | UpIndex(n) | PreviousLine(n)    => Some((n, Direction::Up)),
-            Down(n) | DownIndex(n) | NextLine(n)    => Some((n, Direction::Down)),
-            Left(n) | LeftIndex(n)                  => Some((n, Direction::Left)),
-            Right(n) | RightIndex(n)                => Some((n, Direction::Right)),
-            LeftTab(n)                              => Some((n * cfg::TAB_STOP, Direction::Left)),
-            RightTab(n)                             => Some((n * cfg::TAB_STOP, Direction::Right)),
+            To(d, n) | IndexTo(d, n)                => Some((n, d)),
+            Tab(d, n)                               => Some((n * cfg::TAB_STOP, d)),
+            PreviousLine(n)                         => Some((n, Up)),
+            NextLine(n)                             => Some((n, Down)),
             _                                       => None,
         }
     }
@@ -82,14 +63,8 @@ impl Movement {
     /// Returns true if this motion can cause the screen to scroll.
     pub fn scrolls(&self) -> bool {
         match *self {
-            UpIndex(_)
-                | DownIndex(_)
-                | LeftIndex(_)
-                | RightIndex(_)
-                | PreviousLine(_)
-                | NextLine(_)
-                => true,
-           _    => false,
+            IndexTo(..) | PreviousLine(_) | NextLine(_) => true,
+           _                                            => false,
         }
     }
 
