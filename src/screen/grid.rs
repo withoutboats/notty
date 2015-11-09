@@ -77,11 +77,26 @@ impl<T: Default + Clone> Grid<T> {
     }
 
     pub fn add_to_left(&mut self, data: Vec<T>) {
-        unimplemented!();
+        assert!(data.len() % self.height == 0);
+        let extra_width = data.len() / self.height;
+        let width = self.width;
+        self.width += extra_width;
+        let iter = data.into_iter().enumerate().map(|(idx, item)| {
+            ((idx / extra_width) * width, item)
+        }).rev();
+        for (idx, item) in iter {
+            self.data.insert(idx, item);
+        }
     }
 
-    pub fn remove_from_left(&mut self, n: usize) {
-        unimplemented!();
+    pub fn remove_from_left(&mut self, n: usize) -> Vec<T> {
+        assert!(n < self.width);
+        let width = self.width;
+        let len = self.data.len();
+        self.width -= n;
+        (0..len).filter(|&x| (x % width) < n)
+                .rev().map(|idx| self.data.remove(idx).unwrap())
+                .collect()
     }
 
     pub fn add_to_right(&mut self, data: Vec<T>) {
@@ -302,6 +317,20 @@ mod tests {
     }
 
     #[test]
+    fn add_to_left() {
+        run_test(|mut grid, _, height| {
+            grid.add_to_left(vec![0; 8]);
+            for i in 0..grid.height {
+                assert_eq!(grid[Coords {x:0, y:i as u32}], 0);
+                assert_eq!(grid[Coords {x:1, y:i as u32}], 1);
+            }
+            assert_eq!(9, grid.width);
+            assert_eq!(height, grid.height);
+            assert_eq!(grid.data.len(), height * 9);
+        }, 9, 8)
+    }
+
+    #[test]
     fn add_to_right() {
         run_test(|mut grid, _, height| {
             grid.add_to_right(vec![0; 8]);
@@ -333,6 +362,16 @@ mod tests {
             assert_eq!(6, grid.height);
             assert_eq!(grid.data.len(), width * 6);
         }, 8, 6);
+    }
+
+    #[test]
+    fn remove_from_left() {
+        run_test(|mut grid, _, height| {
+            assert_eq!(grid.remove_from_left(2), vec![1; 16]);
+            assert_eq!(6, grid.width);
+            assert_eq!(height, grid.height);
+            assert_eq!(grid.data.len(), height * 6);
+        }, 6, 8)
     }
 
     #[test]
