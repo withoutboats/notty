@@ -5,11 +5,11 @@ use std::sync::mpsc::Sender;
 use command::*;
 use datatypes::args::*;
 
-pub use self::ansi::AnsiCode;
+use self::ansi::AnsiCode;
 use self::grapheme_tables as gr;
 
-pub mod ansi;
-pub mod grapheme_tables;
+mod ansi;
+mod grapheme_tables;
 
 pub struct Output<R: io::BufRead> {
     tty: R,

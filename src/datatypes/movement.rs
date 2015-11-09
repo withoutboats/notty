@@ -1,6 +1,6 @@
 use cfg;
-
 use datatypes::{Coords, Direction};
+
 use self::Movement::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

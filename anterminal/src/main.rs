@@ -13,7 +13,8 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use natty::{Input, Output, Screen, Command};
+use natty::{Input, Output, Command};
+use natty::screen::Screen;
 use gtk::{WidgetTrait, WidgetSignals, ContainerTrait};
 
 mod key;

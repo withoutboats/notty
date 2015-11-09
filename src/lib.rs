@@ -13,4 +13,3 @@ pub mod screen;
 pub use command::Command;
 pub use input::Input;
 pub use output::Output;
-pub use screen::Screen;

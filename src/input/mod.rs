@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 use std::sync::mpsc::Receiver;
 
-use datatypes::{Key, InputEvent, InputMode, Modifiers};
+use datatypes::{InputEvent, InputMode, Key, Modifiers};
 
 pub struct Input<W: Write> {
     tty: W,
@@ -15,7 +15,7 @@ impl<W> Input<W> where W: Write {
         Input {
             tty: tty,
             mode: InputMode::Ansi,
-            modifiers: Modifiers::new()
+            modifiers: Modifiers::new(),
         }
     }
 

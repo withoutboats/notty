@@ -5,9 +5,9 @@ use unicode_width::*;
 use cfg;
 use datatypes::Area::*;
 use datatypes::Movement::*;
-use datatypes::*;
+use datatypes::{Area, CellData, Coords, Movement, Region, Style, Vector};
 
-use super::*;
+use screen::{CharCell, Cursor, Grid, Styles};
 
 pub struct CharGrid {
     grid: Grid<CharCell>,
@@ -267,10 +267,11 @@ impl<'a> IntoIterator for &'a CharGrid {
 #[cfg(test)]
 mod tests {
 
-    use super::super::*;
+    use super::*;
 
     use cfg;
-    use datatypes::*;
+    use datatypes::{CellData, Coords, Movement};
+    use screen::{CharCell, Cursor, Grid, Styles};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
         test(CharGrid::new(10, 10, false, false), 10);

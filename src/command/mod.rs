@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::Write;
 
 use command::prelude::*;
-use output::AnsiCode;
 
 mod erase;
 mod meta;

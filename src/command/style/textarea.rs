@@ -1,5 +1,5 @@
 use command::prelude::*;
-use datatypes::{Style, Area};
+use datatypes::{Area, Style};
 
 #[derive(Copy, Clone)]
 pub struct SetStyleInArea(pub Area, pub Style);

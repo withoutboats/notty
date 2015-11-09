@@ -20,7 +20,8 @@ impl Command for ReportPosition {
     fn apply(&self, screen: &mut Screen, tx: &Sender<InputEvent>) {
         let Coords { x, y } = screen.cursor_position();
         let cmd = match self.0 {
-            Code::ANSI => Cow::Owned(format!("\x1b[{};{}R", y, x)),
+            Code::ANSI  => Cow::Owned(format!("\x1b[{};{}R", y, x)),
+            _           => unimplemented!(),
         };
         tx.send(InputEvent::Key(Key::Cmd(cmd)));
     }

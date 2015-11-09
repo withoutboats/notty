@@ -5,7 +5,7 @@ use std::sync::Arc;
 use cairo::Context;
 use natty::cfg;
 use natty::datatypes::Color;
-use natty::Screen;
+use natty::screen::Screen;
 
 use text::TextRenderer;
 use tty::Handle;

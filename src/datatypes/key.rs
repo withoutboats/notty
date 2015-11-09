@@ -5,7 +5,7 @@ use datatypes::InputMode::*;
 
 use self::Key::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Key {
     Char(bool, char),
     Up(bool),

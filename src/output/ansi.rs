@@ -45,9 +45,10 @@ impl AnsiCode {
             (b'E', 0, 0)        => wrap(Move::new(NextLine(self.arg(0,1)), )),
             (b'F', 0, 0)        => wrap(Move::new(PreviousLine(self.arg(0,1)), )),
             (b'G', 0, 0)        => wrap(Move::new(Column(self.arg(0,1)-1), )),
-            (b'H', 0, 0)        => wrap(Move::new(Position(Coords::new(self.arg(1,1)-1,
-                                                                       self.arg(0,1)-1)),
-                                        )),
+            (b'H', 0, 0)        => wrap(Move::new(Position(Coords {
+                x: self.arg(1,1)-1,
+                y: self.arg(0,1)-1,
+            }))),
             (b'I', 0, 0)        => wrap(Move::new(RightTab(self.arg(0,1)), )),
             (b'J', 0, 0)        => match self.arg(0, 0) {
                 0   => wrap(Erase::new(CursorTo(ToEnd))),
@@ -79,9 +80,10 @@ impl AnsiCode {
             (b'c', b'>', 0)     => wrap(NoFeature(self.csi_code())),
             (b'd', 0, 0)        => wrap(Move::new(Row(self.arg(0,1)-1), )),
             (b'e', 0, 0)        => wrap(Move::new(Down(self.arg(0,1)), )),
-            (b'f', 0, 0)        => wrap(Move::new(Position(Coords::new(self.arg(1,1)-1,
-                                                                       self.arg(0,1)-1)),
-                                        )),
+            (b'f', 0, 0)        => wrap(Move::new(Position(Coords {
+                x: self.arg(1,1)-1,
+                y: self.arg(0,1)-1
+            }))),
             (b'g', 0, 0)        => wrap(NoFeature(self.csi_code())),
             (b'h', 0, 0)        => command_series!(|x| match *x {
                 2   => panic!("not yet implemented: mode {}", 2), // turn off keyboard

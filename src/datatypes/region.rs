@@ -110,8 +110,8 @@ impl Region {
     pub fn iter(&self) -> RegionIter {
         RegionIter {
             region: *self,
-            point: Coords::new(self.left, self.top),
-            back_point: Coords::new(self.left, self.bottom),
+            point: Coords {x: self.left, y: self.top},
+            back_point: Coords {x: self.left, y: self.bottom},
         }
     }
 
@@ -154,8 +154,8 @@ impl Iterator for RegionIter {
         if self.point != self.back_point {
             let point = self.point;
             self.point = if point.x == self.region.right - 1 {
-                Coords::new(self.region.left, point.y + 1)
-            } else { Coords::new(point.x + 1, point.y) };
+                Coords {x: self.region.left, y: point.y + 1}
+            } else { Coords {x: point.x + 1, y: point.y} };
             Some(point)
         } else { None }
     }
@@ -171,8 +171,8 @@ impl DoubleEndedIterator for RegionIter {
     fn next_back(&mut self) -> Option<Coords> {
         if self.point != self.back_point {
             self.back_point = if self.back_point.x == self.region.left {
-                Coords::new(self.region.right - 1, self.back_point.y - 1)
-            } else { Coords::new(self.back_point.x - 1, self.back_point.y) };
+                Coords {x: self.region.right - 1, y: self.back_point.y - 1}
+            } else { Coords {x: self.back_point.x - 1, y: self.back_point.y} };
             Some(self.back_point)
         } else { None }
     }
@@ -195,7 +195,9 @@ impl ExactSizeIterator for RegionIter {
 #[cfg(test)]
 mod tests {
 
-    use datatypes::*;
+    use super::*;
+
+    use datatypes::{Coords, Movement};
     use datatypes::Movement::*;
 
     static REGION: &'static Region = &Region { left: 0, top: 10, right: 100, bottom: 100 }; 
@@ -251,7 +253,7 @@ mod tests {
 
     #[test]
     fn region_iterates() {
-        let coords = (10..100).flat_map(|y| (0..100).map(move |x| Coords::new(x, y)));
+        let coords = (10..100).flat_map(|y| (0..100).map(move |x| Coords {x: x, y: y}));
         REGION.iter().zip(coords).all(|(c1, c2)| { assert_eq!(c1, c2); true });
     }
 
