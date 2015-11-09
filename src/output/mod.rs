@@ -150,14 +150,6 @@ impl Parser {
                 ansi_str(buf, offset);
                 None
             }
-            "\u{ad}"    => unimplemented!(), //soft hyphen,
-            "\u{200e}"  => unimplemented!(), //l->r,
-            "\u{200f}"  => unimplemented!(), //r->l,
-            "\u{202a}"  => unimplemented!(), //l->r embedding,
-            "\u{202b}"  => unimplemented!(), //r->l embedding,
-            "\u{202c}"  => unimplemented!(), //pop direction,
-            "\u{202d}"  => unimplemented!(), //l->r override,
-            "\u{202e}"  => unimplemented!(), //r->l override,
             _           => None
         }
     }
@@ -173,20 +165,20 @@ impl Parser {
                                       b'7', b'=']);
                 None
             }
-            Some(b'6')  => unimplemented!(), //return wrap(), //backindex decb
-            Some(b'7')  => unimplemented!(), //return wrap(), //save cursor decsc
-            Some(b'8')  => unimplemented!(), //return wrap(), //restore cursor decrc
-            Some(b'9')  => unimplemented!(), //return wrap(), //forward index decfi
-            Some(b'D')  => unimplemented!(), //return wrap(), //index
+            Some(b'6')  => wrap(NoFeature(String::from("6"))),
+            Some(b'7')  => wrap(NoFeature(String::from("7"))),
+            Some(b'8')  => wrap(NoFeature(String::from("8"))),
+            Some(b'9')  => wrap(NoFeature(String::from("9"))),
+            Some(b'D')  => wrap(NoFeature(String::from("D"))),
             Some(b'E')  => { *offset += 1; wrap(Move::new(NextLine(1))) }
-            Some(b'H')  => unimplemented!(), //return wrap(), //tab set
-            Some(b'M')  => unimplemented!(), //return wrap(), //reverse index
+            Some(b'H')  => wrap(NoFeature(String::from("H"))),
+            Some(b'M')  => wrap(NoFeature(String::from("M"))),
             Some(b'P')  => { *offset += 1; self.dcs(buf, offset) }
-            Some(b'Z')  => unimplemented!(),
+            Some(b'Z')  => wrap(NoFeature(String::from("Z"))),
             Some(b'[')  => { *offset += 1; self.csi(buf, offset) }
             Some(b']')  => { *offset += 1; self.osc(buf, offset) }
             Some(b'^') | Some(b'_') => {  ansi_str(buf, offset); None }
-            Some(b'c')  => unimplemented!(), //RIS full reset
+            Some(b'c')  => wrap(NoFeature(String::from("c"))),
             Some(b'N'...b'O')
                 | Some(b'V'...b'X')
                 | Some(b'l'...b'o')

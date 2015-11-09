@@ -75,7 +75,7 @@ impl AnsiCode {
             (b'`', 0, 0)        => wrap(Move::new(Column(self.arg(0,1)-1), )),
             (b'a', 0, 0)        => wrap(Move::new(Right(self.arg(0,1)), )),
             (b'b', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'c', 0, 0)        => unimplemented!(),
+            (b'c', 0, 0)        => wrap(NoFeature(self.csi_code())),
             (b'c', b'>', 0)     => wrap(NoFeature(self.csi_code())),
             (b'd', 0, 0)        => wrap(Move::new(Row(self.arg(0,1)-1), )),
             (b'e', 0, 0)        => wrap(Move::new(Down(self.arg(0,1)), )),
@@ -215,27 +215,27 @@ impl AnsiCode {
                 })
                 }
             },
-            (b'm', b'>', 0)     => unimplemented!(),
+            (b'm', b'>', 0)     => wrap(NoFeature(self.csi_code())),
             (b'n', 0, 0)        => match self.arg(0,5) {
                 5   => wrap(StaticResponse("\x1b[0n")),
                 6   => wrap(ReportPosition(Code::ANSI)),
                 _   => None
             },
-            (b'n', b'>', 0)     => unimplemented!(),
-            (b'n', b'?', 0)     => unimplemented!(),
-            (b'p', 0, b'!')     => unimplemented!(),
-            (b'p', 0, b'$')     => unimplemented!(),
+            (b'n', b'>', 0)     => wrap(NoFeature(self.csi_code())),
+            (b'n', b'?', 0)     => wrap(NoFeature(self.csi_code())),
+            (b'p', 0, b'!')     => wrap(NoFeature(self.csi_code())),
+            (b'p', 0, b'$')     => wrap(NoFeature(self.csi_code())),
             (b'p', 0, b'"')     => wrap(NoFeature(self.csi_code())),
-            (b'p', b'>', 0)     => unimplemented!(),
-            (b'p', b'?', b'$')  => unimplemented!(),
+            (b'p', b'>', 0)     => wrap(NoFeature(self.csi_code())),
+            (b'p', b'?', b'$')  => wrap(NoFeature(self.csi_code())),
             (b'q', 0, 0)        => wrap(NoFeature(self.csi_code())),
             (b'q', 0, b' ')     => match self.arg(0,1) {
-                0 | 1   => unimplemented!(),
-                2       => unimplemented!(),
-                3       => unimplemented!(),
-                4       => unimplemented!(),
-                5       => unimplemented!(),
-                6       => unimplemented!(),
+                0 | 1   => wrap(NoFeature(self.csi_code())),
+                2       => wrap(NoFeature(self.csi_code())),
+                3       => wrap(NoFeature(self.csi_code())),
+                4       => wrap(NoFeature(self.csi_code())),
+                5       => wrap(NoFeature(self.csi_code())),
+                6       => wrap(NoFeature(self.csi_code())),
                 _       => None,
             },
             (b'q', 0, b'"')     => wrap(NoFeature(self.csi_code())),
@@ -265,28 +265,28 @@ impl AnsiCode {
                     _               => None,
                 }
             }
-            (b'r', b'?', 0)     => unimplemented!(),
-            (b's', 0, 0)        => unimplemented!(), //left and right margins
-            (b's', b'?', 0)     => unimplemented!(),
-            (b't', 0, 0)        => unimplemented!(), //window manipulation
+            (b'r', b'?', 0)     => wrap(NoFeature(self.csi_code())),
+            (b's', 0, 0)        => wrap(NoFeature(self.csi_code())), //left and right margins
+            (b's', b'?', 0)     => wrap(NoFeature(self.csi_code())),
+            (b't', 0, 0)        => wrap(NoFeature(self.csi_code())), //window manipulation
             (b't', 0, b' ')     => wrap(NoFeature(self.csi_code())),
-            (b't', 0, b'$')     => unimplemented!(), // DECRARA
+            (b't', 0, b'$')     => wrap(NoFeature(self.csi_code())), // DECRARA
             (b't', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'u', 0, 0)        => unimplemented!(), // Restore cursor?
+            (b'u', 0, 0)        => wrap(NoFeature(self.csi_code())), // Restore cursor?
             (b'u', 0, b' ')     => wrap(NoFeature(self.csi_code())),
-            (b'v', 0, b'$')     => unimplemented!(), // Copy an area
+            (b'v', 0, b'$')     => wrap(NoFeature(self.csi_code())), // Copy an area
             (b'w', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'x', 0, 0)        => unimplemented!(),
-            (b'x', 0, b'*')     => unimplemented!(),
+            (b'x', 0, 0)        => wrap(NoFeature(self.csi_code())),
+            (b'x', 0, b'*')     => wrap(NoFeature(self.csi_code())),
             (b'x', 0, b'$')     => wrap(NoFeature(self.csi_code())),
-            (b'y', 0, b'*')     => unimplemented!(),
-            (b'z', 0, b'$')     => unimplemented!(), // erase rectangular area
+            (b'y', 0, b'*')     => wrap(NoFeature(self.csi_code())),
+            (b'z', 0, b'$')     => wrap(NoFeature(self.csi_code())), // erase rectangular area
             (b'z', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'{', 0, b'\'')    => unimplemented!(),
+            (b'{', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
             (b'{', 0, b'$')     => wrap(NoFeature(self.csi_code())),
             (b'|', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'}', 0, b'\'')    => unimplemented!(), 
-            (b'~', 0, b'\'')    => unimplemented!(), 
+            (b'}', 0, b'\'')    => wrap(NoFeature(self.csi_code())), 
+            (b'~', 0, b'\'')    => wrap(NoFeature(self.csi_code())), 
             _                   => None
         }
     }
