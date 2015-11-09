@@ -49,33 +49,6 @@ impl Region {
         self.bottom - self.top
     }
 
-    pub fn move_and_scroll(&self, Coords {x, y}: Coords, movement: Movement)
-            -> (Coords, u32, Direction) {
-        match movement {
-            UpIndex(n) if self.top + n > y          => {
-                (Coords {x: x, y: self.top}, self.top + n - y, Direction::Up)
-            }
-            DownIndex(n) if n + y >= self.bottom    => {
-                (Coords {x: x, y: n + y}, n + y - self.bottom + 1, Direction::Down)
-            }
-            LeftIndex(n) if self.left + n > x       => {
-                (Coords {x: self.left, y: y}, self.left + n - x, Direction::Left)
-            }
-            RightIndex(n) if n + x >= self.right    => {
-                (Coords {x: self.right - 1, y: y}, n + y - self.bottom + 1, Direction::Right)
-            }
-            PreviousLine(n) if self.top + n > y     => {
-                (Coords {x: 0, y: self.top}, self.top + n - y, Direction::Up)
-            }
-            NextLine(n) if n + y >= self.bottom     => {
-                (Coords {x: 0, y: n + y}, n + y - self.bottom + 1, Direction::Down)
-            }
-            _                                       => {
-                (self.move_within(Coords {x: x, y: y}, movement), 0, Direction::Down)
-            }
-        }
-    }
-
     /// Calculate the movement from one coordinate to another within this region.
     pub fn move_within(&self, Coords {x, y}: Coords, movement: Movement) -> Coords {
         match movement {
