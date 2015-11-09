@@ -1,0 +1,5 @@
+target
+anterminal/target
+anterminal/pangocairo/target
+anterminal/tty/target
+Cargo.lock

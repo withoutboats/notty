@@ -1,0 +1,19 @@
+[package]
+name = "anterminal"
+version = "0.1.0"
+authors = ["Without Boats <woboats@gmail.com>"]
+
+[dependencies]
+gdk = "*"
+gtk = "*"
+cairo-rs = "*"
+
+[dependencies.tty]
+path = "tty"
+
+[dependencies.pangocairo]
+path = "pangocairo"
+
+[dependencies.natty]
+path = ".."
+
