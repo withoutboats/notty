@@ -1,5 +1,5 @@
 use command::prelude::*;
-use datatypes::{Coords, Movement};
+use datatypes::Movement;
 use datatypes::Movement::*;
 
 #[derive(Copy, Clone)]

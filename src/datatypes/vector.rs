@@ -1,6 +1,8 @@
 use datatypes::{Coords, Movement, Region};
 use datatypes::Movement::*;
 
+/// An iterator representing all coordinates a cursor would pass through in completing some
+/// movement within some region.
 pub struct Vector {
     pos: Coords,
     mov: Movement,

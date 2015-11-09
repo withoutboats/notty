@@ -5,6 +5,10 @@ use cfg;
 use datatypes::{Coords, Direction, Movement};
 use datatypes::Movement::*;
 
+/// A concrete, rectangular region of the screen.
+///
+/// The region is incluse of the top and left boundary and exclusive of the bottom and right
+/// boundary.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Region {
     pub left: u32,
@@ -14,6 +18,8 @@ pub struct Region {
 }
 
 impl Region {
+    /// Creates a region. Note that x1/x2 and y1/y2 need not be properly ordered, but one of them 
+    /// __must__ be greater than the other. This function will panic otherwise.
     pub fn new(x1: u32, y1: u32, x2: u32, y2: u32) -> Region {
         let (left, right) = (cmp::min(x1, x2), cmp::max(x1, x2));
         let (top, bottom) = (cmp::min(y1, y2), cmp::max(y1, y2));
@@ -27,15 +33,18 @@ impl Region {
         }
     }
 
+    /// Returns true if a given coordinates is contained within this region.
     pub fn contains(&self, coords: Coords) -> bool {
         self.left <= coords.x && coords.x < self.right
             && self.top <= coords.y && coords.y < self.bottom
     }
 
+    /// Returns the width of this region.
     pub fn width(&self) -> u32 {
         self.right - self.left
     }
 
+    /// Returns the height of this region.
     pub fn height(&self) -> u32 {
         self.bottom - self.top
     }
@@ -67,6 +76,7 @@ impl Region {
         }
     }
 
+    /// Calculate the movement from one coordinate to another within this region.
     pub fn move_within(&self, Coords {x, y}: Coords, movement: Movement) -> Coords {
         match movement {
             Position(coords)            => self.xy_within(coords),
@@ -107,6 +117,8 @@ impl Region {
         }
     }
 
+    /// Iterate over the coordinates in the region, starting in the upper left and moving rightward
+    /// and wrapping at the right edge of the region.
     pub fn iter(&self) -> RegionIter {
         RegionIter {
             region: *self,
@@ -115,6 +127,7 @@ impl Region {
         }
     }
 
+    /// Calculate the nearest coordinate within the region.
     pub fn xy_within(&self, Coords {x, y}: Coords) -> Coords {
         Coords {
             x: self.x_within(x),
@@ -122,10 +135,12 @@ impl Region {
         }
     }
 
+    /// Calculate the nearest x value within the region.
     pub fn x_within(&self, x: u32) -> u32 {
         cmp::max(cmp::min(x, self.right - 1), self.left)
     }
 
+    /// Calculate the naerest y value within the region.
     pub fn y_within(&self, y: u32) -> u32 {
         cmp::max(cmp::min(y, self.bottom - 1), self.top)
     }

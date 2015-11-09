@@ -3,6 +3,7 @@ use datatypes::{Coords, Direction};
 
 use self::Movement::*;
 
+/// Represents a manner in which the cursor can be moved.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Movement {
     Position(Coords),
@@ -30,6 +31,8 @@ pub enum Movement {
 
 impl Movement {
 
+    /// Given a movement, set the magnitude to `n`. Note that for directional keys, a magnitude of
+    /// 0 is equivalent to setting it to the ToEdge form.
     pub fn magnitude(&self, n: u32) -> Movement {
         if n == 0 {
             match *self {
@@ -62,6 +65,8 @@ impl Movement {
         }
     }
 
+    /// Convert this movement to a direction and a magnitude, or None if it cannot be represented
+    /// as a direction and a magnitude.
     pub fn as_direction(&self) -> Option<(u32, Direction)> {
         match *self {
             Up(n) | UpIndex(n) | PreviousLine(n)    => Some((n, Direction::Up)),
@@ -74,6 +79,7 @@ impl Movement {
         }
     }
 
+    /// Returns true if this motion can cause the screen to scroll.
     pub fn scrolls(&self) -> bool {
         match *self {
             UpIndex(_)
