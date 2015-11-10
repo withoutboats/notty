@@ -7,7 +7,7 @@ use datatypes::InputMode;
 pub struct PushBuffer(pub bool);
 
 impl Command for PushBuffer {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.push_buffer(false, self.0);
     }
     fn repr(&self) -> String {
@@ -22,7 +22,7 @@ impl Command for PushBuffer {
 pub struct PopBuffer;
 
 impl Command for PopBuffer {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.pop_buffer();
     }
     fn repr(&self) -> String {
@@ -33,7 +33,7 @@ impl Command for PopBuffer {
 pub struct SetTitle(pub RefCell<Option<String>>);
 
 impl Command for SetTitle {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         if let Some(title) = self.0.borrow_mut().take() {
             screen.set_title(title);
         }
@@ -47,8 +47,8 @@ impl Command for SetTitle {
 pub struct SetInputMode(pub InputMode);
 
 impl Command for SetInputMode {
-    fn apply(&self, _: &mut Screen, input: &Sender<InputEvent>) {
-        input.send(InputEvent::Mode(self.0));
+    fn apply(&self, _: &mut Screen, input: &mut FnMut(InputEvent)) {
+        input(InputEvent::Mode(self.0));
     }
     fn repr(&self) -> String {
         match self.0 {
@@ -63,7 +63,7 @@ impl Command for SetInputMode {
 pub struct Bell;
 
 impl Command for Bell {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.bell();
     }
     fn repr(&self) -> String {

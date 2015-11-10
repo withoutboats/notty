@@ -5,7 +5,7 @@ use datatypes::{Area, Style};
 pub struct SetStyleInArea(pub Area, pub Style);
 
 impl Command for SetStyleInArea {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.set_style_in_area(self.0, self.1);
     }
     fn repr(&self) -> String {
@@ -17,7 +17,7 @@ impl Command for SetStyleInArea {
 pub struct DefaultStyleInArea(pub Area);
 
 impl Command for DefaultStyleInArea {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.reset_styles_in_area(self.0);
     }
     fn repr(&self) -> String {

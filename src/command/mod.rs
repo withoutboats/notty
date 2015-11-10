@@ -32,16 +32,29 @@ mod prelude {
 }
 
 pub trait Command: Send + 'static {
-    fn apply(&self, &mut Screen, &Sender<InputEvent>);
+    /// Apply this command to the screen and input.
+    ///
+    /// Dynamically dispatched `Command` objects are generated from the `Output` iterator, which
+    /// parses the output of the controlling process into applicable `Command` events. None of the
+    /// implemeners of `Command` are exported from this library, so that the process of application
+    /// remains opaque to downstream users.
+    ///
+    /// The first argument to this method is a mutable reference to the `Screen` object; most
+    /// commands modify the screen state in some way.
+    ///
+    /// The second argument to this method is a dynamically dispatched function which takes an
+    /// `InputEvent`. This function is intended to send the event to the `Input` processor,
+    /// immediately or indirectly (such as through an mpsc channel).
+    fn apply(&self, &mut Screen, &mut FnMut(InputEvent));
     fn repr(&self) -> String;
 }
 
 pub struct CommandSeries(pub Vec<Box<Command>>);
 
 impl Command for CommandSeries {
-    fn apply(&self, screen: &mut Screen, tx: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, input: &mut FnMut(InputEvent)) {
         for cmd in &self.0 {
-            cmd.apply(screen, tx);
+            cmd.apply(screen, input);
         }
     }
     fn repr(&self) -> String {
@@ -52,7 +65,7 @@ impl Command for CommandSeries {
 pub struct NoFeature(pub String);
 
 impl Command for NoFeature {
-    fn apply(&self, _: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, _: &mut Screen, _: &mut FnMut(InputEvent)) {
         if let Ok(mut file) = File::open(::cfg::LOGFILE) {
             let _ = write!(file, "{}", self.repr());
         }

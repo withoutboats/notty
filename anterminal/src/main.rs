@@ -81,7 +81,7 @@ fn main() {
             match rx_out.try_recv() {
                 Ok(cmd)             => {
                     redraw = true;
-                    cmd.apply(&mut screen, &tx_in);
+                    cmd.apply(&mut screen, &mut |event| tx_in.send(event).unwrap());
                 }
                 Err(Disconnected)   => {
                     gtk::main_quit();

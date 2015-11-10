@@ -19,7 +19,7 @@ impl Put {
 }
 
 impl Command for Put {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         if let Some(data) = self.0.borrow_mut().take() {
             screen.write(data)
         }

@@ -14,7 +14,7 @@ impl Erase {
 }
 
 impl Command for Erase {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.erase(self.area);
     }
     fn repr(&self) -> String {
@@ -35,7 +35,7 @@ impl RemoveChars {
 }
 
 impl Command for RemoveChars {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.remove_at(self.count);
     }
     fn repr(&self) -> String {
@@ -58,7 +58,7 @@ impl RemoveRows {
 }
 
 impl Command for RemoveRows {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.remove_rows_at(self.count, self.include);
     }
     fn repr(&self) -> String {
@@ -82,7 +82,7 @@ impl InsertBlank {
 }
 
 impl Command for InsertBlank {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.insert_blank_at(self.count);
     }
     fn repr(&self) -> String {
@@ -105,7 +105,7 @@ impl InsertRows {
 }
 
 impl Command for InsertRows {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.insert_rows_at(self.count, self.include);
     }
     fn repr(&self) -> String {

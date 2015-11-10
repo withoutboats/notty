@@ -17,7 +17,7 @@ impl Move {
 }
 
 impl Command for Move {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.move_cursor(self.movement);
     }
     fn repr(&self) -> String {
@@ -64,7 +64,7 @@ impl ScrollScreen {
 }
 
 impl Command for ScrollScreen {
-    fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         screen.scroll(self.dir, self.n)
     }
     fn repr(&self) -> String {
