@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use cfg;
 use datatypes::{Coords, Direction};
 use datatypes::Direction::*;
 
@@ -57,9 +56,9 @@ impl Movement {
             ToBeginning | PreviousLine(_)                           => Left,
             ToEnd | NextLine(_)                                     => Right,
             Column(n) if n < cursor.x                               => Left,
-            Column(n)                                               => Right,
+            Column(_)                                               => Right,
             Row(n) if n < cursor.y                                  => Up,
-            Row(n)                                                  => Down,
+            Row(_)                                                  => Down,
             Position(coords)                                        => {
                 match coords.y.cmp(&cursor.y) {
                     Ordering::Less                                  => Left,

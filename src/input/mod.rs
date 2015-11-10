@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use std::sync::mpsc::Receiver;
 
 use datatypes::{InputEvent, InputMode, Key};
 use datatypes::InputMode::*;

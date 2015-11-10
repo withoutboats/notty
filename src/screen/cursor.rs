@@ -1,5 +1,5 @@
 use cfg;
-use datatypes::{Coords, Direction, Movement, Region};
+use datatypes::{Coords, Movement, Region};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
 use screen::{CharCell, Grid, Styles};

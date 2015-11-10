@@ -1,6 +1,5 @@
 use std::io;
 use std::str;
-use std::sync::mpsc::Sender;
 
 use command::*;
 use datatypes::args::*;
