@@ -1,7 +1,7 @@
 use command::prelude::*;
-use datatypes::Movement;
-use datatypes::Movement::*;
+use datatypes::{Direction, Movement};
 use datatypes::Direction::*;
+use datatypes::Movement::*;
 
 #[derive(Copy, Clone)]
 pub struct Move {
@@ -50,20 +50,22 @@ impl Command for Move {
 }
 
 pub struct ScrollScreen {
-    movement: Movement,
+    dir: Direction,
+    n: u32,
 }
 
 impl ScrollScreen {
-    pub fn new(movement: Movement) -> ScrollScreen {
+    pub fn new(dir: Direction, n: u32) -> ScrollScreen {
         ScrollScreen {
-            movement: movement,
+            dir: dir,
+            n: n
         }
     }
 }
 
 impl Command for ScrollScreen {
     fn apply(&self, screen: &mut Screen, _: &Sender<InputEvent>) {
-        screen.scroll(self.movement)
+        screen.scroll(self.dir, self.n)
     }
     fn repr(&self) -> String {
         String::from("SCROLL SCREEN")

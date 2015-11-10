@@ -71,16 +71,6 @@ impl Movement {
         }
     }
 
-    pub fn as_direction(&self) -> Option<(u32, Direction)> {
-        match *self {
-            To(d, n, _) | IndexTo(d, n)             => Some((n, d)),
-            Tab(d, n, _)                            => Some((n * cfg::TAB_STOP, d)),
-            PreviousLine(n)                         => Some((n, Up)),
-            NextLine(n)                             => Some((n, Down)),
-            _                                       => None,
-        }
-    }
-
     /// Returns true if this motion can cause the screen to scroll.
     pub fn scrolls(&self) -> bool {
         match *self {

@@ -3,7 +3,7 @@ use std::cmp::{self, Ordering};
 use unicode_width::*;
 
 use cfg;
-use datatypes::{Area, CellData, Coords, CoordsIter, Movement, Region, Style};
+use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style};
 use datatypes::Area::*;
 use datatypes::Movement::*;
 use datatypes::Direction::*;
@@ -107,10 +107,8 @@ impl CharGrid {
         self.grid_height = self.grid.height as u32;
     }
 
-    pub fn scroll(&mut self, movement: Movement) {
-        if let Some((n, dir)) = movement.as_direction() {
-            self.grid.scroll(n as usize, dir)
-        }
+    pub fn scroll(&mut self, dir: Direction, n: u32) {
+        self.grid.scroll(n as usize, dir)
     }
 
     pub fn erase(&mut self, area: Area) {
