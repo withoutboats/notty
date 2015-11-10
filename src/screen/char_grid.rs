@@ -3,7 +3,7 @@ use std::cmp::{self, Ordering};
 use unicode_width::*;
 
 use cfg;
-use datatypes::{Area, CellData, Coords, Movement, Region, Style, Vector};
+use datatypes::{Area, CellData, Coords, CoordsIter, Movement, Region, Style};
 use datatypes::Area::*;
 use datatypes::Movement::*;
 use datatypes::Direction::*;
@@ -118,9 +118,11 @@ impl CharGrid {
     }
 
     pub fn insert_blank_at(&mut self, n: u32) {
-        let vector = Vector::new(self.cursor.coords, ToEdge(Right), self.grid.bounds()).skip(1)
-                            .collect::<Vec<_>>();
-        for coords in vector.into_iter().rev().skip(n as usize) {
+        let mut iter = CoordsIter::from_area(CursorTo(ToEdge(Right)),
+                                             self.cursor.coords,
+                                             self.grid.bounds());
+        iter.next();
+        for coords in iter.rev().skip(n as usize) {
             self.grid.moveover(coords, Coords {x: coords.x + n, y: coords.y});
         }
     }
@@ -194,65 +196,10 @@ impl CharGrid {
         self.grid.height as u32
     }
 
-    fn in_area<F>(&mut self, area: Area, f: F)
-    where F: Fn(&mut Grid<CharCell>, Coords) {
-        let width = self.grid.width as u32;
-        let height = self.grid.height as u32;
-        match area {
-            CursorCell                  => f(&mut self.grid, self.cursor.coords),
-            CursorRow                   => {
-                for coords in Region::new(0, self.cursor.coords.y, 0, self.cursor.coords.y + 1) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            CursorColumn                => {
-                for coords in Region::new(self.cursor.coords.x, 0, self.cursor.coords.x + 1, 0) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            CursorTo(movement)          => {
-                for coords in Vector::new(self.cursor.coords, movement, self.grid.bounds()) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            CursorBound(coords)         => {
-                for coords in Region::new(self.cursor.coords.x, self.cursor.coords.y,
-                                          coords.x, coords.y) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            BelowCursor(true)           => {
-                for coords in Region::new(0, self.cursor.coords.y, width, height) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            BelowCursor(false)          => {
-                if self.cursor.coords.y == height - 1 { return; }
-                for coords in Region::new(0, self.cursor.coords.y + 1, width, height) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            WholeScreen                 => {
-                for coords in self.grid.bounds() {
-                    f(&mut self.grid, coords);
-                }
-            }
-            Bound(region)               => {
-                for coords in region {
-                    f(&mut self.grid, coords);
-                }
-            }
-            Rows(top, bottom)           => {
-                for coords in Region::new(0, top, width, cmp::min(height, bottom)) {
-                    f(&mut self.grid, coords);
-                }
-            }
-            Columns(left, right)        => {
-                for coords in Region::new(left, 0, cmp::min(width, right), height) {
-                    f(&mut self.grid, coords);
-                }
-            }
-        };
+    fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {
+        for coords in CoordsIter::from_area(area, self.cursor.coords, self.grid.bounds()) {
+            f(&mut self.grid, coords);
+        }
     }
 
 }

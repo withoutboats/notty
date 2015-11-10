@@ -2,7 +2,7 @@ use std::cmp;
 use std::iter::IntoIterator;
 
 use cfg;
-use datatypes::{Coords, Direction, Movement};
+use datatypes::{Coords, CoordsIter, Direction, Movement};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
 
@@ -136,12 +136,8 @@ impl Region {
 
     /// Iterate over the coordinates in the region, starting in the upper left and moving rightward
     /// and wrapping at the right edge of the region.
-    pub fn iter(&self) -> RegionIter {
-        RegionIter {
-            region: *self,
-            point: Coords {x: self.left, y: self.top},
-            back_point: Coords {x: self.left, y: self.bottom},
-        }
+    pub fn iter(&self) -> CoordsIter {
+        CoordsIter::from_region(*self)
     }
 
     /// Calculate the nearest coordinate within the region.
@@ -166,61 +162,10 @@ impl Region {
 
 impl IntoIterator for Region {
     type Item = Coords;
-    type IntoIter = RegionIter;
+    type IntoIter = CoordsIter;
 
-    fn into_iter(self) -> RegionIter {
+    fn into_iter(self) -> CoordsIter {
         self.iter()
-    }
-}
-
-pub struct RegionIter {
-    region: Region,
-    point: Coords,
-    back_point: Coords,
-}
-
-impl Iterator for RegionIter {
-    type Item = Coords;
-
-    fn next(&mut self) -> Option<Coords> {
-        if self.point != self.back_point {
-            let point = self.point;
-            self.point = if point.x == self.region.right - 1 {
-                Coords {x: self.region.left, y: point.y + 1}
-            } else { Coords {x: point.x + 1, y: point.y} };
-            Some(point)
-        } else { None }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
-        (len, Some(len))
-    }
-
-}
-
-impl DoubleEndedIterator for RegionIter {
-    fn next_back(&mut self) -> Option<Coords> {
-        if self.point != self.back_point {
-            self.back_point = if self.back_point.x == self.region.left {
-                Coords {x: self.region.right - 1, y: self.back_point.y - 1}
-            } else { Coords {x: self.back_point.x - 1, y: self.back_point.y} };
-            Some(self.back_point)
-        } else { None }
-    }
-}
-
-impl ExactSizeIterator for RegionIter {
-    fn len(&self) -> usize {
-        if self.point.y == self.back_point.y {
-            (self.back_point.x  - self.point.x) as usize
-        } else {
-            let width  = self.region.right - self.region.left;
-            let first  = self.region.right - self.point.x;
-            let middle = (self.back_point.y - self.point.y - 1) * width;
-            let last   = self.back_point.y - self.region.left;
-            (first + middle + last) as usize
-        }
     }
 }
 

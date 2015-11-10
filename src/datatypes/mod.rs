@@ -4,13 +4,13 @@
 //! any methods on any type in this submodule are required to take the receiver immutably.
 use std::borrow::Cow;
 
+mod iter;
 mod movement;
 mod region;
-mod vector;
 
+pub use self::iter::CoordsIter;
 pub use self::movement::Movement;
 pub use self::region::Region;
-pub use self::vector::Vector;
 
 pub mod args {
     pub use super::{Coords, Color, Region};
@@ -90,6 +90,17 @@ pub enum Direction {
     Down,
     Left,
     Right,
+}
+
+impl Direction {
+    pub fn rev(&self) -> Direction {
+        match *self {
+            Direction::Up       => Direction::Down,
+            Direction::Down     => Direction::Up,
+            Direction::Left     => Direction::Right,
+            Direction::Right    => Direction::Left,
+        }
+    }
 }
 
 /// Mostly, these represent keys on the keyboard. Boolean fields are true for key presses and

@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use cfg;
 use datatypes::{Coords, Direction};
 use datatypes::Direction::*;
@@ -49,8 +51,26 @@ impl Movement {
         }
     }
 
-    /// Convert this movement to a direction and a magnitude, or None if it cannot be represented
-    /// as a direction and a magnitude.
+    pub fn direction(&self, cursor: Coords) -> Direction {
+        match *self {
+            To(d, _, _) | ToEdge(d) | IndexTo(d, _) | Tab(d, _, _)  => d,
+            ToBeginning | PreviousLine(_)                           => Left,
+            ToEnd | NextLine(_)                                     => Right,
+            Column(n) if n < cursor.x                               => Left,
+            Column(n)                                               => Right,
+            Row(n) if n < cursor.y                                  => Up,
+            Row(n)                                                  => Down,
+            Position(coords)                                        => {
+                match coords.y.cmp(&cursor.y) {
+                    Ordering::Less                                  => Left,
+                    Ordering::Equal if coords.x < cursor.x          => Left,
+                    Ordering::Equal                                 => Right,
+                    Ordering::Greater                               => Right,
+                }
+            }
+        }
+    }
+
     pub fn as_direction(&self) -> Option<(u32, Direction)> {
         match *self {
             To(d, n, _) | IndexTo(d, n)             => Some((n, d)),
