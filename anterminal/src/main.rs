@@ -43,11 +43,21 @@ fn main() {
 
     // Handle user input (keys -> tty) on separate thread.
     let (tx_in, rx_in) = mpsc::channel();
-    thread::spawn(move || Input::new(tty_w).run(rx_in).unwrap());
+    thread::spawn(move || {
+        let mut input = Input::new(tty_w);
+        for event in rx_in {
+            input.process(event).unwrap();
+        }
+    });
 
     // Handler program output (tty -> screen) on separate thread.
     let (tx_out, rx_out) = mpsc::channel();
-    thread::spawn(move || Output::new(BufReader::new(tty_r)).run(tx_out).unwrap());
+    thread::spawn(move || {
+        let output = Output::new(BufReader::new(tty_r));
+        for cmd in output {
+            tx_out.send(cmd.unwrap()).unwrap();
+        }
+    });
 
     // Create the scroll position tracker.
     let scroll   = Rc::new(Cell::new(0));

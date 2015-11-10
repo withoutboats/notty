@@ -24,14 +24,6 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    pub fn run(&mut self, tx: Sender<Box<Command>>) -> io::Result<()> {
-        loop {
-            if let Some(cmd) = self.next() {
-                tx.send(try!(cmd)).unwrap();
-            }
-        }
-    }
-
 }
 
 impl<R: io::BufRead> Iterator for super::Output<R> {

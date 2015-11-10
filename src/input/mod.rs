@@ -25,28 +25,42 @@ impl<W> Input<W> where W: Write {
         }
     }
 
-    pub fn run(&mut self, rx: Receiver<InputEvent>) -> io::Result<()> {
-        for item in rx {
-            match item {
-                InputEvent::Key(key)     => if self.mode == InputMode::Extended {
-                    try!(self.write(key));
+    pub fn process(&mut self, event: InputEvent) -> io::Result<()> {
+        match event {
+            InputEvent::Key(key)    => {
+                if self.mode == InputMode::Extended {
+                    self.write(key)
                 } else {
                     match key {
-                        Key::ShiftLeft(b) | Key::ShiftRight(b)  => self.modifiers.shift = b,
-                        Key::CtrlLeft(b) | Key::CtrlRight(b)    => self.modifiers.ctrl = b,
-                        Key::AltLeft(b) | Key::AltRight(b)      => self.modifiers.alt = b,
-                        Key::CapsLock(true)                     => self.modifiers.caps = true,
-                        Key::CapsLock(false)                    => (),
-                        _                                       => try!(self.write(key)),
+                        Key::ShiftLeft(flag) | Key::ShiftRight(flag) => {
+                            self.modifiers.shift = flag;
+                            Ok(())
+                        }
+                        Key::CtrlLeft(flag) | Key::CtrlRight(flag) => {
+                            self.modifiers.ctrl = flag;
+                            Ok(())
+                        }
+                        Key::AltLeft(flag) | Key::AltRight(flag) => {
+                            self.modifiers.alt = flag;
+                            Ok(())
+                        }
+                        Key::CapsLock(true) => {
+                            self.modifiers.caps = !self.modifiers.caps;
+                            Ok(())
+                        }
+                        Key::CapsLock(false) => Ok(()),
+                        _   => self.write(key),
                     }
-                },
-                InputEvent::Mode(mode)   => self.set_mode(mode),
+                }
+            }
+            InputEvent::Mode(mode)  => {
+                self.set_mode(mode);
+                Ok(())
             }
         }
-        unreachable!()
     }
 
-    pub fn write(&mut self, key: Key) -> io::Result<()> {
+    fn write(&mut self, key: Key) -> io::Result<()> {
         match self.mode {
             Ansi        => match self.ansi_encode(key, false) {
                 Some(code)  => self.tty.write_all(code.as_bytes()),
