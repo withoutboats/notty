@@ -137,8 +137,8 @@ impl Parser {
     fn ctrl_code(&mut self, ch: &str, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
         match ch {
             "\x07"      => wrap(Bell),
-            "\x08"      => wrap(Move::new(To(Left, 1))),
-            "\x09"      => wrap(Move::new(Tab(Right, 1))),
+            "\x08"      => wrap(Move::new(To(Left, 1, true))),
+            "\x09"      => wrap(Move::new(Tab(Right, 1, true))),
             "\n"        => wrap(Move::new(NextLine(1))),
             "\r"        => wrap(Move::new(ToEdge(Left))),
             "\x1b"      => self.esc(buf, offset),

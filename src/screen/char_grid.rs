@@ -76,7 +76,7 @@ impl CharGrid {
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
-                self.cursor.navigate(&mut self.grid, To(Right, 1));
+                self.cursor.navigate(&mut self.grid, To(Right, 1, true));
             }
             CellData::Grapheme(c)   => {
                 let width = c.width() as u32;
@@ -87,14 +87,14 @@ impl CharGrid {
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
-                self.cursor.navigate(&mut self.grid, To(Right, 1));
+                self.cursor.navigate(&mut self.grid, To(Right, 1, true));
             }
             CellData::ExtensionChar(c)  => {
-                self.cursor.navigate(&mut self.grid, To(Left, 1));
+                self.cursor.navigate(&mut self.grid, To(Left, 1, true));
                 if !self.grid[self.cursor.coords].extend_by(c) {
-                    self.cursor.navigate(&mut self.grid, To(Right, 1));
+                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
                     self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                    self.cursor.navigate(&mut self.grid, To(Right, 1));
+                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
                 }
             }
             _                       => unimplemented!(),
@@ -327,7 +327,7 @@ mod tests {
         run_test(|mut grid, h| {
             let movements = vec![
                 (Movement::ToEdge(Direction::Down), Coords {x:0, y:9}),
-                (Movement::Tab(Direction::Right, 1), Coords{x:cfg::TAB_STOP, y:9}),
+                (Movement::Tab(Direction::Right, 1, false), Coords{x:cfg::TAB_STOP, y:9}),
                 (Movement::NextLine(1), Coords{x:0, y:h-1}),
             ];
             for (mov, coords) in movements {

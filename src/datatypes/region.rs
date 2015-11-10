@@ -53,32 +53,74 @@ impl Region {
     /// Calculate the movement from one coordinate to another within this region.
     pub fn move_within(&self, Coords {x, y}: Coords, movement: Movement) -> Coords {
         match movement {
-            Position(coords)                    => self.xy_within(coords),
-            Column(n)                           => Coords {x: self.x_within(n), y: y},
-            Row(n)                              => Coords {x: x, y: self.y_within(n)},
-            ToEdge(Up)                          => Coords {x: x, y: self.top},
-            ToEdge(Down)                        => Coords {x: x, y: self.bottom - 1},
-            ToEdge(Left)                        => Coords {x: self.left, y: y},
-            ToEdge(Right)                       => Coords {x: self.right - 1, y: y},
-            ToBeginning                         => Coords {x: self.left, y: self.top},
-            ToEnd                               => Coords {x: self.right - 1, y: self.bottom - 1},
-            To(Up, n) | IndexTo(Up, n)          => {
+            Position(coords)    => self.xy_within(coords),
+            Column(n)           => Coords {x: self.x_within(n), y: y},
+            Row(n)              => Coords {x: x, y: self.y_within(n)},
+            ToEdge(Up)          => Coords {x: x, y: self.top},
+            ToEdge(Down)        => Coords {x: x, y: self.bottom - 1},
+            ToEdge(Left)        => Coords {x: self.left, y: y},
+            ToEdge(Right)       => Coords {x: self.right - 1, y: y},
+            ToBeginning         => Coords {x: self.left, y: self.top},
+            ToEnd               => Coords {x: self.right - 1, y: self.bottom - 1},
+            To(Up, n, true) if self.top + n > y       => {
+                let x = x.saturating_sub((self.top + n - y) / (self.bottom - self.top) + 1);
+                let y = self.bottom - (self.top + n - y) % (self.bottom - self.top);
+                if x < self.left {
+                    Coords { x: self.left, y: self.top }
+                } else {
+                    Coords { x: x, y: y }
+                }
+            }
+            To(Down, n, true) if y + n >= self.bottom  => {
+                let x = x + (y + n - self.bottom) / (self.bottom - self.top) + 1;
+                let y = self.top + (y + n - self.bottom) % (self.bottom - self.top);
+                if x >= self.right {
+                    Coords { x: self.right - 1, y: self.bottom - 1 }
+                } else {
+                    Coords { x: x, y: y }
+                }
+            }
+            To(Left, n, true) if self.left + n > x    => {
+                let y = y.saturating_sub((self.left + n - x) / (self.right - self.left) + 1);
+                let x = self.right - (self.left + n - x) % (self.right - self.left);
+                if y < self.top {
+                    Coords { x: self.left, y: self.top }
+                } else {
+                    Coords { x: x, y: y }
+                }
+            }
+            To(Right, n, true) if x + n >= self.right  => {
+                let y = y + (x + n - self.right) / (self.right - self.left) + 1;
+                let x = self.left + (x + n - self.right) % (self.right - self.left);
+                if y >= self.bottom {
+                    Coords { x: self.right - 1, y: self.bottom - 1 }
+                } else {
+                    Coords { x: x, y: y }
+                }
+            }
+            To(Up, n, _) | IndexTo(Up, n)         => {
                 Coords {x: x, y: cmp::max(self.top, y.saturating_sub(n))}
             }
-            To(Down, n) | IndexTo(Down, n)      => {
+            To(Down, n, _) | IndexTo(Down, n)     => {
                 Coords {x: x, y: cmp::min(y.saturating_add(n), self.bottom - 1)}
             }
-            To(Left, n) | IndexTo(Left, n)      => {
+            To(Left, n, _) | IndexTo(Left, n)     => {
                 Coords {x: cmp::max(self.left, x.saturating_sub(n)), y: y}
             }
-            To(Right, n) | IndexTo(Right, n)    => {
+            To(Right, n, _) | IndexTo(Right, n)   => {
                 Coords {x: cmp::min(x.saturating_add(n), self.right - 1), y: y}
             }
-            Tab(Left, n)                        => {
+            Tab(Left, n, true) if self.left + n > x => {
+                unimplemented!()
+            }
+            Tab(Right, n, true) if x + n >= self.right => {
+                unimplemented!()
+            }
+            Tab(Left, n, false)                 => {
                 let tab = ((x / cfg::TAB_STOP).saturating_sub(n)) * cfg::TAB_STOP;
                 Coords {x: cmp::max(tab, self.left), y: y}
             }
-            Tab(Right, n)                       => {
+            Tab(Right, n, false)                => {
                 let tab = ((x / cfg::TAB_STOP) + n) * cfg::TAB_STOP;
                 Coords {x: cmp::min(tab, self.right - 1), y: y}
             }
@@ -191,7 +233,7 @@ mod tests {
     use datatypes::Movement::*;
     use datatypes::Direction::*;
 
-    static REGION: &'static Region = &Region { left: 0, top: 10, right: 100, bottom: 100 }; 
+    static REGION: Region = Region { left: 0, top: 10, right: 100, bottom: 100 }; 
 
     static COORDS: &'static [(Coords, bool)] = &[
         (Coords { x: 0, y: 0 }, false),
@@ -203,28 +245,36 @@ mod tests {
         (Coords { x: 200, y: 200 }, false),
     ];
 
-    static MOVEMENTS: &'static [(Coords, Movement, bool, Coords)] = &[
-        (Coords { x:50, y:50 }, Position(Coords { x:40, y:40 }), true, Coords { x:40, y:40 }),
-        (Coords { x:50, y:50 }, Position(Coords { x:200, y:200 }), true, Coords { x:99, y:99}),
-        (Coords { x:50, y:50 }, Position(Coords { x:0, y:0 }), true, Coords { x:0, y:10 }),
-        (Coords { x:50, y:50 }, Column(0), true, Coords { x:0, y:50 }),
-        (Coords { x:50, y:50 }, Column(10), true, Coords { x:10, y:50 }),
-        (Coords { x:50, y:50 }, Column(100), true, Coords { x:99, y:50 }),
-        (Coords { x:50, y:50 }, Row(0), true, Coords { x:50, y:10 }),
-        (Coords { x:50, y:50 }, Row(10), true, Coords { x:50, y:10 }),
-        (Coords { x:50, y:50 }, Row(100), true, Coords { x:50, y:99 }),
-        (Coords { x:50, y:50 }, ToEdge(Up), true, Coords { x:50, y:10 }),
-        (Coords { x:50, y:50 }, ToEdge(Down), true, Coords { x:50, y:99 }),
-        (Coords { x:50, y:50 }, ToEdge(Left), true, Coords { x:0, y:50 }),
-        (Coords { x:50, y:50 }, ToEdge(Right), true, Coords { x:99, y:50 }),
-        (Coords { x:50, y:50 }, ToBeginning, true, Coords { x:0, y:10 }),
-        (Coords { x:50, y:50 }, ToEnd, true, Coords { x:99, y:99 }),
-        (Coords { x:50, y:50 }, To(Up, 5), true, Coords { x:50, y:45 }),
-        (Coords { x:50, y:50 }, To(Down, 5), true, Coords { x:50, y:55 }),
-        (Coords { x:50, y:50 }, To(Left, 5), false, Coords { x:45, y:50 }),
-        (Coords { x:50, y:50 }, To(Right, 5), false, Coords { x:55, y:50 }),
-        (Coords { x:50, y:50 }, PreviousLine(1), true, Coords { x:0, y:49 }),
-        (Coords { x:50, y:50 }, NextLine(1), true, Coords { x:0, y:51 }),
+    static MOVEMENTS: &'static [(Coords, Movement, Coords)] = &[
+        (Coords { x:50, y:50 }, Position(Coords { x:40, y:40 }), Coords { x:40, y:40 }),
+        (Coords { x:50, y:50 }, Position(Coords { x:200, y:200 }), Coords { x:99, y:99}),
+        (Coords { x:50, y:50 }, Position(Coords { x:0, y:0 }), Coords { x:0, y:10 }),
+        (Coords { x:50, y:50 }, Column(0), Coords { x:0, y:50 }),
+        (Coords { x:50, y:50 }, Column(10), Coords { x:10, y:50 }),
+        (Coords { x:50, y:50 }, Column(100), Coords { x:99, y:50 }),
+        (Coords { x:50, y:50 }, Row(0), Coords { x:50, y:10 }),
+        (Coords { x:50, y:50 }, Row(10), Coords { x:50, y:10 }),
+        (Coords { x:50, y:50 }, Row(100), Coords { x:50, y:99 }),
+        (Coords { x:50, y:50 }, ToEdge(Up), Coords { x:50, y:10 }),
+        (Coords { x:50, y:50 }, ToEdge(Down), Coords { x:50, y:99 }),
+        (Coords { x:50, y:50 }, ToEdge(Left), Coords { x:0, y:50 }),
+        (Coords { x:50, y:50 }, ToEdge(Right), Coords { x:99, y:50 }),
+        (Coords { x:50, y:50 }, ToBeginning, Coords { x:0, y:10 }),
+        (Coords { x:50, y:50 }, ToEnd, Coords { x:99, y:99 }),
+        (Coords { x:50, y:50 }, To(Up, 5, false), Coords { x:50, y:45 }),
+        (Coords { x:50, y:50 }, To(Down, 5, false), Coords { x:50, y:55 }),
+        (Coords { x:50, y:50 }, To(Left, 5, false), Coords { x:45, y:50 }),
+        (Coords { x:50, y:50 }, To(Right, 5, false), Coords { x:55, y:50 }),
+        (Coords { x:50, y:15 }, To(Up, 10, true), Coords { x: 49, y: 95 }),
+        (Coords { x:50, y:15 }, To(Up, 180, true), Coords { x: 48, y: 15 }),
+        (Coords { x:50, y:95 }, To(Down, 10, true), Coords { x: 51, y: 15 }),
+        (Coords { x:50, y:95 }, To(Down, 180, true), Coords { x: 52, y: 95 }),
+        (Coords { x:5,  y:50 }, To(Left, 10, true), Coords { x: 95, y: 49 }),
+        (Coords { x:5,  y:50 }, To(Left, 200, true), Coords { x: 5, y: 48 }),
+        (Coords { x:95, y:50 }, To(Right, 10, true), Coords { x: 5, y: 51 }),
+        (Coords { x:95, y:50 }, To(Right, 200, true), Coords { x: 95, y: 52 }),
+        (Coords { x:50, y:50 }, PreviousLine(1), Coords { x:0, y:49 }),
+        (Coords { x:50, y:50 }, NextLine(1), Coords { x:0, y:51 }),
     ];
 
     #[test]
@@ -236,9 +286,9 @@ mod tests {
 
     #[test]
     fn region_calculates_movements() {
-        for &(from, moves, wrapping, to) in MOVEMENTS {
-            assert!(REGION.move_within(from, moves) == to,
-                    "{:?} {:?} {} {:?}", from, moves, wrapping, to);
+        for &(from, moves, to) in MOVEMENTS {
+            let result = REGION.move_within(from, moves);
+            assert!(result == to, "{:?} {:?} : {:?} != {:?}", from, moves, result, to);
         }
     }
 

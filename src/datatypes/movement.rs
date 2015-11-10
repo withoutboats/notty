@@ -8,10 +8,10 @@ use self::Movement::*;
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Movement {
     Position(Coords),
-    To(Direction, u32),
+    To(Direction, u32, bool),
     ToEdge(Direction),
     IndexTo(Direction, u32),
-    Tab(Direction, u32),
+    Tab(Direction, u32, bool),
     Column(u32),
     Row(u32),
     PreviousLine(u32),
@@ -27,23 +27,24 @@ impl Movement {
     pub fn magnitude(&self, n: u32) -> Movement {
         if n == 0 {
             match *self {
-                Column(_)               => Column(0),
-                Row(_)                  => Row(0),
-                To(d, _)
+                Column(_)                   => Column(0),
+                Row(_)                      => Row(0),
+                To(d, _, _)
                     | IndexTo(d, _)
-                    | Tab(d, _)         => ToEdge(d),
-                _                       => *self
+                    | Tab(d, _, _)          => ToEdge(d),
+                _                           => *self
             }
         } else {
             match *self {
-                Column(_)               => Column(n),
-                Row(_)                  => Row(n),
-                To(d, _) | ToEdge(d)    => To(d, n),
-                IndexTo(d, _)           => IndexTo(d, n),
-                PreviousLine(_)         => PreviousLine(n),
-                NextLine(_)             => NextLine(n),
-                Tab(d, _)               => Tab(d, n),
-                _                       => *self
+                Column(_)                   => Column(n),
+                Row(_)                      => Row(n),
+                To(d, _, true)              => To(d, n, true),
+                To(d, _, false) | ToEdge(d) => To(d, n, false),
+                IndexTo(d, _)               => IndexTo(d, n),
+                PreviousLine(_)             => PreviousLine(n),
+                NextLine(_)                 => NextLine(n),
+                Tab(d, _, flag)             => Tab(d, n, flag),
+                _                           => *self
             }
         }
     }
@@ -52,8 +53,8 @@ impl Movement {
     /// as a direction and a magnitude.
     pub fn as_direction(&self) -> Option<(u32, Direction)> {
         match *self {
-            To(d, n) | IndexTo(d, n)                => Some((n, d)),
-            Tab(d, n)                               => Some((n * cfg::TAB_STOP, d)),
+            To(d, n, _) | IndexTo(d, n)             => Some((n, d)),
+            Tab(d, n, _)                            => Some((n * cfg::TAB_STOP, d)),
             PreviousLine(n)                         => Some((n, Up)),
             NextLine(n)                             => Some((n, Down)),
             _                                       => None,
