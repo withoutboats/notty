@@ -346,102 +346,73 @@ mod tests {
     ];
 
     #[test]
-    fn area_from_arg() {
+    fn area_argument() {
         for &(area, arg) in AREA_TESTS {
             assert_eq!(Area::decode(Some(arg), None), Some(area));
+            assert_eq!(area.encode(), arg);
         }
     }
 
     #[test]
-    fn area_to_arg() {
-        for &(area, arg) in AREA_TESTS {
-            assert_eq!(&area.encode(), arg);
+    fn bool_argument() {
+        for (s, &flag) in "0;1".split(";").zip(&[false, true]) {
+            assert_eq!(bool::decode(Some(s), None), Some(flag));
+            assert_eq!(flag.encode(), s);
         }
     }
 
     #[test]
-    fn bool_from_arg() {
-        assert_eq!(bool::decode(Some("0"), None), Some(false));
-        assert_eq!(bool::decode(Some("1"), None), Some(true));
-        assert_eq!(bool::decode(Some("2"), None), None);
+    fn color_argument() {
+        for (s, &color) in "0.1.2;3.4.5".split(";").zip(&[Color(0,1,2), Color(3,4,5)]) {
+            assert_eq!(Color::decode(Some(s), None), Some(color));
+            assert_eq!(color.encode(), s);
+        }
     }
 
     #[test]
-    fn bool_to_arg() {
-        assert_eq!(&false.encode(), "0");
-        assert_eq!(&true.encode(),  "1");
+    fn coords_argument() {
+        for (s, &coords) in "1.2;3.4".split(";").zip(&[Coords{x:1, y:2}, Coords{x:3, y:4}]) {
+            assert_eq!(Coords::decode(Some(s), None), Some(coords));
+            assert_eq!(coords.encode(), s);
+        }
     }
 
     #[test]
-    fn color_from_arg() {
-        assert_eq!(Color::decode(Some("0.1.2"), None), Some(Color(0, 1, 2)));
-        assert_eq!(Color::decode(Some("0"), None), None);
+    fn direction_argument() {
+        for (s, &dir) in "1;2;3;4".split(";").zip(&[Up, Down, Left, Right]) {
+            assert_eq!(Direction::decode(Some(s), None), Some(dir));
+            assert_eq!(dir.encode(), s);
+        }
     }
 
     #[test]
-    fn color_to_arg() {
-        assert_eq!(&Color(0,1,2).encode(), "0.1.2");
+    fn input_mode_argument() {
+        for (s, &mode) in "1;2".split(";").zip(&[Ansi, Extended]) {
+            assert_eq!(InputMode::decode(Some(s), None), Some(mode));
+            assert_eq!(mode.encode(), s);
+        }
     }
 
     #[test]
-    fn coords_from_arg() {
-        assert_eq!(Coords::decode(Some("1.2"), None), Some(Coords{x:1, y:2}));
-        assert_eq!(Coords::decode(Some("0"), None), None);
-    }
-
-    #[test]
-    fn coords_to_arg() {
-        assert_eq!(&Coords{x:1, y:2}.encode(), "1.2");
-    }
-
-    #[test]
-    fn input_mode_from_arg() {
-        assert_eq!(InputMode::decode(Some("1"), None), Some(InputMode::Ansi));
-        assert_eq!(InputMode::decode(Some("2"), None), Some(InputMode::Extended));
-        assert_eq!(InputMode::decode(Some("3"), None), None);
-    }
-
-    #[test]
-    fn input_mode_to_arg() {
-        assert_eq!(&InputMode::Ansi.encode(), "1");
-        assert_eq!(&InputMode::Extended.encode(), "2");
-    }
-
-    #[test]
-    fn movement_from_arg() {
+    fn movement_argument() {
         for &(movement, arg) in MOVEMENT_TESTS {
             assert_eq!(Movement::decode(Some(arg), None), Some(movement));
+            assert_eq!(movement.encode(), arg);
         }
     }
 
     #[test]
-    fn movement_to_arg() {
-        for &(movement, arg) in MOVEMENT_TESTS {
-            assert_eq!(&movement.encode(), arg);
+    fn region_argument() {
+        for (s, &region) in "0.1.2.3".split(";").zip(&[Region::new(0,1,2,3)]) {
+            assert_eq!(Region::decode(Some(s), None), Some(region));
+            assert_eq!(region.encode(), s);
         }
     }
 
     #[test]
-    fn region_from_arg() {
-        assert_eq!(Region::decode(Some("0.1.2.3"), None), Some(Region::new(0,1,2,3)));
-        assert_eq!(Region::decode(Some("0.1.2"), None), None);
-    }
-
-    #[test]
-    fn region_to_arg() {
-        assert_eq!(&Region::new(0,1,2,3).encode(), "0.1.2.3");
-    }
-
-    #[test]
-    fn style_from_arg() {
+    fn style_argument() {
         for &(style, arg) in STYLE_TESTS {
             assert_eq!(Style::decode(Some(arg), None), Some(style));
-        }
-    }
-
-    #[test]
-    fn style_to_arg() {
-        for &(style, arg) in STYLE_TESTS {
             assert_eq!(&style.encode(), arg);
         }
     }
