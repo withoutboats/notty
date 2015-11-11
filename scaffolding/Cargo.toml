@@ -1,5 +1,5 @@
 [package]
-name = "anterminal"
+name = "scaffolding-terminal"
 version = "0.1.0"
 authors = ["Without Boats <woboats@gmail.com>"]
 
