@@ -4,11 +4,13 @@ use std::str;
 use command::*;
 use datatypes::args::*;
 
-use self::ansi::AnsiCode;
-use self::grapheme_tables as gr;
-
 mod ansi;
 mod grapheme_tables;
+mod natty;
+
+use self::ansi::AnsiCode;
+use self::grapheme_tables as gr;
+use self::natty::NattyCode;
 
 pub struct Output<R: io::BufRead> {
     tty: R,
@@ -57,6 +59,7 @@ enum Position {
 struct Parser {
     cat: Option<gr::GraphemeCat>,
     ansi: AnsiCode,
+    natty: NattyCode,
     pos: Option<Position>,
     init: usize,
 }
@@ -69,7 +72,7 @@ impl Parser {
             Some(Position::CsiCode)     => self.csi(buf, offset),
             Some(Position::DcsCode)     => self.dcs(buf, offset),
             Some(Position::OscCode)     => self.osc(buf, offset),
-            Some(Position::NattyCode)   => unimplemented!(),
+            Some(Position::NattyCode)   => self.natty(buf, offset),
             None                        => {
                 self.init = *offset;
                 self.grapheme(buf, offset)
@@ -174,6 +177,7 @@ impl Parser {
                 | Some(b'V'...b'X')
                 | Some(b'l'...b'o')
                 | Some(b'|'...b'~') => { *offset += 1; None }
+            Some(b'{')  => { *offset += 1; self.natty(buf, offset) }
             Some(_)     => None,
             None        => { self.pos = Some(Position::EscCode); None }
         }
@@ -264,6 +268,39 @@ impl Parser {
 
     }
 
+    fn natty(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
+        static ARGCHARS: &'static str = ".0123456789;ABCDEFabcdef";
+        'natty: loop {
+            match code_point(buf, offset) {
+                Some(s) if ARGCHARS.contains(s) => {
+                    *offset += 1;
+                    self.natty.args.push_str(s);
+                }
+                Some("{")                       => {
+                    match attachment(buf, offset) {
+                        Some(bytes) => self.natty.attachments.push(bytes),
+                        None        => {
+                            self.pos = Some(Position::NattyCode);
+                            return None
+                        }
+                    }
+                }
+                Some("}")                       => {
+                    *offset += 1;
+                    break 'natty;
+                }
+                Some(_)                         => return None,
+                None                            => {
+                    self.pos = Some(Position::NattyCode);
+                    return None;
+                }
+            }
+        }
+        let ret = self.natty.parse();
+        self.natty.clear();
+        ret
+    }
+
 }
 
 fn byte(buf: &[u8], offset: usize) -> Option<u8> {
@@ -332,6 +369,30 @@ fn ignore(buf: &[u8], offset: &mut usize, ignore: &[u8]) {
     }
 }
 
+fn attachment<'a>(buf: &'a [u8], offset: &mut usize) -> Option<&'a [u8]> {
+    let mut offset_tmp = *offset + 1;
+    'len: loop {
+        match byte(buf, offset_tmp) {
+            Some(b@b'0'...b'9') | Some(b@b'A'...b'F') | Some(b@b'a'...b'f') => offset_tmp += 1,
+            // According to the spec, the first byte after the length header must be ';'.
+            // However, in order to continue making some sort of progress on malformed data,
+            // any byte that is not a hexadigit will be treated as the terminal byte.
+            Some(_) => break,
+            None    => return None,
+        }
+    }
+    let len = unsafe {
+        usize::from_str_radix(str::from_utf8_unchecked(&buf[*offset+1..offset_tmp]), 16).unwrap()
+    };
+    offset_tmp += 1;
+    if offset_tmp + len > buf.len() {
+        None
+    } else {
+        *offset = offset_tmp + len;
+        Some(&buf[offset_tmp..*offset])
+    }
+}
+
 fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
     Some(Box::new(cmd) as Box<Command>)
 }
@@ -359,7 +420,7 @@ mod tests {
 
     #[test]
     fn ctrl_codes() {
-        let mut output = setup("AB\x07C\n".as_bytes());
+        let mut output = setup(b"AB\x07C\n");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "BELL");
@@ -369,7 +430,7 @@ mod tests {
 
     #[test]
     fn csi_code() {
-        let mut output = setup("\x1b[7;7HB\x1b[7A\x1b[$rA\x1b[?12h".as_bytes());
+        let mut output = setup(b"\x1b[7;7HB\x1b[7A\x1b[$rA\x1b[?12h");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "MOVE TO 6,6");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "MOVE UP 7");
@@ -384,10 +445,28 @@ mod tests {
 
     #[test]
     fn osc_code() {
-        let mut output = setup("A\x1b]0;Hello, world!\x07B".as_bytes());
+        let mut output = setup(b"A\x1b]0;Hello, world!\x07B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TITLE");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
+    }
+
+    #[test]
+    fn natty_code() {
+        let mut output = setup(b"A\x1b{30;8.ff.ff.ff}\x1b{11;1;2}B");
+        assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
+        assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
+        assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");
+        assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
+    }
+
+    #[test]
+    fn natty_attachment() {
+        let buf = b"{10;YELLOW SUBMARINE{5;HELLO}";
+        let mut offset = 0;
+        assert_eq!(super::attachment(buf, &mut offset), Some("YELLOW SUBMARINE".as_bytes()));
+        assert_eq!(super::attachment(buf, &mut offset), Some("HELLO".as_bytes()));
+        assert_eq!(super::attachment(buf, &mut offset), None);
     }
 
 }

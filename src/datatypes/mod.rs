@@ -13,7 +13,7 @@ pub use self::movement::Movement;
 pub use self::region::Region;
 
 pub mod args {
-    pub use super::{Coords, Color, Region};
+    pub use super::{Area, Coords, Color, Direction, InputMode, Movement, Region, Style};
     pub use super::Area::*;
     pub use super::Direction::*;
     pub use super::InputMode::*;
@@ -147,7 +147,7 @@ pub enum InputEvent {
 }
 
 /// The mode the input processor is in.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum InputMode {
     /// ANSI-compatible mode.
     Ansi,
