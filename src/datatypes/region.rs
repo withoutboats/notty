@@ -2,7 +2,7 @@ use std::cmp;
 use std::iter::IntoIterator;
 
 use cfg;
-use datatypes::{Coords, CoordsIter, Direction, Movement};
+use datatypes::{Coords, CoordsIter, Movement};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
 

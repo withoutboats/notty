@@ -217,7 +217,7 @@ mod tests {
 
     use cfg;
     use datatypes::{CellData, Coords, Direction, Movement};
-    use screen::{CharCell, Cursor, Grid, Styles};
+    use screen::{CharCell, Styles};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
         test(CharGrid::new(10, 10, false, false), 10);

@@ -50,6 +50,7 @@ enum Position {
     Grapheme,
     EscCode,
     CsiCode,
+    #[allow(dead_code)]
     DcsCode,
     OscCode,
     NattyCode,
@@ -234,6 +235,7 @@ impl Parser {
         ret
     }
 
+    #[allow(unused)]
     fn dcs(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
         unimplemented!();
     }
@@ -373,7 +375,7 @@ fn attachment<'a>(buf: &'a [u8], offset: &mut usize) -> Option<&'a [u8]> {
     let mut offset_tmp = *offset + 1;
     'len: loop {
         match byte(buf, offset_tmp) {
-            Some(b@b'0'...b'9') | Some(b@b'A'...b'F') | Some(b@b'a'...b'f') => offset_tmp += 1,
+            Some(b'0'...b'9') | Some(b'A'...b'F') | Some(b'a'...b'f') => offset_tmp += 1,
             // According to the spec, the first byte after the length header must be ';'.
             // However, in order to continue making some sort of progress on malformed data,
             // any byte that is not a hexadigit will be treated as the terminal byte.
@@ -400,7 +402,8 @@ fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
 #[cfg(test)]
 mod tests {
 
-    use std::io::{BufRead, BufReader};
+    use std::io::BufReader;
+
     use command::*;
     use super::*;
 
@@ -437,10 +440,6 @@ mod tests {
         assert_eq!(&output.next().unwrap().unwrap().repr(), "DEFAULT STYLE IN AREA");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SERIES: SET CURSOR STYLE");
-    }
-
-    //#[test]
-    fn dcs_code() {
     }
 
     #[test]

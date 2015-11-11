@@ -23,33 +23,7 @@ pub enum Movement {
 
 impl Movement {
 
-    /// Given a movement, set the magnitude to `n`. Note that for directional keys, a magnitude of
-    /// 0 is equivalent to setting it to the ToEdge form.
-    pub fn magnitude(&self, n: u32) -> Movement {
-        if n == 0 {
-            match *self {
-                Column(_)                   => Column(0),
-                Row(_)                      => Row(0),
-                To(d, _, _)
-                    | IndexTo(d, _)
-                    | Tab(d, _, _)          => ToEdge(d),
-                _                           => *self
-            }
-        } else {
-            match *self {
-                Column(_)                   => Column(n),
-                Row(_)                      => Row(n),
-                To(d, _, true)              => To(d, n, true),
-                To(d, _, false) | ToEdge(d) => To(d, n, false),
-                IndexTo(d, _)               => IndexTo(d, n),
-                PreviousLine(_)             => PreviousLine(n),
-                NextLine(_)                 => NextLine(n),
-                Tab(d, _, flag)             => Tab(d, n, flag),
-                _                           => *self
-            }
-        }
-    }
-
+    /// Returns the direction the cursor would travel in on taking this movement.
     pub fn direction(&self, cursor: Coords) -> Direction {
         match *self {
             To(d, _, _) | ToEdge(d) | IndexTo(d, _) | Tab(d, _, _)  => d,

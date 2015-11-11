@@ -1,4 +1,3 @@
-#![allow(unused)]
 #![feature(str_char, drain)]
 
 extern crate unicode_width;

@@ -293,6 +293,7 @@ impl AnsiCode {
         }
     }
 
+    #[allow(unused, dead_code)]
     pub fn dcs(&self, strarg: &str) -> Option<Box<Command>> {
         match (self.private_mode, self.preterminal) {
             (b'|', 0)       => unimplemented!(),

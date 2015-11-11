@@ -76,7 +76,7 @@ impl Argument for Color {
     where T: Iterator<Item=u32> {
         match (args.next(), args.next(), args.next()) {
             (Some(r), Some(g), Some(b)) => Some(Color(r as u8, g as u8, b as u8)),
-            _                           => None,
+            _                           => default,
         }
     }
 
@@ -221,7 +221,7 @@ impl Argument for Region {
     where T: Iterator<Item=u32> {
         match (args.next(), args.next(), args.next(), args.next()) {
             (Some(l), Some(t), Some(r), Some(b)) => Some(Region::new(l, t, r, b)),
-            _                                    => None
+            _                                    => default
         }
     }
 

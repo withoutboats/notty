@@ -60,7 +60,7 @@ impl Default for Styles {
 mod tests {
 
     use cfg;
-    use datatypes::{Color, Style};
+    use datatypes::Color;
     use datatypes::Style::*;
     use super::*;
 
