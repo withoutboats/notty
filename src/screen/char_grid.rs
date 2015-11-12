@@ -70,9 +70,11 @@ impl CharGrid {
             CellData::Char(c)       => {
                 let width = c.width().unwrap() as u32;
                 self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                for i in 1..width {
-                    //bounds issues
-                    let coords = Coords { x: self.cursor.coords.x + i, y: self.cursor.coords.y };
+                let bounds = self.grid.bounds();
+                let mut coords = self.cursor.coords;
+                for _ in 1..width {
+                    let next_coords = bounds.move_within(coords, To(Right, 1, false));
+                    if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
@@ -81,9 +83,11 @@ impl CharGrid {
             CellData::Grapheme(c)   => {
                 let width = c.width() as u32;
                 self.grid[self.cursor.coords] = CharCell::grapheme(c, self.cursor.text_style);
-                for i in 1..width {
-                    //bounds issues
-                    let coords = Coords { x: self.cursor.coords.x + i, y: self.cursor.coords.y };
+                let bounds = self.grid.bounds();
+                let mut coords = self.cursor.coords;
+                for _ in 1..width {
+                    let next_coords = bounds.move_within(coords, To(Right, 1, false));
+                    if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
@@ -97,7 +101,20 @@ impl CharGrid {
                     self.cursor.navigate(&mut self.grid, To(Right, 1, true));
                 }
             }
-            _                       => unimplemented!(),
+            CellData::Image { pos, width, height, data }   => {
+                let mut end = self.cursor.coords;
+                end = self.grid.bounds().move_within(end, To(Right, width, false));
+                end = self.grid.bounds().move_within(end, To(Down, height, false));
+                let mut iter = CoordsIter::from_area(CursorBound(end),
+                                                     self.cursor.coords, self.grid.bounds());
+                if let Some(cu_coords) = iter.next() {
+                    self.grid[cu_coords] = CharCell::image(data, pos, end, self.cursor.text_style);
+                    for coords in iter {
+                        self.grid[coords] = CharCell::Extension(cu_coords, self.cursor.text_style);
+                    }
+                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                }
+            }
         }
         self.grid_height = self.grid.height as u32;
     }
@@ -217,7 +234,6 @@ mod tests {
 
     use cfg;
     use datatypes::{CellData, Coords, Direction, Movement};
-    use screen::{CharCell, Styles};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
         test(CharGrid::new(10, 10, false, false), 10);
@@ -233,12 +249,9 @@ mod tests {
                 CellData::Char('E'),
                 CellData::ExtensionChar('\u{301}'),
             ].into_iter() { grid.write(c); }
-            assert_eq!(grid.grid[Coords {x:0, y:0}],
-                       CharCell::character('Q', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:0}],
-                       CharCell::grapheme(String::from("E\u{301}"), Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:0}],
-                       CharCell::grapheme(String::from("E\u{301}"), Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "Q");
+            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "E\u{301}");
+            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "E\u{301}");
         });
     }
 
@@ -288,31 +301,31 @@ mod tests {
         run_test(|mut grid, _| {
             setup(&mut grid);
             grid.insert_blank_at(1);
-            assert_eq!(grid.grid[Coords {x:0, y:0}], CharCell::character('A', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:0}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:0}], CharCell::character('B', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:3, y:0}], CharCell::character('C', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:4, y:0}], CharCell::character('D', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:5, y:0}], CharCell::character('E', Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "A");
+            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "B");
+            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "C");
+            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "D");
+            assert_eq!(grid.grid[Coords {x:5, y:0}].repr(), "E");
             grid.move_cursor(Movement::NextLine(1));
             grid.insert_blank_at(2);
-            assert_eq!(grid.grid[Coords {x:0, y:1}], CharCell::character('1', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:1}], CharCell::character('2', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:4, y:1}], CharCell::character('3', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:5, y:1}], CharCell::character('4', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:6, y:1}], CharCell::character('5', Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "1");
+            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "2");
+            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "3");
+            assert_eq!(grid.grid[Coords {x:5, y:1}].repr(), "4");
+            assert_eq!(grid.grid[Coords {x:6, y:1}].repr(), "5");
             grid.move_cursor(Movement::NextLine(1));
             grid.insert_blank_at(3);
-            assert_eq!(grid.grid[Coords {x:0, y:2}], CharCell::character('!', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:2}], CharCell::character('@', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:5, y:2}], CharCell::character('#', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:6, y:2}], CharCell::character('$', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:7, y:2}], CharCell::character('%', Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "!");
+            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "@");
+            assert_eq!(grid.grid[Coords {x:5, y:2}].repr(), "#");
+            assert_eq!(grid.grid[Coords {x:6, y:2}].repr(), "$");
+            assert_eq!(grid.grid[Coords {x:7, y:2}].repr(), "%");
         })
     }
 
@@ -321,25 +334,25 @@ mod tests {
         run_test(|mut grid, _| {
             setup(&mut grid);
             grid.remove_at(1);
-            assert_eq!(grid.grid[Coords {x:0, y:0}], CharCell::character('B', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:0}], CharCell::character('C', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:0}], CharCell::character('D', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:3, y:0}], CharCell::character('E', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:4, y:0}], CharCell::default());
+            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "B");
+            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "C");
+            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "D");
+            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "E");
+            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "");
             grid.move_cursor(Movement::NextLine(1));
             grid.remove_at(2);
-            assert_eq!(grid.grid[Coords {x:0, y:1}], CharCell::character('3', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:1}], CharCell::character('4', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:1}], CharCell::character('5', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:3, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:1}], CharCell::default());
+            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "3");
+            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "4");
+            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "5");
+            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "");
             grid.move_cursor(Movement::NextLine(1));
             grid.remove_at(3);
-            assert_eq!(grid.grid[Coords {x:0, y:2}], CharCell::character('$', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:2}], CharCell::character('%', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:2}], CharCell::default());
+            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "$");
+            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "%");
+            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "");
         })
     }
 
@@ -348,42 +361,42 @@ mod tests {
         run_test(|mut grid, _| {
             setup(&mut grid);
             grid.insert_rows_at(2, false);
-            assert_eq!(grid.grid[Coords {x:0, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:1, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:0, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:1, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:0, y:3}], CharCell::character('1', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:3}], CharCell::character('2', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:3}], CharCell::character('3', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:3, y:3}], CharCell::character('4', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:4, y:3}], CharCell::character('5', Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:0, y:3}].repr(), "1");
+            assert_eq!(grid.grid[Coords {x:1, y:3}].repr(), "2");
+            assert_eq!(grid.grid[Coords {x:2, y:3}].repr(), "3");
+            assert_eq!(grid.grid[Coords {x:3, y:3}].repr(), "4");
+            assert_eq!(grid.grid[Coords {x:4, y:3}].repr(), "5");
             grid.insert_rows_at(3, true);
-            assert_eq!(grid.grid[Coords {x:0, y:0}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:1, y:0}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:0}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:0}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:0}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:0, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:1, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:1}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:0, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:1, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:2, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:3, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:4, y:2}], CharCell::default());
-            assert_eq!(grid.grid[Coords {x:0, y:3}], CharCell::character('A', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:3}], CharCell::character('B', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:3}], CharCell::character('C', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:3, y:3}], CharCell::character('D', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:4, y:3}], CharCell::character('E', Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "");
+            assert_eq!(grid.grid[Coords {x:0, y:3}].repr(), "A");
+            assert_eq!(grid.grid[Coords {x:1, y:3}].repr(), "B");
+            assert_eq!(grid.grid[Coords {x:2, y:3}].repr(), "C");
+            assert_eq!(grid.grid[Coords {x:3, y:3}].repr(), "D");
+            assert_eq!(grid.grid[Coords {x:4, y:3}].repr(), "E");
         })
     }
 
@@ -392,11 +405,11 @@ mod tests {
         run_test(|mut grid, _| {
             setup(&mut grid);
             grid.remove_rows_at(2, true);
-            assert_eq!(grid.grid[Coords {x:0, y:0}], CharCell::character('!', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:1, y:0}], CharCell::character('@', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:2, y:0}], CharCell::character('#', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:3, y:0}], CharCell::character('$', Styles::default()));
-            assert_eq!(grid.grid[Coords {x:4, y:0}], CharCell::character('%', Styles::default()));
+            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "!");
+            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "@");
+            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "#");
+            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "$");
+            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "%");
         })
     }
 

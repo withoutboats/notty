@@ -1,5 +1,7 @@
 #![feature(str_char, drain)]
 
+extern crate image;
+extern crate mime;
 extern crate unicode_width;
 
 pub mod cfg;

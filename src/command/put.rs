@@ -1,9 +1,10 @@
+use image::DynamicImage;
+
 use std::cell::RefCell;
 
 use command::prelude::*;
-use datatypes::CellData;
+use datatypes::{CellData, MediaPosition};
 
-#[derive(Eq, PartialEq)]
 pub struct Put(RefCell<Option<CellData>>);
 
 impl Put {
@@ -15,6 +16,14 @@ impl Put {
     }
     pub fn new_grapheme(ch: String) -> Put {
         Put(RefCell::new(Some(CellData::Grapheme(ch))))
+    }
+    pub fn new_image(data: DynamicImage, pos: MediaPosition, w: u32, h: u32) -> Put {
+        Put(RefCell::new(Some(CellData::Image {
+            pos: pos,
+            width: w,
+            height: h,
+            data: data
+        })))
     }
 }
 

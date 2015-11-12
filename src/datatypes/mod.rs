@@ -4,6 +4,8 @@
 //! any methods on any type in this submodule are required to take the receiver immutably.
 use std::borrow::Cow;
 
+use image::DynamicImage;
+
 mod iter;
 mod movement;
 mod region;
@@ -13,10 +15,23 @@ pub use self::movement::Movement;
 pub use self::region::Region;
 
 pub mod args {
-    pub use super::{Area, Coords, Color, Direction, InputMode, Movement, Region, Style};
+    pub use super::{
+        Area,
+        Coords,
+        Color,
+        Direction,
+        InputMode,
+        MediaAlignment,
+        MediaPosition,
+        Movement,
+        Region,
+        Style,
+    };
     pub use super::Area::*;
     pub use super::Direction::*;
     pub use super::InputMode::*;
+    pub use super::MediaAlignment::*;
+    pub use super::MediaPosition::*;
     pub use super::Movement::*;
     pub use super::Style::*;
 }
@@ -52,7 +67,7 @@ pub enum Area {
 }
 
 /// Data that could be placed in a character cell.
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Clone)]
 pub enum CellData {
     /// A single unicode code point.
     Char(char), 
@@ -61,8 +76,13 @@ pub enum CellData {
     ExtensionChar(char),
     /// A multi code-point grapheme, such as a Hangul triplet.
     Grapheme(String),
-    /// Non-character data, with a mime type and some binary data.
-    Data(String, Vec<u8>),
+    /// Non-character media data, with a mime type, positioning and size info.
+    Image {
+        pos: MediaPosition,
+        width: u32,
+        height: u32,
+        data: DynamicImage,
+    }
 }
 
 /// A kind of escape code format (used for structuring response strings).
@@ -103,6 +123,25 @@ impl Direction {
     }
 }
 
+/// An event that can be sent to the input processor.
+#[derive(Clone, Eq, PartialEq)]
+pub enum InputEvent {
+    /// Data which will be transmitted to the controlling process (usually keyboard input).
+    Key(Key),
+    /// A mode shift for how the processor should transmit data.
+    Mode(InputMode),
+}
+
+/// The mode the input processor is in.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum InputMode {
+    /// ANSI-compatible mode.
+    Ansi,
+    /// ANSI-compatible mode with application arrow key input.
+    Application,
+    Extended,
+}
+
 /// Mostly, these represent keys on the keyboard. Boolean fields are true for key presses and
 /// false for key releases.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -137,23 +176,24 @@ pub enum Key {
     Cmd(Cow<'static, str>),
 }
 
-/// An event that can be sent to the input processor.
-#[derive(Clone, Eq, PartialEq)]
-pub enum InputEvent {
-    /// Data which will be transmitted to the controlling process (usually keyboard input).
-    Key(Key),
-    /// A mode shift for how the processor should transmit data.
-    Mode(InputMode),
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MediaAlignment {
+    LeftTop, Center, RightBottom
 }
 
-/// The mode the input processor is in.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum InputMode {
-    /// ANSI-compatible mode.
-    Ansi,
-    /// ANSI-compatible mode with application arrow key input.
-    Application,
-    Extended,
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MediaPosition {
+    Display(MediaAlignment, MediaAlignment),
+    Fill,
+    Fit,
+    Stretch,
+    Tile
+}
+
+impl Default for MediaPosition {
+    fn default() -> MediaPosition {
+        MediaPosition::Display(MediaAlignment::LeftTop, MediaAlignment::LeftTop)
+    }
 }
 
 /// Set rich text styles. Booleans represent on or off.

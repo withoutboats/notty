@@ -1,5 +1,5 @@
 use cfg;
-use datatypes::{Coords, Movement, Region};
+use datatypes::{Coords, Movement};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
 use screen::{CharCell, Grid, Styles};
@@ -32,8 +32,25 @@ impl Cursor {
             }
             _   => (),
         }
-        self.coords = Region::new(0, 0, grid.width as u32, grid.height as u32)
-                            .move_within(self.coords, movement);
+        let mut coords = grid.bounds().move_within(self.coords, movement);
+        if let CharCell::Extension(source_coords, _) = grid[coords] {
+            loop {
+                match movement.direction(self.coords) {
+                    Right | Down if source_coords.y < coords.y || source_coords.x < coords.x => {
+                        coords = grid.bounds().move_within(coords, To(Right, 1, true));
+                        println!("{:?}", coords);
+                        if !grid[coords].is_char_extension() {
+                            self.coords = coords;
+                            break;
+                        }
+                    }
+                    _   => {
+                        self.coords = source_coords;
+                        break;
+                    }
+                }
+            }
+        } else { self.coords = coords };
     }
 }
 

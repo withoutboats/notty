@@ -33,15 +33,19 @@ impl<R: io::BufRead> Iterator for super::Output<R> {
     fn next(&mut self) -> Option<io::Result<Box<Command>>> {
         let mut offset = 0;
         loop {
-            let ret = match self.tty.fill_buf() {
-                Ok(buf)     => match self.parser.parse(buf, &mut offset) {
-                    Some(cmd)   => Some(Ok(cmd)),
-                    None        => continue,
-                },
+            match match self.tty.fill_buf() {
+                Ok(buf)     => self.parser.parse(buf, &mut offset),
                 Err(err)    => return Some(Err(err)),
-            };
-            self.tty.consume(offset);
-            return ret
+            } {
+                Some(cmd)   => {
+                    self.tty.consume(offset);
+                    return Some(Ok(cmd))
+                }
+                None        => {
+                    self.tty.consume(offset);
+                    offset = 0;
+                }
+            }
         }
     }
 }
@@ -54,6 +58,7 @@ enum Position {
     DcsCode,
     OscCode,
     NattyCode,
+    NattyAttach(usize),
 }
 
 #[derive(Default)]
@@ -74,6 +79,15 @@ impl Parser {
             Some(Position::DcsCode)     => self.dcs(buf, offset),
             Some(Position::OscCode)     => self.osc(buf, offset),
             Some(Position::NattyCode)   => self.natty(buf, offset),
+            Some(Position::NattyAttach(rem))    => {
+                match self.natty.attachments.append_incomplete(buf, offset, rem) {
+                    0   => self.natty(buf, offset),
+                    n   => {
+                        self.pos = Some(Position::NattyAttach(n));
+                        None
+                    }
+                }
+            }
             None                        => {
                 self.init = *offset;
                 self.grapheme(buf, offset)
@@ -279,8 +293,14 @@ impl Parser {
                     self.natty.args.push_str(s);
                 }
                 Some("{")                       => {
-                    match attachment(buf, offset) {
-                        Some(bytes) => self.natty.attachments.push(bytes),
+                    match self.natty.attachments.append(buf, offset) {
+                        Some(0) => {
+                            continue
+                        }
+                        Some(n) => {
+                            self.pos = Some(Position::NattyAttach(n));
+                            return None
+                        }
                         None        => {
                             self.pos = Some(Position::NattyCode);
                             return None
@@ -291,7 +311,9 @@ impl Parser {
                     *offset += 1;
                     break 'natty;
                 }
-                Some(_)                         => return None,
+                Some(_)                         => {
+                    return None
+                }
                 None                            => {
                     self.pos = Some(Position::NattyCode);
                     return None;
@@ -371,30 +393,6 @@ fn ignore(buf: &[u8], offset: &mut usize, ignore: &[u8]) {
     }
 }
 
-fn attachment<'a>(buf: &'a [u8], offset: &mut usize) -> Option<&'a [u8]> {
-    let mut offset_tmp = *offset + 1;
-    'len: loop {
-        match byte(buf, offset_tmp) {
-            Some(b'0'...b'9') | Some(b'A'...b'F') | Some(b'a'...b'f') => offset_tmp += 1,
-            // According to the spec, the first byte after the length header must be ';'.
-            // However, in order to continue making some sort of progress on malformed data,
-            // any byte that is not a hexadigit will be treated as the terminal byte.
-            Some(_) => break,
-            None    => return None,
-        }
-    }
-    let len = unsafe {
-        usize::from_str_radix(str::from_utf8_unchecked(&buf[*offset+1..offset_tmp]), 16).unwrap()
-    };
-    offset_tmp += 1;
-    if offset_tmp + len > buf.len() {
-        None
-    } else {
-        *offset = offset_tmp + len;
-        Some(&buf[offset_tmp..*offset])
-    }
-}
-
 fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
     Some(Box::new(cmd) as Box<Command>)
 }
@@ -457,15 +455,6 @@ mod tests {
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
-    }
-
-    #[test]
-    fn natty_attachment() {
-        let buf = b"{10;YELLOW SUBMARINE{5;HELLO}";
-        let mut offset = 0;
-        assert_eq!(super::attachment(buf, &mut offset), Some("YELLOW SUBMARINE".as_bytes()));
-        assert_eq!(super::attachment(buf, &mut offset), Some("HELLO".as_bytes()));
-        assert_eq!(super::attachment(buf, &mut offset), None);
     }
 
 }

@@ -74,7 +74,8 @@ impl TextRenderer {
                 CharCell::Empty(_)              => self.text.push(' '),
                 CharCell::Char(ch, _)           => self.text.push(ch),
                 CharCell::Grapheme(ref s, _)    => self.text.push_str(&s[..]),
-                _                               => continue,
+                CharCell::Image { .. }          => self.text.push('X'),
+                CharCell::Extension(..)         => self.text.push('X'),
             }
             let range = lower..self.text.len();
             self.add_style(&range, cell.style());
