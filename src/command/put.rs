@@ -3,7 +3,8 @@ use image::DynamicImage;
 use std::cell::RefCell;
 
 use command::prelude::*;
-use datatypes::{CellData, MediaPosition};
+use datatypes::{CellData, Coords, MediaPosition};
+use datatypes::Movement::Position;
 
 pub struct Put(RefCell<Option<CellData>>);
 
@@ -28,11 +29,13 @@ impl Put {
 }
 
 impl Command for Put {
+
     fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
         if let Some(data) = self.0.borrow_mut().take() {
             screen.write(data)
         }
     }
+
     fn repr(&self) -> String {
         match *self.0.borrow() {
             Some(CellData::Char(c)) | Some(CellData::ExtensionChar(c))
@@ -41,4 +44,36 @@ impl Command for Put {
             _                               => String::from("PUT"),
         }
     }
+
+}
+
+pub struct PutAt(RefCell<Option<CellData>>, Coords);
+
+impl PutAt {
+
+    pub fn new_image(data: DynamicImage, pos: MediaPosition, w: u32, h: u32, at: Coords) -> PutAt {
+        PutAt(RefCell::new(Some(CellData::Image {
+            pos: pos,
+            width: w,
+            height: h,
+            data: data,
+        })), at)
+    }
+}
+
+impl Command for PutAt {
+
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+        if let Some(data) = self.0.borrow_mut().take() {
+            let coords = screen.cursor_position();
+            screen.move_cursor(Position(self.1));
+            screen.write(data);
+            screen.move_cursor(Position(coords));
+        }
+    }
+
+    fn repr(&self) -> String {
+        String::from("PUT AT")
+    }
+
 }

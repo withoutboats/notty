@@ -1,6 +1,6 @@
 use std::str::{self, FromStr};
 
-use image::{self, ImageFormat};
+use image::{self, DynamicImage, ImageFormat};
 use mime::{Mime, TopLevel, SubLevel};
 
 use command::*;
@@ -23,7 +23,23 @@ impl NattyCode {
     pub fn parse(&self) -> Option<Box<Command>> {
         let mut args = self.args.split(';');
         match u32::decode(args.next(), None) {
-            Some(0x04)  => put_image(args, self.attachments.iter()),
+            Some(0x04)  => {
+                let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
+                let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
+                let p = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
+                if let Some(img) = image(self.attachments.iter()) {
+                    wrap(Some(Put::new_image(img, p, w, h)))
+                } else { None }
+            }
+            Some(0x05)  => {
+                let coords = Coords::decode(args.next(), Some(Coords {x: 0, y: 0})).unwrap();
+                let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
+                let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
+                let p = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
+                if let Some(img) = image(self.attachments.iter()) {
+                    wrap(Some(PutAt::new_image(img, p, w, h, coords)))
+                } else { None }
+            }
             Some(0x10)  => {
                 wrap(Movement::decode(args.next(), Some(To(Right, 1, true))).map(Move::new))
             }
@@ -79,19 +95,11 @@ impl NattyCode {
 
 }
 
-fn put_image<'a, Args, Attachments>(mut args: Args, mut attachments: Attachments)
--> Option<Box<Command>> where Args: Iterator<Item=&'a str>, Attachments: Iterator<Item=&'a [u8]> {
-
-    let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
-    let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
-    let pos = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
+fn image<'a, I: Iterator<Item=&'a [u8]>>(mut attachments: I) -> Option<DynamicImage> {
 
     let mime = match attachments.next()
         .and_then(|data| str::from_utf8(data).ok())
         .and_then(|string| Mime::from_str(string).ok()) { Some(m) => m, None => return None };
-
-    let data = match attachments.next() { Some(data) => data, None => return None };
-
     let fmt = match (mime.0, mime.1) {
         (TopLevel::Image, SubLevel::Gif) | (TopLevel::Star, SubLevel::Gif)      => {
             ImageFormat::GIF
@@ -105,12 +113,10 @@ fn put_image<'a, Args, Attachments>(mut args: Args, mut attachments: Attachments
         _                                                                       => return None
     };
 
-    let image = match image::load_from_memory_with_format(data, fmt) {
-        Ok(image)   => image,
-        _           => return None
-    };
+    let data = match attachments.next() { Some(data) => data, None => return None };
 
-    wrap(Some(Put::new_image(image, pos, w, h)))
+    image::load_from_memory_with_format(data, fmt).ok()
+
 }
 
 fn wrap<T: Command>(cmd: Option<T>) -> Option<Box<Command>> {

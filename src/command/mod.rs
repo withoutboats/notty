@@ -17,7 +17,7 @@ mod style {
 pub use self::erase::{Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows};
 pub use self::meta::{PushBuffer, PopBuffer, Bell, SetTitle, SetInputMode};
 pub use self::movement::{Move, ScrollScreen};
-pub use self::put::Put;
+pub use self::put::{Put, PutAt};
 pub use self::respond::{StaticResponse, ReportPosition};
 pub use self::style::cursor::{SetCursorStyle, DefaultCursorStyle};
 pub use self::style::text::{SetTextStyle, DefaultTextStyle};
