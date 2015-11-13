@@ -99,6 +99,9 @@ impl NattyCode {
                     wrap(Some(AddToolTip(coords, RefCell::new(Some(String::from(string))))))
                 })
             }
+            Some(0x60)  => wrap(bool::decode(args.next(), Some(false)).map(PushBuffer)),
+            Some(0x61)  => wrap(Some(PopBuffer)),
+            Some(0x80)  => wrap(InputMode::decode(args.next(), Some(Ansi)).map(SetInputMode)),
             _           => None,
         }
     }
