@@ -1,7 +1,31 @@
 use std::cell::RefCell;
 
 use command::prelude::*;
-use datatypes::InputMode;
+use datatypes::{Coords, InputMode};
+
+pub struct AddToolTip(pub Coords, pub RefCell<Option<String>>);
+
+impl Command for AddToolTip {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+        if let Some(string) = self.1.borrow_mut().take() {
+            screen.add_tooltip(self.0, string);
+        }
+    }
+    fn repr(&self) -> String {
+        String::from("ADD TOOL TIP")
+    }
+}
+
+pub struct RemoveToolTip(pub Coords);
+
+impl Command for RemoveToolTip {
+    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+        screen.remove_tooltip(self.0);
+    }
+    fn repr(&self) -> String {
+        String::from("REMOVE TOOL TIP")
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct PushBuffer(pub bool);

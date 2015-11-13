@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::str::{self, FromStr};
 
 use image::{self, DynamicImage, ImageFormat};
@@ -83,6 +84,20 @@ impl NattyCode {
                     Some(style) => wrap(Some(SetStyleInArea(area, style))),
                     None        => wrap(Some(DefaultStyleInArea(area))),
                 }
+            }
+            Some(0x40)  => {
+                self.attachments.iter().next().and_then(|data| str::from_utf8(data).ok())
+                .and_then(|title| {
+                    wrap(Some(SetTitle(RefCell::new(Some(String::from(title))))))
+                })
+            }
+            Some(0x41)  => wrap(Coords::decode(args.next(), None).map(RemoveToolTip)),
+            Some(0x50)  => {
+                let coords = Coords::decode(args.next(), None).unwrap();
+                self.attachments.iter().next().and_then(|data| str::from_utf8(data).ok())
+                .and_then(|string| {
+                    wrap(Some(AddToolTip(coords, RefCell::new(Some(String::from(string))))))
+                })
             }
             _           => None,
         }

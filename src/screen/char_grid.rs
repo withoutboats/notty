@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 use unicode_width::*;
 
@@ -13,6 +14,7 @@ use screen::{CharCell, Cursor, Grid, Styles};
 pub struct CharGrid {
     grid: Grid<CharCell>,
     cursor: Cursor,
+    tooltips: HashMap<Coords, String>,
     pub grid_width: u32,
     pub grid_height: u32,
 }
@@ -28,6 +30,7 @@ impl CharGrid {
         CharGrid {
             grid: grid,
             cursor: Cursor::default(),
+            tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
         }
@@ -124,6 +127,14 @@ impl CharGrid {
         self.grid_height = self.grid.height as u32;
     }
 
+    pub fn add_tooltip(&mut self, coords: Coords, tooltip: String) {
+        self.tooltips.insert(coords, tooltip);
+    }
+
+    pub fn remove_tooltip(&mut self, coords: Coords) {
+        self.tooltips.remove(&coords);
+    }
+
     pub fn scroll(&mut self, dir: Direction, n: u32) {
         self.grid.scroll(n as usize, dir)
     }
@@ -209,6 +220,10 @@ impl CharGrid {
 
     pub fn grid_height(&self) -> u32 {
         self.grid.height as u32
+    }
+
+    pub fn tooltip_at(&self, coords: Coords) -> Option<&str> {
+        self.tooltips.get(&coords).map(|s| &s[..])
     }
 
     fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {

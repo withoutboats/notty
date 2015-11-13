@@ -97,7 +97,7 @@ pub enum Code {
 pub struct Color(pub u8, pub u8, pub u8);
 
 /// A corodinate pair.
-#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Hash)]
 pub struct Coords {
     pub x: u32,
     pub y: u32,

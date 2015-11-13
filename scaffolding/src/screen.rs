@@ -60,6 +60,9 @@ impl ScreenRenderer {
         let logic = self.logic.borrow();
         let offset = (logic.grid_height.saturating_sub(logic.height)) * logic.grid_width;
         let coords = logic.cursor_position();
+        if let Some(info) = logic.tooltip_at(coords) {
+            println!("{}", info);
+        }
         let cursor_pos = ((coords.y * logic.grid_width) + coords.x).saturating_sub(offset);
         self.text.borrow_mut().draw(logic.into_iter(),
                                     cursor_pos as usize,
