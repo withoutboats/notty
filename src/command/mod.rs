@@ -31,13 +31,15 @@ mod prelude {
     pub use datatypes::InputEvent;
 }
 
+/// A command to be applied to the screen.
+///
+/// Dynamically dispatched `Command` objects are generated from the `Output` iterator, which
+/// parses the output of the controlling process into applicable `Command` events. None of the
+/// implementers of `Command` are exported from this library, so that the process of application
+/// remains opaque to downstream users.
 pub trait Command: Send + 'static {
     /// Apply this command to the screen and input.
     ///
-    /// Dynamically dispatched `Command` objects are generated from the `Output` iterator, which
-    /// parses the output of the controlling process into applicable `Command` events. None of the
-    /// implemeners of `Command` are exported from this library, so that the process of application
-    /// remains opaque to downstream users.
     ///
     /// The first argument to this method is a mutable reference to the `Screen` object; most
     /// commands modify the screen state in some way.

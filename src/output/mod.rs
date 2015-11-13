@@ -12,12 +12,15 @@ use self::ansi::AnsiCode;
 use self::grapheme_tables as gr;
 use self::natty::NattyCode;
 
+/// The `Output` struct processes data written to the terminal from the controlling process,
+/// parsing it into structured commands. It is implemented as an `Iterator`.
 pub struct Output<R: io::BufRead> {
     tty: R,
     parser: Parser,
 }
 
 impl<R: io::BufRead> Output<R> {
+    /// Create a new output processor wrapping a buffered read interface to the tty.
     pub fn new(tty: R) -> Output<R> {
         Output {
             tty: tty,

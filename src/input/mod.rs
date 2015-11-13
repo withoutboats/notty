@@ -8,6 +8,8 @@ mod modifiers;
 
 use self::modifiers::Modifiers;
 
+/// The `Input` struct processes `InputEvent`s and manages sending data from the terminal to the
+/// controlling process.
 pub struct Input<W: Write> {
     tty: W,
     mode: InputMode,
@@ -16,6 +18,10 @@ pub struct Input<W: Write> {
 
 impl<W> Input<W> where W: Write {
 
+    /// Create a new input processor by wraping a writeable interface to the tty (or whatever
+    /// system you are using to connect the terminal to the stdin of the controlling process).
+    ///
+    /// The input processor defaults to ANSI compatibility mode.
     pub fn new(tty: W) -> Input<W> {
         Input {
             tty: tty,
@@ -24,6 +30,13 @@ impl<W> Input<W> where W: Write {
         }
     }
 
+    /// Process an input event, including possibly writing the corresponding data to the tty, or
+    /// modifying the state of the input processor itself.
+    ///
+    /// In ANSI and ANSI-Application modes, the processor tracks the state of the shift, ctrl, and
+    /// and alt modifiers, and transmits the correct escape sequence or other control characters
+    /// when receiving other key input. It __does not__ apply the shift modifier to character
+    /// input (e.g. it will not convert 'a' to 'A' or vice versa if the shift modifier is set).
     pub fn process(&mut self, event: InputEvent) -> io::Result<()> {
         match event {
             InputEvent::Key(key)    => {
