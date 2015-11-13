@@ -12,6 +12,7 @@ pub struct Cursor {
 }
 
 impl Cursor {
+
     pub fn navigate(&mut self, grid: &mut Grid<CharCell>, movement: Movement) {
         match movement {
             IndexTo(Up, n) | PreviousLine(n) if n > self.coords.y => {
@@ -33,25 +34,40 @@ impl Cursor {
             _   => (),
         }
         let mut coords = grid.bounds().move_within(self.coords, movement);
-        if let CharCell::Extension(source_coords, _) = grid[coords] {
-            loop {
-                match movement.direction(self.coords) {
-                    Right | Down if source_coords.y < coords.y || source_coords.x < coords.x => {
-                        coords = grid.bounds().move_within(coords, To(Right, 1, true));
-                        println!("{:?}", coords);
-                        if !grid[coords].is_char_extension() {
-                            self.coords = coords;
-                            break;
-                        }
-                    }
-                    _   => {
-                        self.coords = source_coords;
-                        break;
-                    }
+
+        if let CharCell::Extension(source, _) = grid[coords] {
+            match movement {
+                Position(_) => {
+                    self.coords = source;
+                    return;
+                }
+                ToBeginning => {
+                    self.coords = Coords{x:0,y:0};
+                    return;
+                }
+                ToEnd       => {
+                    self.coords = Coords {x: (grid.width-1) as u32, y: (grid.height-1) as u32};
+                    return;
+                }
+                _           => ()
+            }
+            if let Position(_) = movement {
+            }
+            match movement.direction(self.coords) {
+                Up | Left                   => self.coords = source,
+                dir @ Down | dir @ Right    => loop {
+                    let next_coords = grid.bounds().move_within(coords, To(dir, 1, false));
+                    if next_coords == coords { self.coords = source; return; }
+                    if let CharCell::Extension(source2, _) = grid[next_coords] {
+                        if source2 != source { self.coords = source2; return; }
+                        else { coords = next_coords; }
+                    } else { self.coords = next_coords; return; }
                 }
             }
         } else { self.coords = coords };
+
     }
+
 }
 
 impl Default for Cursor {
@@ -65,4 +81,98 @@ impl Default for Cursor {
             text_style: Styles::default(),
         }
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    
+    use datatypes::{Coords, Movement};
+    use datatypes::Direction::*;
+    use datatypes::Movement::*;
+    use screen::{Grid, CharCell, Styles};
+
+    static MOVEMENTS: &'static [(Movement, Coords)] = &[
+        (To(Left, 1, false), Coords {x: 1, y: 2}),
+        (IndexTo(Up, 3), Coords {x: 2, y: 0}),
+        (Position(Coords {x: 4, y: 4}), Coords {x: 4, y: 4})
+    ];
+
+    fn cursor() -> Cursor {
+        Cursor { coords: Coords {x: 2, y: 2}, ..Cursor::default() }
+    }
+
+    #[test]
+    fn navigate() {
+        let mut grid = Grid::new(5, 5);
+        for &(mov, coords) in MOVEMENTS {
+            let mut cursor = cursor();
+            cursor.navigate(&mut grid, mov);
+            assert_eq!(cursor.coords, coords);
+        }
+    }
+
+    #[test]
+    fn navigate_and_scroll() {
+        let mut grid = Grid::with_y_cap(5, 5, 10);
+        for &(mov, coords) in MOVEMENTS {
+            let mut cursor = cursor();
+            cursor.navigate(&mut grid, mov);
+            assert_eq!(cursor.coords, coords);
+        }
+        assert_eq!(grid.height, 6);
+    }
+
+    static MOVEMENTS_EXTENDED: &'static [(Coords, Movement, Coords)] = &[
+        (Coords{x:1,y:1}, To(Right, 1, false), Coords{x:3,y:1}),
+        (Coords{x:1,y:1}, To(Down, 1, false), Coords{x:1,y:3}),
+        (Coords{x:3,y:1}, To(Left, 1, false), Coords{x:1,y:1}),
+        (Coords{x:1,y:3}, To(Up, 1, false), Coords{x:1,y:1}),
+        (Coords{x:1,y:1}, NextLine(1), Coords{x:0,y:2}),
+        (Coords{x:0,y:0}, Position(Coords{x:2,y:2}), Coords{x:1,y:1}),
+        (Coords{x:0,y:1}, To(Right, 2, false), Coords{x:3,y:1}),
+        (Coords{x:1,y:0}, To(Down, 2, false), Coords{x:1,y:3}),
+        (Coords{x:4,y:1}, To(Left, 2, false), Coords{x:1,y:1}),
+        (Coords{x:1,y:4}, To(Up, 2, false), Coords{x:1,y:1}),
+    ];
+
+    #[test]
+    fn navigate_around_extended_cells() {
+        let mut grid = Grid::new(5, 5);
+        grid[Coords{x:2,y:1}] = CharCell::Extension(Coords{x:1,y:1}, Styles::default());
+        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::default());
+        grid[Coords{x:2,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::default());
+        for &(init, mov, end) in MOVEMENTS_EXTENDED {
+            let mut cursor = Cursor { coords: init, ..Cursor::default() };
+            cursor.navigate(&mut grid, mov);
+            assert_eq!(cursor.coords, end);
+        }
+    }
+
+    static MOVEMENTS_EXTENDED_AT_BORDER: &'static [(Coords, Movement, Coords)] = &[
+        (Coords{x:0,y:1}, To(Right, 1, false), Coords{x:0,y:1}),
+        (Coords{x:0,y:1}, To(Down, 1, false), Coords{x:0,y:3}),
+        (Coords{x:0,y:3}, To(Up, 1, false), Coords{x:0,y:1}),
+        (Coords{x:0,y:1}, NextLine(1), Coords{x:0,y:3}),
+        (Coords{x:0,y:3}, PreviousLine(1), Coords{x:0,y:1}),
+        (Coords{x:0,y:0}, To(Down, 2, false), Coords{x:0,y:3}),
+        (Coords{x:0,y:4}, To(Up, 2, false), Coords{x:0,y:1}),
+        (Coords{x:1,y:4}, To(Up, 2, false), Coords{x:0,y:1}),
+    ];
+
+    #[test]
+    fn navigate_around_extended_at_border() {
+        let mut grid = Grid::new(2, 5);
+        grid[Coords{x:1,y:1}] = CharCell::Extension(Coords{x:0,y:1}, Styles::default());
+        grid[Coords{x:0,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::default());
+        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::default());
+        for &(init, mov, end) in MOVEMENTS_EXTENDED_AT_BORDER {
+            let mut cursor = Cursor { coords: init, ..Cursor::default() };
+            cursor.navigate(&mut grid, mov);
+            assert_eq!(cursor.coords, end);
+        }
+    }
+
 }

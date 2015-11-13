@@ -27,8 +27,10 @@ impl Movement {
     pub fn direction(&self, cursor: Coords) -> Direction {
         match *self {
             To(d, _, _) | ToEdge(d) | IndexTo(d, _) | Tab(d, _, _)  => d,
-            ToBeginning | PreviousLine(_)                           => Left,
-            ToEnd | NextLine(_)                                     => Right,
+            ToBeginning                                             => Left,
+            ToEnd                                                   => Right,
+            PreviousLine(_)                                         => Up,
+            NextLine(_)                                             => Down,
             Column(n) if n < cursor.x                               => Left,
             Column(_)                                               => Right,
             Row(n) if n < cursor.y                                  => Up,
