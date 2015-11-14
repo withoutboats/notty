@@ -2,9 +2,9 @@ use std::cell::Cell;
 use std::ops::Range;
 use std::rc::Rc;
 
-use natty::cfg;
-use natty::datatypes::Color;
-use natty::terminal::{CharCell, Styles};
+use notty::cfg;
+use notty::datatypes::Color;
+use notty::terminal::{CharCell, Styles};
 
 use cairo::Context;
 use cairo::glib::translate::ToGlibPtr;

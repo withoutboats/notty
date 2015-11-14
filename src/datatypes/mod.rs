@@ -1,4 +1,4 @@
-//! The datatypes module defines the abstract datatypes used by other components of natty.
+//! The datatypes module defines the abstract datatypes used by other components of notty.
 //! 
 //! The types in this module are intended to be passed between modules. As a design restriction,
 //! any methods on any type in this submodule are required to take the receiver immutably.
@@ -89,7 +89,7 @@ pub enum CellData {
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Code {
     ANSI,
-    Natty,
+    Notty,
 }
 
 /// A 24-bit rgb color sequence.

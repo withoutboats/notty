@@ -1,14 +1,14 @@
-# Natty Escape Codes
+# Notty Escape Codes
 
-Natty escape codes are a set of escape-initiated command sequences, intended
+Notty escape codes are a set of escape-initiated command sequences, intended
 to be transmitted inline with UTF8 encoded textual data representing the input
 from and output to a virtual terminal program. They are analogous to so-called
 ANSI escape codes, defined in ECMA-48, and implement much of the same
 functionality.
 
-## Structure of Natty Escape Codes
+## Structure of Notty Escape Codes
 
-All Natty escape codes have the same structure. Written in psuedo-BNF:
+All Notty escape codes have the same structure. Written in psuedo-BNF:
 
 ```
 <CODE>          ::= "\x1b{" <OPCODE> (";" <ARGUMENT>)* ("{" <ATTACHMENT>)* "}"
@@ -19,7 +19,7 @@ All Natty escape codes have the same structure. Written in psuedo-BNF:
 ```
 
 The sequence initializer is the string U+1b,U+7b (the escape character and the
-left curly brace). This sequence is fully disambuguates natty escape codes from
+left curly brace). This sequence is fully disambuguates notty escape codes from
 any standardized ANSI escape codes, which do not ever begin with these
 charachters.
 

@@ -3,9 +3,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use cairo::Context;
-use natty::cfg;
-use natty::datatypes::Color;
-use natty::terminal::Terminal;
+use notty::cfg;
+use notty::datatypes::Color;
+use notty::terminal::Terminal;
 
 use text::TextRenderer;
 use tty::Handle;

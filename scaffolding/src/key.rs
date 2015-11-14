@@ -1,8 +1,8 @@
 use std::cell::Cell;
 
 use gdk::EventKey;
-use natty::{Command, KeyPress, KeyRelease};
-use natty::datatypes::Key;
+use notty::{Command, KeyPress, KeyRelease};
+use notty::datatypes::Key;
 
 pub trait FromEvent {
     fn from_event(&EventKey, &Cell<usize>) -> Option<Box<Command>>;

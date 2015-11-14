@@ -6,7 +6,7 @@ pub static FONT: &'static str = "Inconsolatazi4 10";
 
 // LOGGING
 
-pub static LOGFILE: &'static str = "~/.log/natty";
+pub static LOGFILE: &'static str = "~/.log/notty";
 
 // SCOLLBACK
 

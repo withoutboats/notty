@@ -14,12 +14,12 @@ use self::argument::Argument;
 use self::attachment::Attachments;
 
 #[derive(Default)]
-pub struct NattyCode {
+pub struct NottyCode {
     pub args: String,
     pub attachments: Attachments,
 }
 
-impl NattyCode {
+impl NottyCode {
 
     pub fn parse(&self) -> Option<Box<Command>> {
         let mut args = self.args.split(';');

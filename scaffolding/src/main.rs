@@ -4,7 +4,7 @@ extern crate pangocairo;
 extern crate cairo;
 
 extern crate tty;
-extern crate natty;
+extern crate notty;
 
 use std::cell::{Cell, RefCell};
 use std::env;
@@ -13,8 +13,8 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use natty::{Output, Command, KeyPress, KeyRelease};
-use natty::terminal::Terminal;
+use notty::{Output, Command, KeyPress, KeyRelease};
+use notty::terminal::Terminal;
 use gtk::{WidgetTrait, WidgetSignals, ContainerTrait};
 
 mod key;
@@ -39,7 +39,7 @@ fn main() {
     window.add(&*canvas);
 
     // Set the TERM variable and establish a TTY connection
-    env::set_var("TERM", "natty");
+    env::set_var("TERM", "notty");
     let (tty_r, tty_w, handle) = tty::pty("sh", COLS as u16, ROWS as u16);
 
     // Handler program output (tty -> screen) on separate thread.

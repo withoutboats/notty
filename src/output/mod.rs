@@ -6,11 +6,11 @@ use datatypes::args::*;
 
 mod ansi;
 mod grapheme_tables;
-mod natty;
+mod notty;
 
 use self::ansi::AnsiCode;
 use self::grapheme_tables as gr;
-use self::natty::NattyCode;
+use self::notty::NottyCode;
 
 /// The `Output` struct processes data written to the terminal from the controlling process,
 /// parsing it into structured commands. It is implemented as an `Iterator`.
@@ -60,15 +60,15 @@ enum Position {
     #[allow(dead_code)]
     DcsCode,
     OscCode,
-    NattyCode,
-    NattyAttach(usize),
+    NottyCode,
+    NottyAttach(usize),
 }
 
 #[derive(Default)]
 struct Parser {
     cat: Option<gr::GraphemeCat>,
     ansi: AnsiCode,
-    natty: NattyCode,
+    notty: NottyCode,
     pos: Option<Position>,
     init: usize,
 }
@@ -81,12 +81,12 @@ impl Parser {
             Some(Position::CsiCode)     => self.csi(buf, offset),
             Some(Position::DcsCode)     => self.dcs(buf, offset),
             Some(Position::OscCode)     => self.osc(buf, offset),
-            Some(Position::NattyCode)   => self.natty(buf, offset),
-            Some(Position::NattyAttach(rem))    => {
-                match self.natty.attachments.append_incomplete(buf, offset, rem) {
-                    0   => self.natty(buf, offset),
+            Some(Position::NottyCode)   => self.notty(buf, offset),
+            Some(Position::NottyAttach(rem))    => {
+                match self.notty.attachments.append_incomplete(buf, offset, rem) {
+                    0   => self.notty(buf, offset),
                     n   => {
-                        self.pos = Some(Position::NattyAttach(n));
+                        self.pos = Some(Position::NottyAttach(n));
                         None
                     }
                 }
@@ -195,7 +195,7 @@ impl Parser {
                 | Some(b'V'...b'X')
                 | Some(b'l'...b'o')
                 | Some(b'|'...b'~') => { *offset += 1; None }
-            Some(b'{')  => { *offset += 1; self.natty(buf, offset) }
+            Some(b'{')  => { *offset += 1; self.notty(buf, offset) }
             Some(_)     => None,
             None        => { self.pos = Some(Position::EscCode); None }
         }
@@ -287,44 +287,44 @@ impl Parser {
 
     }
 
-    fn natty(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
+    fn notty(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
         static ARGCHARS: &'static str = ".0123456789;ABCDEFabcdef";
-        'natty: loop {
+        'notty: loop {
             match code_point(buf, offset) {
                 Some(s) if ARGCHARS.contains(s) => {
                     *offset += 1;
-                    self.natty.args.push_str(s);
+                    self.notty.args.push_str(s);
                 }
                 Some("{")                       => {
-                    match self.natty.attachments.append(buf, offset) {
+                    match self.notty.attachments.append(buf, offset) {
                         Some(0) => {
                             continue
                         }
                         Some(n) => {
-                            self.pos = Some(Position::NattyAttach(n));
+                            self.pos = Some(Position::NottyAttach(n));
                             return None
                         }
                         None        => {
-                            self.pos = Some(Position::NattyCode);
+                            self.pos = Some(Position::NottyCode);
                             return None
                         }
                     }
                 }
                 Some("}")                       => {
                     *offset += 1;
-                    break 'natty;
+                    break 'notty;
                 }
                 Some(_)                         => {
                     return None
                 }
                 None                            => {
-                    self.pos = Some(Position::NattyCode);
+                    self.pos = Some(Position::NottyCode);
                     return None;
                 }
             }
         }
-        let ret = self.natty.parse();
-        self.natty.clear();
+        let ret = self.notty.parse();
+        self.notty.clear();
         ret
     }
 
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn natty_code() {
+    fn notty_code() {
         let mut output = setup(b"A\x1b{30;8.ff.ff.ff}\x1b{11;1;2}B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
