@@ -9,12 +9,12 @@ use datatypes::Area::*;
 use datatypes::Movement::*;
 use datatypes::Direction::*;
 
-use terminal::{CharCell, Cursor, Grid, Styles};
+use terminal::{CharCell, Cursor, Grid, Styles, Tooltip};
 
 pub struct CharGrid {
     grid: Grid<CharCell>,
     cursor: Cursor,
-    tooltips: HashMap<Coords, String>,
+    tooltips: HashMap<Coords, Tooltip>,
     pub grid_width: u32,
     pub grid_height: u32,
 }
@@ -128,11 +128,15 @@ impl CharGrid {
     }
 
     pub fn add_tooltip(&mut self, coords: Coords, tooltip: String) {
-        self.tooltips.insert(coords, tooltip);
+        self.tooltips.insert(coords, Tooltip::Basic(tooltip));
     }
 
     pub fn remove_tooltip(&mut self, coords: Coords) {
         self.tooltips.remove(&coords);
+    }
+
+    pub fn add_drop_down(&mut self, coords: Coords, options: Vec<String>) {
+        self.tooltips.insert(coords, Tooltip::Menu { options: options, position: None });
     }
 
     pub fn scroll(&mut self, dir: Direction, n: u32) {
@@ -222,8 +226,12 @@ impl CharGrid {
         self.grid.height as u32
     }
 
-    pub fn tooltip_at(&self, coords: Coords) -> Option<&str> {
-        self.tooltips.get(&coords).map(|s| &s[..])
+    pub fn tooltip_at(&self, coords: Coords) -> Option<&Tooltip> {
+        self.tooltips.get(&coords)
+    }
+
+    pub fn tooltip_at_mut(&mut self, coords: Coords) -> Option<&mut Tooltip> {
+        self.tooltips.get_mut(&coords)
     }
 
     fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {

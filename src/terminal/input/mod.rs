@@ -83,6 +83,7 @@ impl Input {
             Down                    => term_key(self.modifiers, 'B', application),
             Left                    => term_key(self.modifiers, 'D', application),
             Right                   => term_key(self.modifiers, 'C', application),
+            Enter                   => Some(String::from("\n")),
             MetaLeft | MetaRight    => None,
             PageUp                  => tilde_key(self.modifiers, '5'),
             PageDown                => tilde_key(self.modifiers, '6'),
@@ -93,6 +94,7 @@ impl Input {
             NumLock                 => unimplemented!(),
             ScrollLock              => unimplemented!(),
             Function(_)             => unimplemented!(),
+            MenuSelection(_)        => unimplemented!(),
             ShiftLeft
                 | ShiftRight
                 | CtrlLeft

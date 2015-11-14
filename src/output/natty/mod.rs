@@ -91,7 +91,6 @@ impl NattyCode {
                     wrap(Some(SetTitle(RefCell::new(Some(String::from(title))))))
                 })
             }
-            Some(0x41)  => wrap(Coords::decode(args.next(), None).map(RemoveToolTip)),
             Some(0x50)  => {
                 let coords = Coords::decode(args.next(), None).unwrap();
                 self.attachments.iter().next().and_then(|data| str::from_utf8(data).ok())
@@ -99,6 +98,15 @@ impl NattyCode {
                     wrap(Some(AddToolTip(coords, RefCell::new(Some(String::from(string))))))
                 })
             }
+            Some(0x51)  => {
+                let coords = Coords::decode(args.next(), None).unwrap();
+                self.attachments.iter().map(|data| str::from_utf8(data).ok().map(String::from))
+                .collect::<Option<_>>().and_then(|data| wrap(Some(AddDropDown {
+                    coords: coords,
+                    options: RefCell::new(Some(data)),
+                })))
+            }
+            Some(0x54)  => wrap(Coords::decode(args.next(), None).map(RemoveToolTip)),
             Some(0x60)  => wrap(bool::decode(args.next(), Some(false)).map(PushBuffer)),
             Some(0x61)  => wrap(Some(PopBuffer)),
             Some(0x80)  => wrap(InputMode::decode(args.next(), Some(Ansi)).map(SetInputMode)),

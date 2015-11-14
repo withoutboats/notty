@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{self, Write};
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
@@ -8,6 +8,7 @@ mod cursor;
 mod grid;
 mod input;
 mod styles;
+mod tooltip;
 
 use datatypes::{InputMode, Key};
 
@@ -16,6 +17,7 @@ pub use self::char_grid::CharGrid;
 pub use self::cursor::Cursor;
 pub use self::grid::Grid;
 pub use self::styles::Styles;
+pub use self::tooltip::Tooltip;
 
 use self::input::Input;
 
@@ -43,8 +45,21 @@ impl Terminal {
         }
     }
 
-    pub fn send_input(&mut self, key: Key, press: bool) {
-        self.tty.process(key, press);
+    pub fn send_input(&mut self, key: Key, press: bool) -> io::Result<()> {
+        match key {
+            Key::Down | Key::Up | Key::Enter if press => {
+                let cursor = self.cursor_position();
+                match match self.tooltip_at_mut(cursor) {
+                    Some(tooltip @ &mut Tooltip::Menu { .. })   => tooltip.interact(&key),
+                    _                                           => Err(true)
+                } {
+                    Ok(n)       => self.tty.process(Key::MenuSelection(n), true),
+                    Err(true)   => self.tty.process(key, press),
+                    Err(false)  => Ok(())
+                }
+            }
+            _           => self.tty.process(key, press),
+        }
     }
 
     pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
