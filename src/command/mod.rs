@@ -4,6 +4,7 @@ use std::io::Write;
 use command::prelude::*;
 
 mod erase;
+mod input;
 mod meta;
 mod movement;
 mod put;
@@ -15,6 +16,7 @@ mod style {
 }
 
 pub use self::erase::{Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows};
+pub use self::input::{KeyPress, KeyRelease};
 pub use self::meta::{AddToolTip, RemoveToolTip, PushBuffer, PopBuffer, Bell, SetTitle, SetInputMode};
 pub use self::movement::{Move, ScrollScreen};
 pub use self::put::{Put, PutAt};
@@ -24,39 +26,36 @@ pub use self::style::text::{SetTextStyle, DefaultTextStyle};
 pub use self::style::textarea::{SetStyleInArea, DefaultStyleInArea};
 
 mod prelude {
-    pub use std::sync::mpsc::Sender;
-
     pub use super::Command;
-    pub use screen::Screen;
-    pub use datatypes::InputEvent;
+    pub use terminal::Terminal;
 }
 
-/// A command to be applied to the screen.
+/// A command to be applied to the terminal.
 ///
 /// Dynamically dispatched `Command` objects are generated from the `Output` iterator, which
 /// parses the output of the controlling process into applicable `Command` events. None of the
 /// implementers of `Command` are exported from this library, so that the process of application
 /// remains opaque to downstream users.
 pub trait Command: Send + 'static {
-    /// Apply this command to the screen and input.
+    /// Apply this command to the terminal and input.
     ///
     ///
-    /// The first argument to this method is a mutable reference to the `Screen` object; most
-    /// commands modify the screen state in some way.
+    /// The first argument to this method is a mutable reference to the `Terminal` object; most
+    /// commands modify the terminal state in some way.
     ///
     /// The second argument to this method is a dynamically dispatched function which takes an
     /// `InputEvent`. This function is intended to send the event to the `Input` processor,
     /// immediately or indirectly (such as through an mpsc channel).
-    fn apply(&self, &mut Screen, &mut FnMut(InputEvent));
+    fn apply(&self, &mut Terminal);
     fn repr(&self) -> String;
 }
 
 pub struct CommandSeries(pub Vec<Box<Command>>);
 
 impl Command for CommandSeries {
-    fn apply(&self, screen: &mut Screen, input: &mut FnMut(InputEvent)) {
+    fn apply(&self, terminal: &mut Terminal) {
         for cmd in &self.0 {
-            cmd.apply(screen, input);
+            cmd.apply(terminal);
         }
     }
     fn repr(&self) -> String {
@@ -67,7 +66,7 @@ impl Command for CommandSeries {
 pub struct NoFeature(pub String);
 
 impl Command for NoFeature {
-    fn apply(&self, _: &mut Screen, _: &mut FnMut(InputEvent)) {
+    fn apply(&self, _: &mut Terminal) {
         if let Ok(mut file) = File::open(::cfg::LOGFILE) {
             let _ = write!(file, "{}", self.repr());
         }

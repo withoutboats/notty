@@ -1,7 +1,7 @@
 use image::DynamicImage;
 
 use datatypes::{Coords, MediaPosition};
-use screen::Styles;
+use terminal::Styles;
 
 use self::CharCell::*;
 

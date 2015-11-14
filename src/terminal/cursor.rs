@@ -2,7 +2,7 @@ use cfg;
 use datatypes::{Coords, Movement};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
-use screen::{CharCell, Grid, Styles};
+use terminal::{CharCell, Grid, Styles};
 
 #[derive(Copy, Clone)]
 pub struct Cursor {
@@ -92,7 +92,7 @@ mod tests {
     use datatypes::{Coords, Movement};
     use datatypes::Direction::*;
     use datatypes::Movement::*;
-    use screen::{Grid, CharCell, Styles};
+    use terminal::{Grid, CharCell, Styles};
 
     static MOVEMENTS: &'static [(Movement, Coords)] = &[
         (To(Left, 1, false), Coords {x: 1, y: 2}),

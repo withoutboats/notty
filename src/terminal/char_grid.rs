@@ -9,7 +9,7 @@ use datatypes::Area::*;
 use datatypes::Movement::*;
 use datatypes::Direction::*;
 
-use screen::{CharCell, Cursor, Grid, Styles};
+use terminal::{CharCell, Cursor, Grid, Styles};
 
 pub struct CharGrid {
     grid: Grid<CharCell>,

@@ -13,8 +13,8 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use natty::{Input, Output, Command};
-use natty::screen::Screen;
+use natty::{Output, Command, KeyPress, KeyRelease};
+use natty::terminal::Terminal;
 use gtk::{WidgetTrait, WidgetSignals, ContainerTrait};
 
 mod key;
@@ -22,6 +22,7 @@ mod text;
 mod screen;
 
 use screen::ScreenRenderer;
+use key::FromEvent;
 
 static mut X_PIXELS: Option<u32> = None;
 static mut Y_PIXELS: Option<u32> = None;
@@ -41,17 +42,9 @@ fn main() {
     env::set_var("TERM", "natty");
     let (tty_r, tty_w, handle) = tty::pty("sh", COLS as u16, ROWS as u16);
 
-    // Handle user input (keys -> tty) on separate thread.
-    let (tx_in, rx_in) = mpsc::channel();
-    thread::spawn(move || {
-        let mut input = Input::new(tty_w);
-        for event in rx_in {
-            input.process(event).unwrap();
-        }
-    });
-
     // Handler program output (tty -> screen) on separate thread.
-    let (tx_out, rx_out) = mpsc::channel();
+    let (tx_out, rx) = mpsc::channel();
+    let (tx_key_press, tx_key_release) = (tx_out.clone(), tx_out.clone());
     thread::spawn(move || {
         let output = Output::new(BufReader::new(tty_r));
         for cmd in output {
@@ -63,25 +56,22 @@ fn main() {
     let scroll   = Rc::new(Cell::new(0));
     let (scroll2, scroll3) = (scroll.clone(), scroll.clone());
 
-    // Set up logical screen and renderer.
-    let screen   = Rc::new(RefCell::new(Screen::new(COLS, ROWS)));
-    let renderer = ScreenRenderer::new(screen.clone(), scroll.clone(), handle);
-
-    //Create clones of the input channel.
-    let (tx_in2, tx_in3) = (tx_in.clone(), tx_in.clone());
+    // Set up logical terminal and renderer.
+    let terminal   = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
+    let renderer = ScreenRenderer::new(terminal.clone(), scroll.clone(), handle);
 
     // Process screen logic every 100 miliseconds.
     let canvas2 = canvas.clone();
     gdk::glib::timeout_add(100, move || {
         use std::sync::mpsc::TryRecvError::*;
 
-        let mut screen = screen.borrow_mut();
+        let mut terminal = terminal.borrow_mut();
         let mut redraw = false;
         loop {
-            match rx_out.try_recv() {
+            match rx.try_recv() {
                 Ok(cmd)             => {
                     redraw = true;
-                    cmd.apply(&mut screen, &mut |event| tx_in.send(event).unwrap());
+                    cmd.apply(&mut terminal);
                 }
                 Err(Disconnected)   => {
                     gtk::main_quit();
@@ -111,17 +101,17 @@ fn main() {
     });
 
     // Connect signal to receive key presses.
-    window.connect_key_press_event(move |window, key_press| {
-        if let Some(k) = key::translate(key_press, &*scroll2) {
-            tx_in2.send(k).unwrap();
+    window.connect_key_press_event(move |window, event| {
+        if let Some(cmd) = KeyPress::from_event(event, &*scroll2) {
+            tx_key_press.send(cmd).unwrap();
         } else { window.queue_draw(); }
         gtk::signal::Inhibit(false)
     });
 
     // Connect signal to receive key releases.
-    window.connect_key_release_event(move |window, key_release| {
-        if let Some(k) = key::translate(key_release, &*scroll3) {
-            tx_in3.send(k).unwrap();
+    window.connect_key_release_event(move |window, event| {
+        if let Some(cmd) = KeyRelease::from_event(event, &*scroll3) {
+            tx_key_release.send(cmd).unwrap();
         } else { window.queue_draw(); }
         gtk::signal::Inhibit(false)
     });

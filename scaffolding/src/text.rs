@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use natty::cfg;
 use natty::datatypes::Color;
-use natty::screen::{CharCell, Styles};
+use natty::terminal::{CharCell, Styles};
 
 use cairo::Context;
 use cairo::glib::translate::ToGlibPtr;

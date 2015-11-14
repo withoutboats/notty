@@ -7,10 +7,8 @@ extern crate unicode_width;
 pub mod cfg;
 mod command;
 pub mod datatypes;
-mod input;
 mod output;
-pub mod screen;
+pub mod terminal;
 
-pub use command::Command;
-pub use input::Input;
+pub use command::{Command, KeyPress, KeyRelease};
 pub use output::Output;

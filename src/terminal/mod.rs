@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
@@ -5,7 +6,10 @@ mod cell;
 mod char_grid;
 mod cursor;
 mod grid;
+mod input;
 mod styles;
+
+use datatypes::{InputMode, Key};
 
 pub use self::cell::CharCell;
 pub use self::char_grid::CharGrid;
@@ -13,24 +17,34 @@ pub use self::cursor::Cursor;
 pub use self::grid::Grid;
 pub use self::styles::Styles;
 
-pub struct Screen {
+use self::input::Input;
+
+pub struct Terminal {
     pub width: u32,
     pub height: u32,
     title: String,
     active: CharGrid,
     inactive: Vec<CharGrid>,
+    tty: Input,
 }
 
-impl Screen {
+impl Terminal {
 
-    pub fn new(width: u32, height: u32) -> Screen {
-        Screen {
-            title: String::new(),
-            active: CharGrid::new(width, height, false, true),
-            inactive: Vec::new(),
+    pub fn new<W: Write + 'static>(width: u32, height: u32, tty: W) -> Terminal {
+        let grid = CharGrid::new(width, height, false, true);
+        let tty = Input::new(tty);
+        Terminal {
             width: width,
             height: height,
+            title: String::new(),
+            active: grid,
+            inactive: Vec::new(),
+            tty: tty,
         }
+    }
+
+    pub fn send_input(&mut self, key: Key, press: bool) {
+        self.tty.process(key, press);
     }
 
     pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
@@ -45,6 +59,10 @@ impl Screen {
 
     pub fn set_title(&mut self, title: String) {
         self.title = title;
+    }
+
+    pub fn set_input_mode(&mut self, mode: InputMode) {
+        self.tty.set_mode(mode);
     }
 
     pub fn bell(&mut self) {
@@ -63,14 +81,14 @@ impl Screen {
 
 }
 
-impl Deref for Screen {
+impl Deref for Terminal {
     type Target = CharGrid;
     fn deref(&self) -> &CharGrid {
         &self.active
     }
 }
 
-impl DerefMut for Screen {
+impl DerefMut for Terminal {
     fn deref_mut(&mut self) -> &mut CharGrid {
         &mut self.active
     }

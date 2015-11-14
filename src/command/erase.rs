@@ -14,8 +14,8 @@ impl Erase {
 }
 
 impl Command for Erase {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.erase(self.area);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.erase(self.area);
     }
     fn repr(&self) -> String {
         String::from("ERASE")
@@ -35,8 +35,8 @@ impl RemoveChars {
 }
 
 impl Command for RemoveChars {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.remove_at(self.count);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.remove_at(self.count);
     }
     fn repr(&self) -> String {
         format!("REMOVE {} CHARS", self.count)
@@ -58,8 +58,8 @@ impl RemoveRows {
 }
 
 impl Command for RemoveRows {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.remove_rows_at(self.count, self.include);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.remove_rows_at(self.count, self.include);
     }
     fn repr(&self) -> String {
         match self.include {
@@ -82,8 +82,8 @@ impl InsertBlank {
 }
 
 impl Command for InsertBlank {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.insert_blank_at(self.count);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.insert_blank_at(self.count);
     }
     fn repr(&self) -> String {
         format!("INSERT {} BLANK SPACES", self.count)
@@ -105,8 +105,8 @@ impl InsertRows {
 }
 
 impl Command for InsertRows {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.insert_rows_at(self.count, self.include);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.insert_rows_at(self.count, self.include);
     }
     fn repr(&self) -> String {
         match self.include {

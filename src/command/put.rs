@@ -30,9 +30,9 @@ impl Put {
 
 impl Command for Put {
 
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+    fn apply(&self, terminal: &mut Terminal) {
         if let Some(data) = self.0.borrow_mut().take() {
-            screen.write(data)
+            terminal.write(data)
         }
     }
 
@@ -63,12 +63,12 @@ impl PutAt {
 
 impl Command for PutAt {
 
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+    fn apply(&self, terminal: &mut Terminal) {
         if let Some(data) = self.0.borrow_mut().take() {
-            let coords = screen.cursor_position();
-            screen.move_cursor(Position(self.1));
-            screen.write(data);
-            screen.move_cursor(Position(coords));
+            let coords = terminal.cursor_position();
+            terminal.move_cursor(Position(self.1));
+            terminal.write(data);
+            terminal.move_cursor(Position(coords));
         }
     }
 

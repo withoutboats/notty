@@ -6,9 +6,9 @@ use datatypes::{Coords, InputMode};
 pub struct AddToolTip(pub Coords, pub RefCell<Option<String>>);
 
 impl Command for AddToolTip {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+    fn apply(&self, terminal: &mut Terminal) {
         if let Some(string) = self.1.borrow_mut().take() {
-            screen.add_tooltip(self.0, string);
+            terminal.add_tooltip(self.0, string);
         }
     }
     fn repr(&self) -> String {
@@ -19,8 +19,8 @@ impl Command for AddToolTip {
 pub struct RemoveToolTip(pub Coords);
 
 impl Command for RemoveToolTip {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.remove_tooltip(self.0);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.remove_tooltip(self.0);
     }
     fn repr(&self) -> String {
         String::from("REMOVE TOOL TIP")
@@ -31,8 +31,8 @@ impl Command for RemoveToolTip {
 pub struct PushBuffer(pub bool);
 
 impl Command for PushBuffer {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.push_buffer(false, self.0);
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.push_buffer(false, self.0);
     }
     fn repr(&self) -> String {
         match self.0 {
@@ -46,8 +46,8 @@ impl Command for PushBuffer {
 pub struct PopBuffer;
 
 impl Command for PopBuffer {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.pop_buffer();
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.pop_buffer();
     }
     fn repr(&self) -> String {
         String::from("POP BUFFER")
@@ -57,9 +57,9 @@ impl Command for PopBuffer {
 pub struct SetTitle(pub RefCell<Option<String>>);
 
 impl Command for SetTitle {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
+    fn apply(&self, terminal: &mut Terminal) {
         if let Some(title) = self.0.borrow_mut().take() {
-            screen.set_title(title);
+            terminal.set_title(title);
         }
     }
     fn repr(&self) -> String {
@@ -71,8 +71,8 @@ impl Command for SetTitle {
 pub struct SetInputMode(pub InputMode);
 
 impl Command for SetInputMode {
-    fn apply(&self, _: &mut Screen, input: &mut FnMut(InputEvent)) {
-        input(InputEvent::Mode(self.0));
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.set_input_mode(self.0);
     }
     fn repr(&self) -> String {
         match self.0 {
@@ -87,8 +87,8 @@ impl Command for SetInputMode {
 pub struct Bell;
 
 impl Command for Bell {
-    fn apply(&self, screen: &mut Screen, _: &mut FnMut(InputEvent)) {
-        screen.bell();
+    fn apply(&self, terminal: &mut Terminal) {
+        terminal.bell();
     }
     fn repr(&self) -> String {
         String::from("BELL")

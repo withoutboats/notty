@@ -5,7 +5,7 @@ use std::sync::Arc;
 use cairo::Context;
 use natty::cfg;
 use natty::datatypes::Color;
-use natty::screen::Screen;
+use natty::terminal::Terminal;
 
 use text::TextRenderer;
 use tty::Handle;
@@ -13,7 +13,7 @@ use tty::Handle;
 use {X_PIXELS, Y_PIXELS};
 
 pub struct ScreenRenderer {
-    logic: Rc<RefCell<Screen>>,
+    logic: Rc<RefCell<Terminal>>,
     text: RefCell<TextRenderer>,
     red: f64,
     green: f64,
@@ -23,7 +23,7 @@ pub struct ScreenRenderer {
 
 impl ScreenRenderer {
 
-    pub fn new(logic: Rc<RefCell<Screen>>, scroll: Rc<Cell<usize>>, tty: Arc<Handle>)
+    pub fn new(logic: Rc<RefCell<Terminal>>, scroll: Rc<Cell<usize>>, tty: Arc<Handle>)
             -> ScreenRenderer {
 
         let len = logic.borrow().width as usize * logic.borrow().height as usize;
@@ -41,7 +41,7 @@ impl ScreenRenderer {
 
     pub fn draw(&self, canvas: Context) {
 
-        // Reset screen dimensions.
+        // Reset terminal dimensions.
         if let (Some(x_pixels), Some(y_pixels)) = unsafe { (X_PIXELS.take(), Y_PIXELS.take()) } {
             let mut logic = self.logic.borrow_mut();
             let f_extents = canvas.font_extents();
