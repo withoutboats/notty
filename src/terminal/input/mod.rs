@@ -23,8 +23,6 @@ mod modifiers;
 
 use self::modifiers::Modifiers;
 
-/// The `Input` struct processes `InputEvent`s and manages sending data from the terminal to the
-/// controlling process.
 pub struct Input {
     tty: Box<Write>,
     mode: InputMode,
@@ -33,10 +31,6 @@ pub struct Input {
 
 impl Input {
 
-    /// Create a new input processor by wraping a writeable interface to the tty (or whatever
-    /// system you are using to connect the terminal to the stdin of the controlling process).
-    ///
-    /// The input processor defaults to ANSI compatibility mode.
     pub fn new<W: Write + 'static>(tty: W) -> Input {
         Input {
             tty: Box::new(tty),

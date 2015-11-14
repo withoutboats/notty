@@ -51,19 +51,12 @@ mod prelude {
 /// A command to be applied to the terminal.
 ///
 /// Dynamically dispatched `Command` objects are generated from the `Output` iterator, which
-/// parses the output of the controlling process into applicable `Command` events. None of the
-/// implementers of `Command` are exported from this library, so that the process of application
-/// remains opaque to downstream users.
+/// parses the output of the controlling process into applicable `Command` events. Most of the
+/// implementers of `Command` are private types within this library, so that the process of
+/// application remains opaque to downstream users. The only exported types are those dealing with
+/// direc user input.
 pub trait Command: Send + 'static {
-    /// Apply this command to the terminal and input.
-    ///
-    ///
-    /// The first argument to this method is a mutable reference to the `Terminal` object; most
-    /// commands modify the terminal state in some way.
-    ///
-    /// The second argument to this method is a dynamically dispatched function which takes an
-    /// `InputEvent`. This function is intended to send the event to the `Input` processor,
-    /// immediately or indirectly (such as through an mpsc channel).
+    /// Apply this command to the terminal.
     fn apply(&self, &mut Terminal) -> io::Result<()>;
     fn repr(&self) -> String;
 }
