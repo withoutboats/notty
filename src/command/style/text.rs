@@ -5,8 +5,9 @@ use datatypes::Style;
 pub struct SetTextStyle(pub Style);
 
 impl Command for SetTextStyle {
-    fn apply(&self, terminal: &mut Terminal) {
-        terminal.set_style(self.0)
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.set_style(self.0);
+        Ok(())
     }
     fn repr(&self) -> String {
         String::from("SET TEXT STYLE")
@@ -17,8 +18,9 @@ impl Command for SetTextStyle {
 pub struct DefaultTextStyle;
 
 impl Command for DefaultTextStyle {
-    fn apply(&self, terminal: &mut Terminal) {
-        terminal.reset_styles()
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.reset_styles();
+        Ok(())
     }
     fn repr(&self) -> String {
         String::from("DEFAULT TEXT STYLE")

@@ -60,9 +60,9 @@ fn main() {
     let terminal   = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
     let renderer = ScreenRenderer::new(terminal.clone(), scroll.clone(), handle);
 
-    // Process screen logic every 100 miliseconds.
+    // Process screen logic every 50 miliseconds.
     let canvas2 = canvas.clone();
-    gdk::glib::timeout_add(100, move || {
+    gdk::glib::timeout_add(50, move || {
         use std::sync::mpsc::TryRecvError::*;
 
         let mut terminal = terminal.borrow_mut();
@@ -71,7 +71,7 @@ fn main() {
             match rx.try_recv() {
                 Ok(cmd)             => {
                     redraw = true;
-                    cmd.apply(&mut terminal);
+                    cmd.apply(&mut terminal).unwrap();
                 }
                 Err(Disconnected)   => {
                     gtk::main_quit();

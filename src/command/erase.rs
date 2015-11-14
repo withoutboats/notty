@@ -14,8 +14,9 @@ impl Erase {
 }
 
 impl Command for Erase {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.erase(self.area);
+        Ok(())
     }
     fn repr(&self) -> String {
         String::from("ERASE")
@@ -35,8 +36,9 @@ impl RemoveChars {
 }
 
 impl Command for RemoveChars {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.remove_at(self.count);
+        Ok(())
     }
     fn repr(&self) -> String {
         format!("REMOVE {} CHARS", self.count)
@@ -58,8 +60,9 @@ impl RemoveRows {
 }
 
 impl Command for RemoveRows {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.remove_rows_at(self.count, self.include);
+        Ok(())
     }
     fn repr(&self) -> String {
         match self.include {
@@ -82,8 +85,9 @@ impl InsertBlank {
 }
 
 impl Command for InsertBlank {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.insert_blank_at(self.count);
+        Ok(())
     }
     fn repr(&self) -> String {
         format!("INSERT {} BLANK SPACES", self.count)
@@ -105,8 +109,9 @@ impl InsertRows {
 }
 
 impl Command for InsertRows {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.insert_rows_at(self.count, self.include);
+        Ok(())
     }
     fn repr(&self) -> String {
         match self.include {

@@ -17,8 +17,9 @@ impl Move {
 }
 
 impl Command for Move {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.move_cursor(self.movement);
+        Ok(())
     }
     fn repr(&self) -> String {
         match self.movement {
@@ -64,8 +65,9 @@ impl ScrollScreen {
 }
 
 impl Command for ScrollScreen {
-    fn apply(&self, terminal: &mut Terminal) {
-        terminal.scroll(self.dir, self.n)
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.scroll(self.dir, self.n);
+        Ok(())
     }
     fn repr(&self) -> String {
         String::from("SCROLL SCREEN")

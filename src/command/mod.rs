@@ -28,8 +28,9 @@ pub use self::style::textarea::{SetStyleInArea, DefaultStyleInArea};
 pub use self::tooltip::{AddToolTip, RemoveToolTip, AddDropDown};
 
 mod prelude {
-    pub use super::Command;
+    pub use std::io;
     pub use terminal::Terminal;
+    pub use super::Command;
 }
 
 /// A command to be applied to the terminal.
@@ -48,17 +49,18 @@ pub trait Command: Send + 'static {
     /// The second argument to this method is a dynamically dispatched function which takes an
     /// `InputEvent`. This function is intended to send the event to the `Input` processor,
     /// immediately or indirectly (such as through an mpsc channel).
-    fn apply(&self, &mut Terminal);
+    fn apply(&self, &mut Terminal) -> io::Result<()>;
     fn repr(&self) -> String;
 }
 
 pub struct CommandSeries(pub Vec<Box<Command>>);
 
 impl Command for CommandSeries {
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         for cmd in &self.0 {
-            cmd.apply(terminal);
+            try!(cmd.apply(terminal));
         }
+        Ok(())
     }
     fn repr(&self) -> String {
         String::from("SERIES: ") + &self.0.iter().map(|c| c.repr()).collect::<Vec<_>>().join("; ")
@@ -68,10 +70,11 @@ impl Command for CommandSeries {
 pub struct NoFeature(pub String);
 
 impl Command for NoFeature {
-    fn apply(&self, _: &mut Terminal) {
+    fn apply(&self, _: &mut Terminal) -> io::Result<()> {
         if let Ok(mut file) = File::open(::cfg::LOGFILE) {
             let _ = write!(file, "{}", self.repr());
         }
+        Ok(())
     }
     fn repr(&self) -> String {
         format!("NO FEATURE: {}", self.0)

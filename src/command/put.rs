@@ -30,10 +30,11 @@ impl Put {
 
 impl Command for Put {
 
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         if let Some(data) = self.0.borrow_mut().take() {
             terminal.write(data)
         }
+        Ok(())
     }
 
     fn repr(&self) -> String {
@@ -63,13 +64,14 @@ impl PutAt {
 
 impl Command for PutAt {
 
-    fn apply(&self, terminal: &mut Terminal) {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         if let Some(data) = self.0.borrow_mut().take() {
             let coords = terminal.cursor_position();
             terminal.move_cursor(Position(self.1));
             terminal.write(data);
             terminal.move_cursor(Position(coords));
         }
+        Ok(())
     }
 
     fn repr(&self) -> String {
