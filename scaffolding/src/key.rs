@@ -75,10 +75,10 @@ fn keyval(n: u32) -> Key {
         0xffe3          => Key::CtrlLeft,
         0xffe4          => Key::CtrlRight,
         0xffe5          => Key::CapsLock,
-        0xffe7 | 0xffeb => Key::MetaLeft,
-        0xffe8 | 0xff67 => Key::MetaRight,
+        0xffe7 | 0xffeb => Key::Meta,
+        0xffe8 | 0xff67 => Key::Menu,
         0xffe9          => Key::AltLeft,
-        0xffea          => Key::AltRight,
+        0xffea          => Key::AltGr,
         0xffff          => Key::Char('\x7f'),
         x               => { panic!("Key press: {:x}", x) }
     }

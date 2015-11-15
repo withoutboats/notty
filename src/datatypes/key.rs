@@ -33,9 +33,9 @@ pub enum Key {
     CtrlLeft,
     CtrlRight,
     AltLeft,
-    AltRight,
-    MetaLeft,
-    MetaRight,
+    AltGr,
+    Meta,
+    Menu,
     PageUp,
     PageDown,
     Home,
@@ -58,7 +58,7 @@ pub enum Key {
 impl Key {
     pub fn is_modifier(&self) -> bool {
         match *self {
-            ShiftLeft | ShiftRight | CtrlLeft | CtrlRight | AltLeft | AltRight | CapsLock => true,
+            ShiftLeft | ShiftRight | CtrlLeft | CtrlRight | AltLeft | AltGr | CapsLock => true,
             _   => false
         }
     }

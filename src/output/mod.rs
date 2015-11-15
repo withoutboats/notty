@@ -468,7 +468,7 @@ mod tests {
 
     #[test]
     fn notty_code() {
-        let mut output = setup(b"A\x1b{30;8.ff.ff.ff}\x1b{11;1;2}B");
+        let mut output = setup(b"A\x1b{30;8.ff.ff.ff}\x1b{19;1;2}B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");

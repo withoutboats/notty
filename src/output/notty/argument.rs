@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn input_mode_argument() {
-        for (s, &mode) in "1;2".split(";").zip(&[Ansi, Extended]) {
+        for (s, &mode) in "1;2".split(";").zip(&[Ansi(false), Notty(())]) {
             assert_eq!(InputMode::decode(Some(s), None), Some(mode));
             assert_eq!(mode.encode(), s);
         }

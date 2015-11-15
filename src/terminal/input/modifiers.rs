@@ -63,7 +63,7 @@ impl Modifiers {
             CtrlLeft            => self.lctrl = press,
             CtrlRight           => self.rctrl = press,
             AltLeft             => self.lalt = press,
-            AltRight            => self.ralt = press,
+            AltGr               => self.ralt = press,
             CapsLock if press   => self.caps = !self.caps,
             _                   => unreachable!(),
         }

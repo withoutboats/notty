@@ -62,7 +62,7 @@ impl Input {
                 if key.is_modifier() {
                     self.modifiers.apply(&key, press);
                 }
-                self.tty.write_all(notty::encode(key, press, flags, self.modifiers))
+                self.tty.write_all(notty::encode(key, press, flags, self.modifiers).as_bytes())
             }
         }
     }

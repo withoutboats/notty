@@ -20,21 +20,6 @@ use datatypes::Key::*;
 
 use super::modifiers::Modifiers;
 
-fn char_key<'a>(mods: Modifiers, c: char) -> Option<Cow<'static, str>> {
-    match (mods.ctrl(), mods.alt()) {
-        (false,  false) => Some(Cow::Owned(c.to_string())),
-        (true,   false) => match c {
-            c @ '\x40'...'\x7f' => Some(Cow::Owned((((c as u8) & 0x1f) as char).to_string())),
-            _                   => None,
-        },
-        (false,  true)  => Some(Cow::Owned(format!("\x1b{}", c))),
-        (true,   true)  => match c {
-            c @ '\x40'...'\x7f' => Some(Cow::Owned(format!("\x1b{}", ((c as u8) & 0x1f) as char))),
-            _                   => None,
-        }
-    }
-}
-
 macro_rules! term_key {
     ($term:expr, $app_mode:expr, $mods:expr) => (match $mods.triplet() {
         (false, false, false) if $app_mode  => Some(Cow::Borrowed(concat!("\x1b0", $term))),
@@ -70,7 +55,7 @@ pub fn encode(key: Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static, 
         LeftArrow               => term_key!('D', app_mode, mods),
         RightArrow              => term_key!('C', app_mode, mods),
         Enter                   => Some(Cow::Borrowed("\n")),
-        MetaLeft | MetaRight    => None,
+        Meta | Menu             => None,
         PageUp                  => tilde_key!('5', mods),
         PageDown                => tilde_key!('6', mods),
         Home                    => term_key!('H', false, mods),
@@ -92,8 +77,25 @@ pub fn encode(key: Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static, 
             | CtrlLeft
             | CtrlRight
             | AltLeft
-            | AltRight
+            | AltGr
             | CapsLock
             | Cmd(_)            => unreachable!(),
+    }
+}
+
+fn char_key(mods: Modifiers, c: char) -> Option<Cow<'static, str>> {
+    match (mods.ctrl(), mods.alt()) {
+        (false,  false) => Some(Cow::Owned(c.to_string())),
+        (true,   false) => match c {
+            c @ '\x20'...'\x3f' => Some(Cow::Owned(c.to_string())),
+            c @ '\x40'...'\x7f' => Some(Cow::Owned((((c as u8) & 0x1f) as char).to_string())),
+            _                   => None,
+        },
+        (false,  true)  => Some(Cow::Owned(format!("\x1b{}", c))),
+        (true,   true)  => match c {
+            c @ '\x20'...'\x3f' => Some(Cow::Owned(format!("\x1b{}", c))),
+            c @ '\x40'...'\x7f' => Some(Cow::Owned(format!("\x1b{}", ((c as u8) & 0x1f) as char))),
+            _                   => None,
+        }
     }
 }
