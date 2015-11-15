@@ -107,7 +107,7 @@ impl AnsiCode {
                 _   => None,
             }),
             (b'h', b'?', 0)     => command_series!(|x| match *x {
-                1       => wrap(SetInputMode(Application)),
+                1       => wrap(SetInputMode(Ansi(true))),
                 6       => wrap(NoFeature(self.csi_code())),
                 7       => wrap(NoFeature(self.csi_code())),
                 12      => wrap(SetCursorStyle(Blink(true))),
@@ -150,7 +150,7 @@ impl AnsiCode {
                 _   => None,
             }),
             (b'l', b'?', 0)      => command_series!(|x| match *x {
-                1       => wrap(SetInputMode(Ansi)),
+                1       => wrap(SetInputMode(Ansi(false))),
                 6       => wrap(NoFeature(self.csi_code())),
                 7       => wrap(NoFeature(self.csi_code())),
                 12      => wrap(SetCursorStyle(Blink(false))),

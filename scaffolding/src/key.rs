@@ -35,34 +35,7 @@ impl FromEvent for KeyPress {
             }
         }
         scroll.set(0);
-        Some(Box::new(KeyPress(match key.keyval {
-            b @ 0x20...0x7e => Key::Char(b as u8 as char),
-            0xff08          => Key::Char('\x08'),
-            0xff09          => Key::Char('\x09'),
-            0xff0a          => Key::Char('\x0a'),
-            0xff0d          => Key::Char('\x0d'),
-            0xff14          => Key::ScrollLock,
-            0xff1b          => Key::Char('\x1b'),
-            0xff50          => Key::Home,
-            0xff51          => Key::Left,
-            0xff52          => Key::Up,
-            0xff53          => Key::Right,
-            0xff54          => Key::Down,
-            0xff55          => Key::PageUp,
-            0xff56          => Key::PageDown,
-            0xff57          => Key::End,
-            0xffe1          => Key::ShiftLeft,
-            0xffe2          => Key::ShiftRight,
-            0xffe3          => Key::CtrlLeft,
-            0xffe4          => Key::CtrlRight,
-            0xffe5          => Key::CapsLock,
-            0xffe7 | 0xffeb => Key::MetaLeft,
-            0xffe8 | 0xff67 => Key::MetaRight,
-            0xffe9          => Key::AltLeft,
-            0xffea          => Key::AltRight,
-            0xffff          => Key::Char('\x7f'),
-            x               => { panic!("Key press: {:x}", x) }
-        })) as Box<Command>)
+        Some(Box::new(KeyPress(keyval(key.keyval))) as Box<Command>)
     }
 }
 
@@ -72,37 +45,41 @@ impl FromEvent for KeyRelease {
             return None;
         }
         scroll.set(0);
-        Some(Box::new(KeyRelease(match key.keyval {
-            b @ 0x20...0x7e => Key::Char(b as u8 as char),
-            0xff08          => Key::Char('\x08'),
-            0xff09          => Key::Char('\x09'),
-            0xff0a          => Key::Char('\x0a'),
-            0xff0d          => Key::Char('\x0d'),
-            0xff14          => Key::ScrollLock,
-            0xff1b          => Key::Char('\x1b'),
-            0xff50          => Key::Home,
-            0xff51          => Key::Left,
-            0xff52          => Key::Up,
-            0xff53          => Key::Right,
-            0xff54          => Key::Down,
-            0xff55          => Key::PageUp,
-            0xff56          => Key::PageDown,
-            0xff57          => Key::End,
-            0xffe1          => Key::ShiftLeft,
-            0xffe2          => Key::ShiftRight,
-            0xffe3          => Key::CtrlLeft,
-            0xffe4          => Key::CtrlRight,
-            0xffe5          => Key::CapsLock,
-            0xffe7 | 0xffeb => Key::MetaLeft,
-            0xffe8 | 0xff67 => Key::MetaRight,
-            0xffe9          => Key::AltLeft,
-            0xffea          => Key::AltRight,
-            0xffff          => Key::Char('\x7f'),
-            x               => { panic!("Key press: {:x}", x) }
-        })) as Box<Command>)
+        Some(Box::new(KeyRelease(keyval(key.keyval))) as Box<Command>)
     }
 }
 
 fn super_mode(key: &EventKey) -> bool {
     key.state.bits() & 0o100 == 0o100
+}
+
+fn keyval(n: u32) -> Key {
+    match n {
+        b @ 0x20...0x7e => Key::Char(b as u8 as char),
+        0xff08          => Key::Char('\x08'),
+        0xff09          => Key::Char('\x09'),
+        0xff0a          => Key::Char('\x0a'),
+        0xff0d          => Key::Char('\x0d'),
+        0xff14          => Key::ScrollLock,
+        0xff1b          => Key::Char('\x1b'),
+        0xff50          => Key::Home,
+        0xff51          => Key::LeftArrow,
+        0xff52          => Key::UpArrow,
+        0xff53          => Key::RightArrow,
+        0xff54          => Key::DownArrow,
+        0xff55          => Key::PageUp,
+        0xff56          => Key::PageDown,
+        0xff57          => Key::End,
+        0xffe1          => Key::ShiftLeft,
+        0xffe2          => Key::ShiftRight,
+        0xffe3          => Key::CtrlLeft,
+        0xffe4          => Key::CtrlRight,
+        0xffe5          => Key::CapsLock,
+        0xffe7 | 0xffeb => Key::MetaLeft,
+        0xffe8 | 0xff67 => Key::MetaRight,
+        0xffe9          => Key::AltLeft,
+        0xffea          => Key::AltRight,
+        0xffff          => Key::Char('\x7f'),
+        x               => { panic!("Key press: {:x}", x) }
+    }
 }

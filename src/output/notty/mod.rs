@@ -39,7 +39,7 @@ impl NottyCode {
     pub fn parse(&self) -> Option<Box<Command>> {
         let mut args = self.args.split(';');
         match u32::decode(args.next(), None) {
-            Some(0x04)  => {
+            Some(0x14)  => {
                 let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
                 let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
                 let p = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
@@ -47,7 +47,7 @@ impl NottyCode {
                     wrap(Some(Put::new_image(img, p, w, h)))
                 } else { None }
             }
-            Some(0x05)  => {
+            Some(0x15)  => {
                 let coords = Coords::decode(args.next(), Some(Coords {x: 0, y: 0})).unwrap();
                 let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
                 let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
@@ -56,10 +56,10 @@ impl NottyCode {
                     wrap(Some(PutAt::new_image(img, p, w, h, coords)))
                 } else { None }
             }
-            Some(0x10)  => {
+            Some(0x18)  => {
                 wrap(Movement::decode(args.next(), Some(To(Right, 1, true))).map(Move::new))
             }
-            Some(0x11)  => {
+            Some(0x19)  => {
                 let dir = Direction::decode(args.next(), Some(Down)).unwrap();
                 let n = u32::decode(args.next(), Some(1)).unwrap();
                 wrap(Some(ScrollScreen::new(dir, n)))
@@ -124,7 +124,7 @@ impl NottyCode {
             Some(0x54)  => wrap(Coords::decode(args.next(), None).map(RemoveToolTip)),
             Some(0x60)  => wrap(bool::decode(args.next(), Some(false)).map(PushBuffer)),
             Some(0x61)  => wrap(Some(PopBuffer)),
-            Some(0x80)  => wrap(InputMode::decode(args.next(), Some(Ansi)).map(SetInputMode)),
+            Some(0x80)  => wrap(InputMode::decode(args.next(), Some(Ansi(false))).map(SetInputMode)),
             _           => None,
         }
     }

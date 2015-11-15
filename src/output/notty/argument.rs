@@ -145,16 +145,16 @@ impl Argument for InputMode {
     fn from_nums<T>(mut args: T, default: Option<InputMode>) -> Option<InputMode>
     where T: Iterator<Item=u32> {
         match args.next() {
-            Some(1) => Some(Ansi),
-            Some(2) => Some(Extended),
+            Some(1) => Some(Ansi(false)),
+            Some(2) => Some(Notty(())),
             _       => default,
         }
     }
 
     fn encode(&self) -> String {
         match *self {
-            Ansi | Application  => String::from("1"),
-            Extended            => String::from("2"),
+            Ansi(_)     => String::from("1"),
+            Notty(_)    => String::from("2"),
         }
     }
 

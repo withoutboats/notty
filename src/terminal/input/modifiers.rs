@@ -13,26 +13,60 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use datatypes::Key;
+use datatypes::Key::*;
+
 #[derive(Copy, Clone)]
 pub struct Modifiers {
-    pub shift: bool,
-    pub caps: bool,
-    pub ctrl: bool,
-    pub alt: bool,
+    lshift: bool,
+    rshift: bool,
+    caps: bool,
+    lctrl: bool,
+    rctrl: bool,
+    lalt: bool,
+    ralt: bool,
 }
 
 impl Modifiers {
     pub fn new() -> Modifiers {
         Modifiers {
-            shift: false,
+            lshift: false,
+            rshift: false,
             caps: false,
-            ctrl: false,
-            alt: false
+            lctrl: false,
+            rctrl: false,
+            lalt: false,
+            ralt: false,
         }
     }
 
+    pub fn shift(&self) -> bool {
+        (self.lshift || self.rshift) ^ self.caps
+    }
+
+    pub fn ctrl(&self) -> bool {
+        self.lctrl || self.rctrl
+    }
+
+    pub fn alt(&self) -> bool {
+        self.lalt || self.ralt
+    }
+
     pub fn triplet(&self) -> (bool, bool, bool) {
-        (self.shift || self.caps, self.ctrl, self.alt)
+        (self.shift(), self.ctrl(), self.alt())
+    }
+
+    pub fn apply(&mut self, key: &Key, press: bool) {
+        match *key {
+            ShiftLeft           => self.lshift = press,
+            ShiftRight          => self.rshift = press,
+            CtrlLeft            => self.lctrl = press,
+            CtrlRight           => self.rctrl = press,
+            AltLeft             => self.lalt = press,
+            AltRight            => self.ralt = press,
+            CapsLock if press   => self.caps = !self.caps,
+            _                   => unreachable!(),
+        }
     }
 
 }

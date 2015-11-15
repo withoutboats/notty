@@ -62,18 +62,18 @@ impl Terminal {
 
     pub fn send_input(&mut self, key: Key, press: bool) -> io::Result<()> {
         match key {
-            Key::Down | Key::Up | Key::Enter if press => {
+            Key::DownArrow | Key::UpArrow | Key::Enter if press => {
                 let cursor = self.cursor_position();
                 match match self.tooltip_at_mut(cursor) {
                     Some(tooltip @ &mut Tooltip::Menu { .. })   => tooltip.interact(&key),
                     _                                           => Err(true)
                 } {
-                    Ok(n)       => self.tty.process(Key::MenuSelection(n), true),
-                    Err(true)   => self.tty.process(key, press),
+                    Ok(n)       => self.tty.write(Key::MenuSelection(n), true),
+                    Err(true)   => self.tty.write(key, press),
                     Err(false)  => Ok(())
                 }
             }
-            _           => self.tty.process(key, press),
+            _           => self.tty.write(key, press),
         }
     }
 

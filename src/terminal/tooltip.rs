@@ -31,16 +31,16 @@ impl Tooltip {
     pub fn interact(&mut self, key: &Key) -> Result<usize, bool> {
         match self {
             &mut Menu { ref mut position, .. }   => match (key, position.take()) {
-                (&Key::Down, None)      => {
+                (&Key::DownArrow, None)      => {
                     *position = Some(0);
                     Err(false)
                 }
-                (&Key::Down, Some(n))   => {
+                (&Key::DownArrow, Some(n))   => {
                     *position = Some(n + 1);
                     Err(false)
                 }
-                (&Key::Up, Some(0))     => Err(false),
-                (&Key::Up, Some(n))     => {
+                (&Key::UpArrow, Some(0))     => Err(false),
+                (&Key::UpArrow, Some(n))     => {
                     *position = Some(n - 1);
                     Err(false)
                 }

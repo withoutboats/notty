@@ -71,9 +71,9 @@ impl Command for SetInputMode {
     }
     fn repr(&self) -> String {
         match self.0 {
-            InputMode::Ansi         => String::from("SET INPUTMODE ANSI"),
-            InputMode::Application  => String::from("SET INPUTMODE APPLICATION"),
-            InputMode::Extended     => String::from("SET INPUTMODE EXTENDED"),
+            InputMode::Ansi(false)  => String::from("SET INPUTMODE ANSI"),
+            InputMode::Ansi(true)   => String::from("SET INPUTMODE APPLICATION"),
+            InputMode::Notty(_)     => String::from("SET INPUTMODE EXTENDED"),
         }
     }
 }
