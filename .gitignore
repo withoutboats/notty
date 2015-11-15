@@ -1,5 +1,5 @@
 target
-anterminal/target
-anterminal/pangocairo/target
-anterminal/tty/target
+scaffolding/target
+scaffolding/pangocairo/target
+scaffolding/tty/target
 Cargo.lock

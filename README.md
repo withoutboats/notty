@@ -2,9 +2,9 @@
 
 __notty__ is a virtual terminal like xterm, gnome-vte, sh, or rxvt. Unlike
 these programs, __notty__ is not intended to emulate a DEC VT-series physical
-video terminal, or any other physical device. __notty__ is an experimental
-project to bring new features to the command-line which would not have been
-possible for the physical terminals other terminals emulate.
+video terminal, or any other physical device. instead, __notty__ is an
+experimental project to bring new features to the command-line which would not
+have been possible for the physical terminals other terminals emulate.
 
 Current command-line tools have stagnated (if you prefer, 'stabilized') around
 the ECMA-48/ISO 6429/ANSI X3.64 escape code protocol, which is defined on the
@@ -18,18 +18,18 @@ __notty__ will attempt to remain true to the text-oriented, command-line user
 interface of the terminal while extending it to include new and more powerful
 interface features, such as:
 
-    * Full support for rich text formatting, including 24-bits of color.
-    * Full and correct support for all of Unicode.
-    * Lossless keyboard input.
-    * Inline media content, including raster graphics and structured data.
-    * Dropdown menus, tooltips, and other features which do not strictly
-      reside in the character grid.
-    * Local echo and retained off-screen character grid state to reduce the
-      need for the tty to transmit data back to the terminal.
-    * Subdividing the character grid to enable more complex interface layouts
-      without repeatedly reimplementing that logic in the controlling process.
-    * And more! If you know any features you wish the terminal had, please
-      open an issue and let's talk about this.
+* Full support for rich text formatting, including 24-bits of color.
+* Full and correct support for all of Unicode.
+* Lossless keyboard input.
+* Inline media content, including raster graphics and structured data.
+* Dropdown menus, tooltips, and other features which do not strictly reside in
+  the character grid.
+* Local echo and retained off-screen character grid state to reduce the need
+  for the tty to transmit data back to the terminal.
+* Subdividing the character grid to enable more complex interface layouts
+  without repeatedly reimplementing that logic in the controlling process.
+* And more! If you know any features you wish the terminal had, please open an
+  issue and let's talk about this.
 
 Many of these features are not yet implemented.
 
@@ -79,15 +79,15 @@ implement a command to "switch" notty to an extended mode; in such a mode, only
 notty escape codes would be used and the tty's flags would all be unset except
 for the ISIGNAL command.
 
-This implementation is written in [Rust](), an exciting new
-systems language from Mozilla.
+This implementation is written in [Rust][rust], an exciting new systems
+language from Mozilla.
 
 Much thanks to __Thomas E. Dickey__, the maintainer of xterm,
-[whose website]() hosts excellent documentation regarding xterm's behavior,
-and to __Paul Flo Williams__, who maintains [vt100.net](), which hosts manuals
-for the actual DEC VT-series terminals. Credit also to __Gary Bernhardt__,
-whose talk [A Whole New World]() influenced me to pursue this project
-seriously (I do not want to write an editor, though; I want to write a shell).
+[whose website][invis-island] hosts excellent documentation regarding xterm's
+behavior, and to __Paul Flo Williams__, who maintains [vt100.net][vt100],
+which hosts manuals for the actual DEC VT-series terminals. Credit also to
+__Gary Bernhardt__, whose talk [A Whole New World][anterminal] influenced me to
+pursue this project seriously.
 
 # License
 
@@ -103,3 +103,8 @@ License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[anterminal]: https://destroyallsoftware.com/talks/a-whole-new-world
+[invis-island]: http://invisible-island.net/xterm
+[rust]: https://rust-lang.org
+[vt100]: http://vt100.net
