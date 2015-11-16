@@ -1,4 +1,4 @@
-# notty - not a typerwiter
+# notty - not a typewriter
 
 __notty__ is a virtual terminal like xterm, gnome-vte, sh, or rxvt. Unlike
 these programs, __notty__ is not intended to emulate a DEC VT-series physical
@@ -77,7 +77,7 @@ exchanges data in memory. More advanced features of __notty__ will certainly
 requiring sidestepping this system to a certain extent: the current plan is to
 implement a command to "switch" notty to an extended mode; in such a mode, only
 notty escape codes would be used and the tty's flags would all be unset except
-for the ISIGNAL command.
+for CREAD and ISIG (and maybe not even ISIG).
 
 This implementation is written in [Rust][rust], an exciting new systems
 language from Mozilla.
