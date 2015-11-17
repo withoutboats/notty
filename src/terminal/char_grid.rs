@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use unicode_width::*;
 
 use cfg;
-use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style};
+use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style, move_within};
 use datatypes::Area::*;
 use datatypes::Movement::*;
 use datatypes::Direction::*;
@@ -91,7 +91,7 @@ impl CharGrid {
                 let bounds = self.grid.bounds();
                 let mut coords = self.cursor.coords;
                 for _ in 1..width {
-                    let next_coords = bounds.move_within(coords, To(Right, 1, false));
+                    let next_coords = move_within(coords, To(Right, 1, false), bounds);
                     if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
@@ -104,7 +104,7 @@ impl CharGrid {
                 let bounds = self.grid.bounds();
                 let mut coords = self.cursor.coords;
                 for _ in 1..width {
-                    let next_coords = bounds.move_within(coords, To(Right, 1, false));
+                    let next_coords = move_within(coords, To(Right, 1, false), bounds);
                     if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
@@ -121,8 +121,8 @@ impl CharGrid {
             }
             CellData::Image { pos, width, height, data }   => {
                 let mut end = self.cursor.coords;
-                end = self.grid.bounds().move_within(end, To(Right, width, false));
-                end = self.grid.bounds().move_within(end, To(Down, height, false));
+                end = move_within(end, To(Right, width, false), self.grid.bounds());
+                end = move_within(end, To(Down, height, false), self.grid.bounds());
                 let mut iter = CoordsIter::from_area(CursorBound(end),
                                                      self.cursor.coords, self.grid.bounds());
                 if let Some(cu_coords) = iter.next() {
@@ -188,7 +188,7 @@ impl CharGrid {
         } else {
             Region::new(0, self.cursor.coords.y + 1, self.grid.width as u32, self.grid.height as u32)
         };
-        for coords in region.iter().rev().skip(n as usize * self.grid.width) {
+        for coords in CoordsIter::from_region(region).rev().skip(n as usize * self.grid.width) {
             self.grid.moveover(coords, Coords {x: coords.x, y: coords.y + n});
         }
     }

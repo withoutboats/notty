@@ -17,17 +17,19 @@
 //! 
 //! The types in this module are intended to be passed between modules. As a design restriction,
 //! any methods on any type in this submodule are required to take the receiver immutably.
+use std::cmp;
+
 use image::DynamicImage;
+
+use cfg;
 
 mod iter;
 mod key;
-mod movement;
-mod region;
 
 pub use self::iter::CoordsIter;
 pub use self::key::Key;
-pub use self::movement::Movement;
-pub use self::region::Region;
+
+pub use notty_encoding::args::*;
 
 pub mod args {
     pub use super::{
@@ -49,36 +51,7 @@ pub mod args {
     pub use super::MediaPosition::*;
     pub use super::Movement::*;
     pub use super::Style::*;
-}
-
-/// An abstractly defined section of the grid.
-///
-/// Areas can be defined in terms of the current cursor position and the bounds of the grid. They
-/// are converted into concrete sections of the screen when commands using Areas are applied.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Area {
-    /// The cell the cursor is in.
-    CursorCell,
-    /// The row the cursor is in.
-    CursorRow,
-    /// The column the cursor is in.
-    CursorColumn,
-    /// All cells the cursor would traverse through in performing a movement (including the cell
-    /// the cursor is in now, and the cell it would end in).
-    CursorTo(Movement),
-    /// The rectangle bound in one corner by the cursor position and another by this coordinate.
-    CursorBound(Coords),
-    /// The entire screen.
-    WholeScreen,
-    /// A concrete rectangular section of the screen.
-    Bound(Region),
-    /// The rows between the two parameters, inclusive of the first but not the second.
-    Rows(u32, u32),
-    /// The columns between the two parameters, inclusive of the first but not the second.
-    Columns(u32, u32),
-    /// Everything below the row the cursor is in, the boolean determines if this is inclusive of
-    /// the cursor or not (inclusive = true).
-    BelowCursor(bool),
+    pub use notty_encoding::args::Argument;
 }
 
 /// Data that could be placed in a character cell.
@@ -107,79 +80,88 @@ pub enum Code {
     Notty,
 }
 
-/// A 24-bit rgb color sequence.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct Color(pub u8, pub u8, pub u8);
-
-/// A corodinate pair.
-#[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Hash)]
-pub struct Coords {
-    pub x: u32,
-    pub y: u32,
-}
-
-/// A direction of movement across the grid.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl Direction {
-    pub fn rev(&self) -> Direction {
-        match *self {
-            Direction::Up       => Direction::Down,
-            Direction::Down     => Direction::Up,
-            Direction::Left     => Direction::Right,
-            Direction::Right    => Direction::Left,
+/// Calculate the movement from one coordinate to another within a region.
+pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region) -> Coords {
+    use self::Movement::*;
+    use self::Direction::*;
+    match movement {
+        Position(coords)    => region.xy_within(coords),
+        Column(n)           => Coords {x: region.x_within(n), y: y},
+        Row(n)              => Coords {x: x, y: region.y_within(n)},
+        ToEdge(Up)          => Coords {x: x, y: region.top},
+        ToEdge(Down)        => Coords {x: x, y: region.bottom - 1},
+        ToEdge(Left)        => Coords {x: region.left, y: y},
+        ToEdge(Right)       => Coords {x: region.right - 1, y: y},
+        ToBeginning         => Coords {x: region.left, y: region.top},
+        ToEnd               => Coords {x: region.right - 1, y: region.bottom - 1},
+        To(Up, n, true) if region.top + n > y       => {
+            let x = x.saturating_sub((region.top + n - y) / (region.bottom - region.top) + 1);
+            let y = region.bottom - (region.top + n - y) % (region.bottom - region.top);
+            if x < region.left {
+                Coords { x: region.left, y: region.top }
+            } else {
+                Coords { x: x, y: y }
+            }
+        }
+        To(Down, n, true) if y + n >= region.bottom  => {
+            let x = x + (y + n - region.bottom) / (region.bottom - region.top) + 1;
+            let y = region.top + (y + n - region.bottom) % (region.bottom - region.top);
+            if x >= region.right {
+                Coords { x: region.right - 1, y: region.bottom - 1 }
+            } else {
+                Coords { x: x, y: y }
+            }
+        }
+        To(Left, n, true) if region.left + n > x    => {
+            let y = y.saturating_sub((region.left + n - x) / (region.right - region.left) + 1);
+            let x = region.right - (region.left + n - x) % (region.right - region.left);
+            if y < region.top {
+                Coords { x: region.left, y: region.top }
+            } else {
+                Coords { x: x, y: y }
+            }
+        }
+        To(Right, n, true) if x + n >= region.right  => {
+            let y = y + (x + n - region.right) / (region.right - region.left) + 1;
+            let x = region.left + (x + n - region.right) % (region.right - region.left);
+            if y >= region.bottom {
+                Coords { x: region.right - 1, y: region.bottom - 1 }
+            } else {
+                Coords { x: x, y: y }
+            }
+        }
+        To(Up, n, _) | IndexTo(Up, n)         => {
+            Coords {x: x, y: cmp::max(region.top, y.saturating_sub(n))}
+        }
+        To(Down, n, _) | IndexTo(Down, n)     => {
+            Coords {x: x, y: cmp::min(y.saturating_add(n), region.bottom - 1)}
+        }
+        To(Left, n, _) | IndexTo(Left, n)     => {
+            Coords {x: cmp::max(region.left, x.saturating_sub(n)), y: y}
+        }
+        To(Right, n, _) | IndexTo(Right, n)   => {
+            Coords {x: cmp::min(x.saturating_add(n), region.right - 1), y: y}
+        }
+        Tab(Left, n, true) if region.left + n > x => {
+            unimplemented!()
+        }
+        Tab(Right, n, true) if x + n >= region.right => {
+            unimplemented!()
+        }
+        Tab(Left, n, false)                 => {
+            let tab = ((x / cfg::TAB_STOP).saturating_sub(n)) * cfg::TAB_STOP;
+            Coords {x: cmp::max(tab, region.left), y: y}
+        }
+        Tab(Right, n, false)                => {
+            let tab = ((x / cfg::TAB_STOP) + n) * cfg::TAB_STOP;
+            Coords {x: cmp::min(tab, region.right - 1), y: y}
+        }
+        Tab(..)                             => unimplemented!(),
+        PreviousLine(n)                     => {
+            Coords {x: 0, y: cmp::max(y.saturating_sub(n), region.top)}
+        }
+        NextLine(n)                         => {
+            Coords {x: 0, y: cmp::min(y.saturating_add(n), region.bottom - 1)}
         }
     }
-}
-
-/// The mode the input processor is in.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum InputMode {
-    /// Ansi-compatible mode, boolean determines of "application" mode or not.
-    Ansi(bool),
-    /// Notty mode.
-    Notty(()),
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum MediaAlignment {
-    LeftTop, Center, RightBottom
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum MediaPosition {
-    Display(MediaAlignment, MediaAlignment),
-    Fill,
-    Fit,
-    Stretch,
-    Tile
-}
-
-impl Default for MediaPosition {
-    fn default() -> MediaPosition {
-        MediaPosition::Display(MediaAlignment::LeftTop, MediaAlignment::LeftTop)
-    }
-}
-
-/// Set rich text styles. Booleans represent on or off.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Style {
-    /// Field is number of underlines (between 0 and 2).
-    Underline(u8),
-    Bold(bool),
-    Italic(bool),
-    Blink(bool),
-    InvertColors(bool),
-    Strikethrough(bool),
-    Opacity(u8),
-    FgColor(Color),
-    FgColorCfg(Option<u8>),
-    BgColor(Color),
-    BgColorCfg(Option<u8>),
 }

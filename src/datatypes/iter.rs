@@ -15,7 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::mem;
 
-use datatypes::{Area, Coords, Direction, Region};
+use datatypes::{Area, Coords, Direction, Region, move_within};
 use datatypes::Area::*;
 use datatypes::Direction::*;
 use datatypes::Movement::To;
@@ -56,7 +56,7 @@ impl CoordsIter {
             },
             CursorTo(mov)           => CoordsIter {
                 point: cursor,
-                back_point: screen.move_within(cursor, mov),
+                back_point: move_within(cursor, mov, screen),
                 region: screen,
                 dir: mov.direction(cursor),
                 fin: false,
@@ -124,7 +124,7 @@ impl Iterator for CoordsIter {
                 Some(self.point)
             }
             (false, _)  => {
-                let point = self.region.move_within(self.point, To(self.dir, 1, true));
+                let point = move_within(self.point, To(self.dir, 1, true), self.region);
                 Some(mem::replace(&mut self.point, point))
             }
         }
@@ -146,7 +146,7 @@ impl DoubleEndedIterator for CoordsIter {
                 Some(self.point)
             }
             (false, _)  => {
-                let point = self.region.move_within(self.back_point, To(self.dir.rev(), 1, true));
+                let point = move_within(self.back_point, To(self.dir.rev(), 1, true), self.region);
                 Some(mem::replace(&mut self.back_point, point))
             }
         }

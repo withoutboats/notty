@@ -13,23 +13,11 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use notty_encoding::cmds::{Move, ScrollScreen};
+
 use command::prelude::*;
-use datatypes::{Direction, Movement};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
-
-#[derive(Copy, Clone)]
-pub struct Move {
-    movement: Movement,
-}
-
-impl Move {
-    pub fn new(movement: Movement) -> Move {
-        Move {
-            movement: movement,
-        }
-    }
-}
 
 impl Command for Move {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
@@ -61,20 +49,6 @@ impl Command for Move {
             ToEdge(Right)       => String::from("MOVE RIGHT TO EDGE"),
             ToBeginning         => String::from("MOVE TO BEGINNING"),
             ToEnd               => String::from("MOVE TO END"),
-        }
-    }
-}
-
-pub struct ScrollScreen {
-    dir: Direction,
-    n: u32,
-}
-
-impl ScrollScreen {
-    pub fn new(dir: Direction, n: u32) -> ScrollScreen {
-        ScrollScreen {
-            dir: dir,
-            n: n
         }
     }
 }

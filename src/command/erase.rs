@@ -13,20 +13,9 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use notty_encoding::cmds::{Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows};
+
 use command::prelude::*;
-use datatypes::Area;
-
-pub struct Erase {
-    area: Area,
-}
-
-impl Erase {
-    pub fn new(area: Area) -> Erase {
-        Erase {
-            area: area,
-        }
-    }
-}
 
 impl Command for Erase {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
@@ -38,18 +27,6 @@ impl Command for Erase {
     }
 }
 
-pub struct RemoveChars {
-    count: u32,
-}
-
-impl RemoveChars {
-    pub fn new(count: u32) -> RemoveChars {
-        RemoveChars {
-            count: count,
-        }
-    }
-}
-
 impl Command for RemoveChars {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.remove_at(self.count);
@@ -57,20 +34,6 @@ impl Command for RemoveChars {
     }
     fn repr(&self) -> String {
         format!("REMOVE {} CHARS", self.count)
-    }
-}
-
-pub struct RemoveRows {
-    count: u32,
-    include: bool,
-}
-
-impl RemoveRows {
-    pub fn new(count: u32, include_cu_row: bool) -> RemoveRows {
-        RemoveRows {
-            count: count,
-            include: include_cu_row,
-        }
     }
 }
 
@@ -87,18 +50,6 @@ impl Command for RemoveRows {
     }
 }
 
-pub struct InsertBlank {
-    count: u32
-}
-
-impl InsertBlank {
-    pub fn new(count: u32) -> InsertBlank {
-        InsertBlank {
-            count: count,
-        }
-    }
-}
-
 impl Command for InsertBlank {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.insert_blank_at(self.count);
@@ -106,20 +57,6 @@ impl Command for InsertBlank {
     }
     fn repr(&self) -> String {
         format!("INSERT {} BLANK SPACES", self.count)
-    }
-}
-
-pub struct InsertRows {
-    count: u32,
-    include: bool
-}
-
-impl InsertRows {
-    pub fn new(count: u32, include_cu_row: bool) -> InsertRows {
-        InsertRows {
-            count: count,
-            include: include_cu_row,
-        }
     }
 }
 

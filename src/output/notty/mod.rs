@@ -22,10 +22,8 @@ use mime::{Mime, TopLevel, SubLevel};
 use command::*;
 use datatypes::args::*;
 
-mod argument;
 mod attachment;
 
-use self::argument::Argument;
 use self::attachment::Attachments;
 
 #[derive(Default)]

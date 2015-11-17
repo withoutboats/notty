@@ -17,6 +17,7 @@
 
 extern crate image;
 extern crate mime;
+extern crate notty_encoding;
 extern crate unicode_width;
 
 pub mod cfg;

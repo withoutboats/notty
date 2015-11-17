@@ -24,22 +24,22 @@ mod meta;
 mod movement;
 mod put;
 mod respond;
-mod style {
-    pub mod cursor;
-    pub mod text;
-    pub mod textarea;
-}
+mod style;
 mod tooltip;
 
-pub use self::erase::{Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows};
+pub use notty_encoding::cmds::{
+    Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows,
+    PushBuffer, PopBuffer, SetInputMode,
+    Move, ScrollScreen,
+    SetCursorStyle, DefaultCursorStyle,
+    SetTextStyle, DefaultTextStyle,
+    SetStyleInArea, DefaultStyleInArea,
+};
+
 pub use self::input::{KeyPress, KeyRelease};
-pub use self::meta::{PushBuffer, PopBuffer, Bell, SetTitle, SetInputMode};
-pub use self::movement::{Move, ScrollScreen};
+pub use self::meta::{SetTitle, Bell};
 pub use self::put::{Put, PutAt};
 pub use self::respond::{StaticResponse, ReportPosition};
-pub use self::style::cursor::{SetCursorStyle, DefaultCursorStyle};
-pub use self::style::text::{SetTextStyle, DefaultTextStyle};
-pub use self::style::textarea::{SetStyleInArea, DefaultStyleInArea};
 pub use self::tooltip::{AddToolTip, RemoveToolTip, AddDropDown};
 
 mod prelude {
