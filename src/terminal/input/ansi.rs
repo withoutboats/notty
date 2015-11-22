@@ -47,9 +47,10 @@ macro_rules! tilde_key {
     });
 }
 
-pub fn encode(key: Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static, str>> {
-    match key {
-        Char(c)                 => char_key(mods, c),
+pub fn encode(key: &Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static, str>> {
+    match *key {
+        Char(c) if mods.alt()   => Some(Cow::Owned(format!("\x1b{}", c))),
+        Char(c)                 => Some(Cow::Owned(c.to_string())),
         UpArrow                 => term_key!('A', app_mode, mods),
         DownArrow               => term_key!('B', app_mode, mods),
         LeftArrow               => term_key!('D', app_mode, mods),
@@ -81,22 +82,5 @@ pub fn encode(key: Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static, 
             | AltGr
             | CapsLock
             | Cmd(_)            => unreachable!(),
-    }
-}
-
-fn char_key(mods: Modifiers, c: char) -> Option<Cow<'static, str>> {
-    match (mods.ctrl(), mods.alt()) {
-        (false,  false) => Some(Cow::Owned(c.to_string())),
-        (true,   false) => match c {
-            c @ '\x20'...'\x3f' => Some(Cow::Owned(c.to_string())),
-            c @ '\x40'...'\x7f' => Some(Cow::Owned((((c as u8) & 0x1f) as char).to_string())),
-            _                   => None,
-        },
-        (false,  true)  => Some(Cow::Owned(format!("\x1b{}", c))),
-        (true,   true)  => match c {
-            c @ '\x20'...'\x3f' => Some(Cow::Owned(format!("\x1b{}", c))),
-            c @ '\x40'...'\x7f' => Some(Cow::Owned(format!("\x1b{}", ((c as u8) & 0x1f) as char))),
-            _                   => None,
-        }
     }
 }

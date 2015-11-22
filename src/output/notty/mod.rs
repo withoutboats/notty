@@ -123,6 +123,8 @@ impl NottyCode {
             Some(0x60)  => wrap(bool::decode(args.next(), Some(false)).map(PushBuffer)),
             Some(0x61)  => wrap(Some(PopBuffer)),
             Some(0x80)  => wrap(InputMode::decode(args.next(), Some(Ansi(false))).map(SetInputMode)),
+            Some(0x84)  => wrap(Some(SetBufferMode(BufferSettings::decode(args.next(), None)))),
+            Some(0x88)  => wrap(Some(SetEchoMode(EchoSettings::decode(args.next(), None)))),
             _           => None,
         }
     }

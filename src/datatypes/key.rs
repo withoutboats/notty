@@ -63,4 +63,12 @@ impl Key {
             _   => false
         }
     }
+
+    pub fn ctrl_modify(self) -> Key {
+        match self {
+            Key::Char(c @ '\x40'...'\x7f')
+                => Key::Char((c as u8 & 0x1f) as char),
+            _   => self
+        }
+    }
 }

@@ -20,7 +20,7 @@ use std::ops::{Deref, DerefMut};
 mod char_grid;
 mod input;
 
-use datatypes::{InputMode, Key};
+use datatypes::{BufferSettings, EchoSettings, InputMode, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip};
 
@@ -51,7 +51,7 @@ impl Terminal {
     }
 
     pub fn send_input(&mut self, key: Key, press: bool) -> io::Result<()> {
-        match key {
+        if let Some(cmd) = try!(match key {
             Key::DownArrow | Key::UpArrow | Key::Enter if press => {
                 let cursor = self.cursor_position();
                 match match self.tooltip_at_mut(cursor) {
@@ -60,11 +60,14 @@ impl Terminal {
                 } {
                     Ok(n)       => self.tty.write(Key::MenuSelection(n), true),
                     Err(true)   => self.tty.write(key, press),
-                    Err(false)  => Ok(())
+                    Err(false)  => Ok(None),
                 }
             }
             _           => self.tty.write(key, press),
+        }) {
+            try!(cmd.apply(self));
         }
+        Ok(())
     }
 
     pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
@@ -83,6 +86,14 @@ impl Terminal {
 
     pub fn set_input_mode(&mut self, mode: InputMode) {
         self.tty.set_mode(mode);
+    }
+
+    pub fn set_buffer_mode(&mut self, buffer: Option<BufferSettings>) {
+        self.tty.set_buffer(buffer);
+    }
+
+    pub fn set_echo_mode(&mut self, echo: Option<EchoSettings>) {
+        self.tty.set_echo(echo);
     }
 
     pub fn bell(&mut self) {

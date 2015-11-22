@@ -40,8 +40,8 @@ macro_rules! key {
     });
 }
 
-pub fn encode(key: Key, press: bool, _: (), mods: Modifiers) -> Cow<'static, str> {
-    match key {
+pub fn encode(key: &Key, press: bool, _: (), mods: Modifiers) -> Cow<'static, str> {
+    match *key {
         Char(c)             => char_key(c, press, mods),
         Enter               => char_key('\n', press, mods),
         Backspace           => char_key('\x08', press, mods),
@@ -67,29 +67,23 @@ pub fn encode(key: Key, press: bool, _: (), mods: Modifiers) -> Cow<'static, str
         ScrollLock          => unimplemented!(),
         CapsLock            => unimplemented!(), 
         Function(_)         => unimplemented!(),
-        Cmd(s)              => s,
+        Cmd(ref s)          => s.clone(),
         MenuSelection(_)    => unimplemented!(),
     }
 }
 
 fn char_key(c: char, press: bool, mods: Modifiers) -> Cow<'static, str> {
     match (mods.triplet(), press) {
-        ((false, false, false), false)  => Cow::Owned(c.to_string()),
+        ((_,     _,     false), false)  => Cow::Owned(c.to_string()),
         ((false, false, false), true)   => Cow::Owned(format!("\x1b{{1{{{}}}", c)),
         ((false, false, true),  false)  => Cow::Owned(format!("\x1b{{2{{{}}}", c)),
         ((false, false, true),  true)   => Cow::Owned(format!("\x1b{{3{{{}}}", c)),
-        ((false, true,  false), false)  => Cow::Owned(format!("\x1b{{4{{{}}}", c)),
         ((false, true,  false), true)   => Cow::Owned(format!("\x1b{{5{{{}}}", c)),
         ((false, true,  true),  false)  => Cow::Owned(format!("\x1b{{6{{{}}}", c)),
         ((false, true,  true),  true)   => Cow::Owned(format!("\x1b{{7{{{}}}", c)),
-        ((true,  false, false), false)  => match c {
-            c @ '\x40'...'\x7f' => Cow::Owned((((c as u8) & 0x1f) as char).to_string()),
-            c                   => Cow::Owned(format!("\x1b{{8{{{}}}", c)),
-        },
         ((true,  false, false), true)   => Cow::Owned(format!("\x1b{{9{{{}}}", c)),
         ((true,  false, true),  false)  => Cow::Owned(format!("\x1b{{a{{{}}}", c)),
         ((true,  false, true),  true)   => Cow::Owned(format!("\x1b{{b{{{}}}", c)),
-        ((true,  true,  false), false)  => Cow::Owned(format!("\x1b{{c{{{}}}", c)),
         ((true,  true,  false), true)   => Cow::Owned(format!("\x1b{{d{{{}}}", c)),
         ((true,  true,  true),  false)  => Cow::Owned(format!("\x1b{{e{{{}}}", c)),
         ((true,  true,  true),  true)   => Cow::Owned(format!("\x1b{{f{{{}}}", c)),

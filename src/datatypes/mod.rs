@@ -34,9 +34,11 @@ pub use notty_encoding::args::*;
 pub mod args {
     pub use super::{
         Area,
+        BufferSettings,
         Coords,
         Color,
         Direction,
+        EchoSettings,
         InputMode,
         MediaAlignment,
         MediaPosition,

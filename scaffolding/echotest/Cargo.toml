@@ -1,0 +1,7 @@
+[package]
+name = "echotest"
+version = "0.1.0"
+authors = ["Without Boats <woboats@gmail.com>"]
+
+[dependencies.hocus-pocus]
+path = "../../../hocus-pocus"
