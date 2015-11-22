@@ -23,6 +23,7 @@ extern crate unicode_width;
 pub mod cfg;
 mod command;
 pub mod datatypes;
+mod grapheme_tables;
 mod output;
 pub mod terminal;
 

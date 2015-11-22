@@ -18,13 +18,12 @@ use std::str;
 
 use command::*;
 use datatypes::args::*;
+use grapheme_tables as gr;
 
 mod ansi;
-mod grapheme_tables;
 mod notty;
 
 use self::ansi::AnsiCode;
-use self::grapheme_tables as gr;
 use self::notty::NottyCode;
 
 /// The `Output` struct processes data written to the terminal from the controlling process,
@@ -114,9 +113,8 @@ impl Parser {
     }
 
     fn grapheme(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        use self::grapheme_tables as gr;
-        use self::grapheme_tables::GraphemeCat::*;
-        use self::grapheme_tables::GraphemeState::*;
+        use grapheme_tables::GraphemeCat::*;
+        use grapheme_tables::GraphemeState::*;
 
         let mut state = Start;
 
