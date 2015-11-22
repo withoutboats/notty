@@ -44,6 +44,7 @@ pub fn encode(key: Key, press: bool, _: (), mods: Modifiers) -> Cow<'static, str
     match key {
         Char(c)             => char_key(c, press, mods),
         Enter               => char_key('\n', press, mods),
+        Backspace           => char_key('\x08', press, mods),
         Delete              => char_key('\x7f', press, mods),
         UpArrow             => key!('1', press, mods),
         DownArrow           => key!('2', press, mods),

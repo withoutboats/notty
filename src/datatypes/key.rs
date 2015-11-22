@@ -28,6 +28,7 @@ pub enum Key {
     LeftArrow,
     RightArrow,
     Enter,
+    Backspace,
     ShiftLeft,
     ShiftRight,
     CtrlLeft,

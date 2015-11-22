@@ -56,10 +56,9 @@ fn super_mode(key: &EventKey) -> bool {
 fn keyval(n: u32) -> Key {
     match n {
         b @ 0x20...0x7e => Key::Char(b as u8 as char),
-        0xff08          => Key::Char('\x08'),
+        0xff08          => Key::Backspace,
         0xff09          => Key::Char('\x09'),
-        0xff0a          => Key::Char('\x0a'),
-        0xff0d          => Key::Char('\x0d'),
+        0xff0a | 0xff0d => Key::Enter,
         0xff14          => Key::ScrollLock,
         0xff1b          => Key::Char('\x1b'),
         0xff50          => Key::Home,
@@ -79,7 +78,7 @@ fn keyval(n: u32) -> Key {
         0xffe8 | 0xff67 => Key::Menu,
         0xffe9          => Key::AltLeft,
         0xffea          => Key::AltGr,
-        0xffff          => Key::Char('\x7f'),
+        0xffff          => Key::Delete,
         x               => { panic!("Key press: {:x}", x) }
     }
 }
