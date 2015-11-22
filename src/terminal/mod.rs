@@ -17,22 +17,12 @@ use std::io::{self, Write};
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
-mod cell;
 mod char_grid;
-mod cursor;
-mod grid;
 mod input;
-mod styles;
-mod tooltip;
 
 use datatypes::{InputMode, Key};
 
-pub use self::cell::CharCell;
-pub use self::char_grid::CharGrid;
-pub use self::cursor::Cursor;
-pub use self::grid::Grid;
-pub use self::styles::Styles;
-pub use self::tooltip::Tooltip;
+pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip};
 
 use self::input::Input;
 
