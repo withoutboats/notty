@@ -2,7 +2,7 @@
 
 __notty__ is a virtual terminal like xterm, gnome-vte, sh, or rxvt. Unlike
 these programs, __notty__ is not intended to emulate a DEC VT-series physical
-video terminal, or any other physical device. instead, __notty__ is an
+video terminal, or any other physical device. Instead, __notty__ is an
 experimental project to bring new features to the command-line which would not
 have been possible for the physical terminals other terminals emulate.
 
@@ -33,7 +33,7 @@ interface features, such as:
 
 Many of these features are not yet implemented.
 
-To achieve these ends __notty__ will implement a new and more consistent escape
+To achieve these ends, __notty__ will implement a new and more consistent escape
 protocol than ANSI escape codes. This protocol will be comparatively easy to
 extend with new features as the project grows. Once a feature set has been
 stabilized, I will write a framework for creating terminal applications that
