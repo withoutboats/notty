@@ -33,7 +33,7 @@ interface features, such as:
 
 Many of these features are not yet implemented.
 
-To achieve these ends __notty__ will implement a new and more consistent escape
+To achieve these ends, __notty__ will implement a new and more consistent escape
 protocol than ANSI escape codes. This protocol will be comparatively easy to
 extend with new features as the project grows. Once a feature set has been
 stabilized, I will write a framework for creating terminal applications that
