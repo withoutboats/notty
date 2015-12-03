@@ -2,7 +2,7 @@
 
 __notty__ is a virtual terminal like xterm, gnome-vte, sh, or rxvt. Unlike
 these programs, __notty__ is not intended to emulate a DEC VT-series physical
-video terminal, or any other physical device. instead, __notty__ is an
+video terminal, or any other physical device. Instead, __notty__ is an
 experimental project to bring new features to the command-line which would not
 have been possible for the physical terminals other terminals emulate.
 
