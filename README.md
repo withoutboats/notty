@@ -106,5 +106,5 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 [anterminal]: https://destroyallsoftware.com/talks/a-whole-new-world
 [invis-island]: http://invisible-island.net/xterm
-[rust]: https://rust-lang.org
+[rust]: https://www.rust-lang.org
 [vt100]: http://vt100.net
