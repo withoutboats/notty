@@ -163,7 +163,7 @@ impl Parser {
         match ch {
             "\x07"      => wrap(Bell),
             "\x08"      => wrap(Move::new(To(Left, 1, true))),
-            "\x09"      => wrap(Move::new(Tab(Right, 1, true))),
+            "\t"        => wrap(Move::new(Tab(Right, 1, true))),
             "\n"        => wrap(Move::new(NextLine(1))),
             "\r"        => wrap(Move::new(ToEdge(Left))),
             "\x1b"      => self.esc(buf, offset),
@@ -202,13 +202,19 @@ impl Parser {
             Some(b'Z')  => wrap(NoFeature(String::from("Z"))),
             Some(b'[')  => { *offset += 1; self.csi(buf, offset) }
             Some(b']')  => { *offset += 1; self.osc(buf, offset) }
-            Some(b'^') | Some(b'_') => {  ansi_str(buf, offset); None }
+            Some(b'^')  => { ansi_str(buf, offset); None }
             Some(b'c')  => wrap(NoFeature(String::from("c"))),
             Some(b'N'...b'O')
                 | Some(b'V'...b'X')
                 | Some(b'l'...b'o')
                 | Some(b'|'...b'~') => { *offset += 1; None }
-            Some(b'{')  => { *offset += 1; self.notty(buf, offset) }
+            Some(b'_')  => {
+                match byte(buf, *offset + 1) {
+                    Some(b'[')  => { *offset += 2; self.notty(buf, offset) }
+                    Some(_)     => { ansi_str(buf, offset); None }
+                    None        => { self.pos = Some(Position::EscCode); None }
+                }
+            }
             Some(_)     => None,
             None        => { self.pos = Some(Position::EscCode); None }
         }
@@ -302,13 +308,14 @@ impl Parser {
 
     fn notty(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
         static ARGCHARS: &'static str = ".0123456789;ABCDEFabcdef";
+        let mut string_term = false;
         'notty: loop {
             match code_point(buf, offset) {
-                Some(s) if ARGCHARS.contains(s) => {
+                Some(s) if ARGCHARS.contains(s) && !string_term => {
                     *offset += 1;
                     self.notty.args.push_str(s);
                 }
-                Some("{")                       => {
+                Some("#") if !string_term       => {
                     match self.notty.attachments.append(buf, offset) {
                         Some(0) => {
                             continue
@@ -323,7 +330,11 @@ impl Parser {
                         }
                     }
                 }
-                Some("}")                       => {
+                Some("\x1b") if !string_term    => {
+                    *offset += 1;
+                    string_term = true;
+                }
+                Some("\x07") if string_term     => {
                     *offset += 1;
                     break 'notty;
                 }
@@ -466,7 +477,7 @@ mod tests {
 
     #[test]
     fn notty_code() {
-        let mut output = setup(b"A\x1b{30;8.ff.ff.ff}\x1b{19;1;2}B");
+        let mut output = setup(b"A\x1b_[30;8.ff.ff.ff\x1b\x07\x1b_[19;1;2\x1b\x07B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");
