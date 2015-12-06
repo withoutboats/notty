@@ -63,7 +63,7 @@ impl<R: io::BufRead> Output<R> {
                 '\u{9b}'    => (CsiCode, None),
                 '\u{9d}'    => (OscCode, None),
                 '\u{9e}'    => (PrivMsg, None),
-                '\u{9f}'    => (ApmCode, None),
+                '\u{9f}'    => (ApcCode, None),
                 _           => (Character, None),
             },
             GC_Extend | GC_SpacingMark  => (Character, wrap(Put::new_extension(ch))),
@@ -97,7 +97,7 @@ impl<R: io::BufRead> Output<R> {
             '[' => (CsiCode, None),
             ']' => (OscCode, None),
             '^' => (PrivMsg, None),
-            '_' => (ApmCode, None),
+            '_' => (ApcCode, None),
             _   => (Character, wrap(NoFeature(ch.to_string()))),
         }
     }
@@ -197,7 +197,7 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    fn apm_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn apc_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
         match ch {
             '[' => (NottyCode, None),
             _   => self.privacy_message(ch),
@@ -249,7 +249,7 @@ impl<R: io::BufRead> Iterator for super::Output<R> {
                         CsiCode         => self.csi_code(ch),
                         DcsCode         => self.dcs_code(ch),
                         OscCode         => self.osc_code(ch),
-                        ApmCode         => self.apm_code(ch),
+                        ApcCode         => self.apc_code(ch),
                         PrivMsg         => self.privacy_message(ch),
                         NottyCode       => self.notty_code(ch),
                         NottyAttach     => {
@@ -285,7 +285,7 @@ enum State {
     #[allow(dead_code)]
     DcsCode,
     OscCode,
-    ApmCode,
+    ApcCode,
     PrivMsg,
     NottyCode,
     NottyAttach,
