@@ -12,7 +12,7 @@ basis of the capabilities of 1980s video terminal devices. Essentially all
 terminals in use today are virtual terminals being run on devices which are
 significantly more capable than these ancient machines, and yet the terminal
 environment has not kept pace with these developments. The last revision of the
-ANSI escape code protocol was release in 1991.
+ANSI escape code protocol was released in 1991.
 
 __notty__ will attempt to remain true to the text-oriented, command-line user
 interface of the terminal while extending it to include new and more powerful
