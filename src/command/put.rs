@@ -30,9 +30,6 @@ impl Put {
     pub fn new_extension(ch: char) -> Put {
         Put(RefCell::new(Some(CellData::ExtensionChar(ch))))
     }
-    pub fn new_grapheme(ch: String) -> Put {
-        Put(RefCell::new(Some(CellData::Grapheme(ch))))
-    }
     pub fn new_image(data: DynamicImage, pos: MediaPosition, w: u32, h: u32) -> Put {
         Put(RefCell::new(Some(CellData::Image {
             pos: pos,
@@ -56,7 +53,6 @@ impl Command for Put {
         match *self.0.borrow() {
             Some(CellData::Char(c)) | Some(CellData::ExtensionChar(c))
                                             => c.to_string(),
-            Some(CellData::Grapheme(ref c)) => c.clone(),
             _                               => String::from("PUT"),
         }
     }

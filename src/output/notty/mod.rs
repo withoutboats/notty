@@ -14,7 +14,7 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cell::RefCell;
-use std::str::{self, FromStr};
+use std::str::FromStr;
 
 use image::{self, DynamicImage, ImageFormat};
 use mime::{Mime, TopLevel, SubLevel};
@@ -27,14 +27,15 @@ mod attachment;
 use self::attachment::Attachments;
 
 #[derive(Default)]
-pub struct NottyCode {
+pub struct NottyData {
     pub args: String,
     pub attachments: Attachments,
 }
 
-impl NottyCode {
+impl NottyData {
 
     pub fn parse(&self) -> Option<Box<Command>> {
+        println!("{}", self.args);
         let mut args = self.args.split(';');
         match u32::decode(args.next(), None) {
             Some(0x14)  => {
@@ -99,21 +100,21 @@ impl NottyCode {
                 }
             }
             Some(0x40)  => {
-                self.attachments.iter().next().and_then(|data| str::from_utf8(data).ok())
+                self.attachments.iter().next().and_then(|data| String::from_utf8(data).ok())
                 .and_then(|title| {
-                    wrap(Some(SetTitle(RefCell::new(Some(String::from(title))))))
+                    wrap(Some(SetTitle(RefCell::new(Some(title)))))
                 })
             }
             Some(0x50)  => {
                 let coords = Coords::decode(args.next(), None).unwrap();
-                self.attachments.iter().next().and_then(|data| str::from_utf8(data).ok())
+                self.attachments.iter().next().and_then(|data| String::from_utf8(data).ok())
                 .and_then(|string| {
                     wrap(Some(AddToolTip(coords, RefCell::new(Some(String::from(string))))))
                 })
             }
             Some(0x51)  => {
                 let coords = Coords::decode(args.next(), None).unwrap();
-                self.attachments.iter().map(|data| str::from_utf8(data).ok().map(String::from))
+                self.attachments.iter().map(|data| String::from_utf8(data).ok())
                 .collect::<Option<_>>().and_then(|data| wrap(Some(AddDropDown {
                     coords: coords,
                     options: RefCell::new(Some(data)),
@@ -136,11 +137,11 @@ impl NottyCode {
 
 }
 
-fn image<'a, I: Iterator<Item=&'a [u8]>>(mut attachments: I) -> Option<DynamicImage> {
+fn image<I: Iterator<Item=Vec<u8>>>(mut attachments: I) -> Option<DynamicImage> {
 
     let mime = match attachments.next()
-        .and_then(|data| str::from_utf8(data).ok())
-        .and_then(|string| Mime::from_str(string).ok()) { Some(m) => m, None => return None };
+        .and_then(|data| String::from_utf8(data).ok())
+        .and_then(|string| Mime::from_str(&string).ok()) { Some(m) => m, None => return None };
     let fmt = match (mime.0, mime.1) {
         (TopLevel::Image, SubLevel::Gif) | (TopLevel::Star, SubLevel::Gif)      => {
             ImageFormat::GIF
@@ -156,7 +157,7 @@ fn image<'a, I: Iterator<Item=&'a [u8]>>(mut attachments: I) -> Option<DynamicIm
 
     let data = match attachments.next() { Some(data) => data, None => return None };
 
-    image::load_from_memory_with_format(data, fmt).ok()
+    image::load_from_memory_with_format(&data, fmt).ok()
 
 }
 

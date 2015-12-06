@@ -14,7 +14,6 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io;
-use std::str;
 
 use command::*;
 use datatypes::args::*;
@@ -23,22 +22,216 @@ use grapheme_tables as gr;
 mod ansi;
 mod notty;
 
-use self::ansi::AnsiCode;
-use self::notty::NottyCode;
+use self::ansi::AnsiData;
+use self::notty::NottyData;
+use self::State::*;
 
 /// The `Output` struct processes data written to the terminal from the controlling process,
 /// parsing it into structured commands. It is implemented as an `Iterator`.
 pub struct Output<R: io::BufRead> {
-    tty: R,
-    parser: Parser,
+    tty: io::Chars<R>,
+    state: State,
+    ansi: AnsiData,
+    notty: NottyData,
 }
 
 impl<R: io::BufRead> Output<R> {
+
     /// Create a new output processor wrapping a buffered read interface to the tty.
     pub fn new(tty: R) -> Output<R> {
         Output {
-            tty: tty,
-            parser: Parser::default(),
+            tty: tty.chars(),
+            state: Character,
+            ansi: AnsiData::default(),
+            notty: NottyData::default(),
+        }
+    }
+
+    fn character(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        use grapheme_tables::GraphemeCat::*;
+        match gr::grapheme_category(ch) {
+            GC_Any                      => (Character, wrap(Put::new_char(ch))),
+            GC_Control                  => match ch {
+                '\x07'      => (Character, wrap(Bell)),
+                '\x08'      => (Character, wrap(Move::new(To(Left, 1, true)))),
+                '\t'        => (Character, wrap(Move::new(Tab(Right, 1, true)))),
+                '\n'        => (Character, wrap(Move::new(NextLine(1)))),
+                '\r'        => (Character, wrap(Move::new(ToEdge(Left)))),
+                '\x1b'      => (EscCode, None),
+                '\x7f'      => (Character, wrap(Erase::new(CursorCell))),
+                '\u{90}'    => (DcsCode, None),
+                '\u{9b}'    => (CsiCode, None),
+                '\u{9d}'    => (OscCode, None),
+                '\u{9e}'    => (PrivMsg, None),
+                '\u{9f}'    => (ApmCode, None),
+                _           => (Character, None),
+            },
+            GC_Extend | GC_SpacingMark  => (Character, wrap(Put::new_extension(ch))),
+            _                           => unimplemented!(),
+        }
+    }
+
+    fn esc_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        match ch {
+            ' ' => {
+                static IGNORE: &'static [char] = &['F', 'G', 'L', 'N'];
+                (Ignore(IGNORE), None)
+            }
+            '#' => {
+                static IGNORE: &'static [char] = &['3', '4', '5', '6', '8'];
+                (Ignore(IGNORE), None)
+            }
+            '%' => {
+                static IGNORE: &'static [char] = &['@', 'G'];
+                (Ignore(IGNORE), None)
+            }
+            '('...'/'   => {
+                static IGNORE: &'static [char] = &[
+                    '0', '<', '>', '%', 'A', 'B', '4', 'C', '5', 'R', 'f', 'Q', '9', 'K', 'Y',
+                    '`', 'E', '6', 'Z', 'H', '7', '=',
+                ];
+                (Ignore(IGNORE), None)
+            }
+            'E' => (Character, wrap(Move::new(NextLine(1)))),
+            'P' => (DcsCode, None),
+            '[' => (CsiCode, None),
+            ']' => (OscCode, None),
+            '^' => (PrivMsg, None),
+            '_' => (ApmCode, None),
+            _   => (Character, wrap(NoFeature(ch.to_string()))),
+        }
+    }
+
+    fn csi_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        static CSI_PRIVATE_MODES:   &'static [char] = &['>', '?'];
+        static CSI_PRETERMINALS:    &'static [char] = &[' ', '!', '"', '$', '\'', '*'];
+        static CSI_TERMINALS:       &'static [char] = &[
+            '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'P', 'S',
+            'T', 'X', 'Z', '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'l', 'm', 'n',
+            'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~',
+        ];
+
+        // Private mode.
+        if self.ansi.private_mode == '\0' && self.ansi.args.len() == 0 &&
+            CSI_PRIVATE_MODES.contains(&ch) {
+                self.ansi.private_mode = ch;
+                (CsiCode, None)
+        }
+        // Digit.
+        else if self.ansi.preterminal == '\0' && ch.is_digit(10) {
+            self.ansi.arg_buf.push(ch);
+            (CsiCode, None)
+        }
+        // Arg separator.
+        else if self.ansi.preterminal == '\0' && ch == ';' {
+            let n = u32::from_str_radix(&self.ansi.arg_buf, 10).unwrap();
+            self.ansi.args.push(n);
+            self.ansi.arg_buf.clear();
+            (CsiCode, None)
+        }
+        // Preterminal.
+        else if self.ansi.preterminal == '\0' && CSI_PRETERMINALS.contains(&ch) {
+            if self.ansi.arg_buf.len() > 0 {
+                let n = u32::from_str_radix(&self.ansi.arg_buf, 10).unwrap();
+                self.ansi.args.push(n);
+                self.ansi.arg_buf.clear();
+            }
+            self.ansi.preterminal = ch;
+            (CsiCode, None)
+        }
+        // Terminal.
+        else if CSI_TERMINALS.contains(&ch) {
+            if self.ansi.arg_buf.len() > 0 {
+                let n = u32::from_str_radix(&self.ansi.arg_buf, 10).unwrap();
+                self.ansi.args.push(n);
+                self.ansi.arg_buf.clear();
+            }
+            let ret = (Character, self.ansi.csi(ch));
+            self.ansi.clear();
+            ret
+        }
+        // Invalid.
+        else {
+            self.ansi.clear();
+            (Character, None)
+        }
+    }
+
+    #[allow(unused)]
+    fn dcs_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        unimplemented!()
+    }
+
+    fn osc_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        if ch.is_digit(10) && self.ansi.private_mode == '\0' {
+            self.ansi.arg_buf.push(ch);
+            (OscCode, None)
+        }
+        else if ch == ';' && self.ansi.private_mode == '\0' {
+            let n = u32::from_str_radix(&self.ansi.arg_buf, 10).unwrap();
+            self.ansi.args.push(n);
+            self.ansi.arg_buf.clear();
+            self.ansi.private_mode = ';';
+            (OscCode, None)
+        }
+        else if ch == '\x1b' && self.ansi.preterminal == '\0' {
+            self.ansi.preterminal == '\x1b';
+            (OscCode, None)
+        }
+        else if ch == '\u{9c}' || ch == '\x07' || (ch == '\\' && self.ansi.preterminal == '\x1b') {
+            let ret = (Character, self.ansi.osc());
+            self.ansi.clear();
+            ret
+        }
+        else if self.ansi.private_mode == ';' {
+            if self.ansi.preterminal == '\x1b' {
+                self.ansi.arg_buf.push('\x1b');
+                self.ansi.preterminal = '\0';
+            }
+            self.ansi.arg_buf.push(ch);
+            (OscCode, None)
+        }
+        else {
+            self.ansi.clear();
+            self.character(ch)
+        }
+    }
+
+    fn apm_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        match ch {
+            '[' => (NottyCode, None),
+            _   => self.privacy_message(ch),
+        }
+    }
+
+    fn privacy_message(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        match (self.ansi.preterminal, ch) {
+            ('\0', '\x1b')                                  => {
+                self.ansi.preterminal = ch;
+                (PrivMsg, None)
+            }
+            (_, '\u{9c}') | (_, '\x07') | ('\x1b', '\\')    => (Character, None),
+            ('\0', _)                                       => (PrivMsg, None),
+            (_, _)                                          => self.character(ch),
+        }
+    }
+
+    fn notty_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+        if ch.is_digit(16) || ch == ';' || ch == '.' {
+            self.notty.args.push(ch);
+            (NottyCode, None)
+        }
+        else if ch == '#' {
+            (NottyAttach, None)
+        }
+        else if ch == '\x07' {
+            let ret = (Character, self.notty.parse());
+            self.notty.clear();
+            ret
+        }
+        else {
+            self.notty.clear();
+            (Character, None)
         }
     }
 
@@ -46,378 +239,57 @@ impl<R: io::BufRead> Output<R> {
 
 impl<R: io::BufRead> Iterator for super::Output<R> {
     type Item = io::Result<Box<Command>>;
-
     fn next(&mut self) -> Option<io::Result<Box<Command>>> {
-        let mut offset = 0;
         loop {
-            match match self.tty.fill_buf() {
-                Ok(buf)     => self.parser.parse(buf, &mut offset),
-                Err(err)    => return Some(Err(err)),
-            } {
-                Some(cmd)   => {
-                    self.tty.consume(offset);
-                    return Some(Ok(cmd))
-                }
-                None        => {
-                    self.tty.consume(offset);
-                    offset = 0;
-                }
+            match self.tty.next() {
+                Some(Ok(ch))                            => {
+                    let (state, cmd) = match self.state {
+                        Character       => self.character(ch),
+                        EscCode         => self.esc_code(ch),
+                        CsiCode         => self.csi_code(ch),
+                        DcsCode         => self.dcs_code(ch),
+                        OscCode         => self.osc_code(ch),
+                        ApmCode         => self.apm_code(ch),
+                        PrivMsg         => self.privacy_message(ch),
+                        NottyCode       => self.notty_code(ch),
+                        NottyAttach     => {
+                            match self.notty.attachments.append(ch) {
+                                Some(true)  => (Character, self.notty.parse()),
+                                Some(false) => (Character, None),
+                                None        => (NottyAttach, None),
+                            }
+                        }
+                        Ignore(chars)   => {
+                            if chars.contains(&ch) { continue }
+                            else { self.character(ch) }
+                        }
+                    };
+                    self.state = state;
+                    match cmd {
+                        Some(cmd)   => return Some(Ok(cmd)),
+                        None        => continue
+                    }
+                },
+                Some(Err(io::CharsError::NotUtf8))      => continue,
+                Some(Err(io::CharsError::Other(err)))   => return Some(Err(err)),
+                None                                    => return None,
             }
         }
     }
 }
 
-enum Position {
-    Grapheme,
+enum State {
+    Character,
     EscCode,
     CsiCode,
     #[allow(dead_code)]
     DcsCode,
     OscCode,
+    ApmCode,
+    PrivMsg,
     NottyCode,
-    NottyAttach(usize),
-}
-
-#[derive(Default)]
-struct Parser {
-    cat: Option<gr::GraphemeCat>,
-    ansi: AnsiCode,
-    notty: NottyCode,
-    pos: Option<Position>,
-    init: usize,
-}
-
-impl Parser {
-    fn parse(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        match self.pos.take() {
-            Some(Position::Grapheme)    => self.grapheme(buf, offset),
-            Some(Position::EscCode)     => self.esc(buf, offset),
-            Some(Position::CsiCode)     => self.csi(buf, offset),
-            Some(Position::DcsCode)     => self.dcs(buf, offset),
-            Some(Position::OscCode)     => self.osc(buf, offset),
-            Some(Position::NottyCode)   => self.notty(buf, offset),
-            Some(Position::NottyAttach(rem))    => {
-                match self.notty.attachments.append_incomplete(buf, offset, rem) {
-                    0   => self.notty(buf, offset),
-                    n   => {
-                        self.pos = Some(Position::NottyAttach(n));
-                        None
-                    }
-                }
-            }
-            None                        => {
-                self.init = *offset;
-                self.grapheme(buf, offset)
-            }
-        }
-    }
-
-    fn grapheme(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        use grapheme_tables::GraphemeCat::*;
-        use grapheme_tables::GraphemeState::*;
-
-        let mut state = Start;
-
-        'grapheme: loop {
-            let ch = match code_point(buf, offset) {
-                Some(ch)    => ch,
-                None        => { self.pos = Some(Position::Grapheme); return None }
-            };
-            let cat = self.cat.take().unwrap_or_else(|| gr::grapheme_category(ch.char_at(0)));
-            state = match (state, cat) {
-                (Start, GC_Any)                     => {
-                    *offset += ch.len();
-                    return wrap(Put::new_char(ch.char_at(0)));
-                }
-                (Start, GC_Control)                 => {
-                    *offset += ch.len();
-                    return self.ctrl_code(ch, buf, offset);
-                }
-                (Start, GC_L)                       => HangulL,
-                (Start, GC_LV) | (Start, GC_V)      => HangulLV,
-                (Start, GC_LVT) | (Start, GC_T)     => HangulLVT,
-                (Start, GC_Regional_Indicator) | (Regional, GC_Regional_Indicator)
-                                                    => Regional,
-                (Start, GC_Extend) | (Start, GC_SpacingMark)
-                                                    => {
-                    *offset += ch.len();
-                    return wrap(Put::new_extension(ch.char_at(0)));
-                }
-                (HangulL, GC_L)                     => HangulL,
-                (HangulL, GC_LV) | (HangulL, GC_V)  => HangulLV,
-                (HangulL, GC_LVT)                   => HangulLVT,
-                (HangulLV, GC_V)                    => HangulLV,
-                (HangulLV, GC_T)                    => HangulLVT,
-                (HangulLVT, GC_T)                   => HangulLVT,
-                _                                   => {
-                    self.cat = Some(cat);
-                    let s = unsafe { str::from_utf8_unchecked(&buf[self.init..*offset]) };
-                    return wrap(Put::new_grapheme(String::from(s)));
-                }
-            };
-            *offset += ch.len();
-        }
-    }
-
-    fn ctrl_code(&mut self, ch: &str, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        match ch {
-            "\x07"      => wrap(Bell),
-            "\x08"      => wrap(Move::new(To(Left, 1, true))),
-            "\t"        => wrap(Move::new(Tab(Right, 1, true))),
-            "\n"        => wrap(Move::new(NextLine(1))),
-            "\r"        => wrap(Move::new(ToEdge(Left))),
-            "\x1b"      => self.esc(buf, offset),
-            "\x7f"      => wrap(Erase::new(CursorCell)),
-            "\u{90}"    => self.dcs(buf, offset),
-            "\u{9b}"    => self.csi(buf, offset),
-            "\u{9d}"    => self.osc(buf, offset),
-            "\u{9e}" | "\u{9f}" => {
-                ansi_str(buf, offset);
-                None
-            }
-            _           => None
-        }
-    }
-
-    fn esc(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        match byte(buf, *offset) {
-            Some(b' ')  => { ignore(buf, offset, &[b'F', b'G', b'L', b'N']); None }
-            Some(b'#')  => { ignore(buf, offset, &[b'3', b'4', b'5', b'6', b'8']); None }
-            Some(b'%')  => { ignore(buf, offset, &[b'@', b'G']); None }
-            Some(b'('...b'/') => {
-                ignore(buf, offset, &[b'0', b'<', b'>', b'%', b'A', b'B', b'4', b'C', b'5', b'R',
-                                      b'f', b'Q', b'9', b'K', b'Y', b'`', b'E', b'6', b'Z', b'H',
-                                      b'7', b'=']);
-                None
-            }
-            Some(b'6')  => wrap(NoFeature(String::from("6"))),
-            Some(b'7')  => wrap(NoFeature(String::from("7"))),
-            Some(b'8')  => wrap(NoFeature(String::from("8"))),
-            Some(b'9')  => wrap(NoFeature(String::from("9"))),
-            Some(b'D')  => wrap(NoFeature(String::from("D"))),
-            Some(b'E')  => { *offset += 1; wrap(Move::new(NextLine(1))) }
-            Some(b'H')  => wrap(NoFeature(String::from("H"))),
-            Some(b'M')  => wrap(NoFeature(String::from("M"))),
-            Some(b'P')  => { *offset += 1; self.dcs(buf, offset) }
-            Some(b'Z')  => wrap(NoFeature(String::from("Z"))),
-            Some(b'[')  => { *offset += 1; self.csi(buf, offset) }
-            Some(b']')  => { *offset += 1; self.osc(buf, offset) }
-            Some(b'^')  => { ansi_str(buf, offset); None }
-            Some(b'c')  => wrap(NoFeature(String::from("c"))),
-            Some(b'N'...b'O')
-                | Some(b'V'...b'X')
-                | Some(b'l'...b'o')
-                | Some(b'|'...b'~') => { *offset += 1; None }
-            Some(b'_')  => {
-                match byte(buf, *offset + 1) {
-                    Some(b'[')  => { *offset += 2; self.notty(buf, offset) }
-                    Some(_)     => { ansi_str(buf, offset); None }
-                    None        => { self.pos = Some(Position::EscCode); None }
-                }
-            }
-            Some(_)     => None,
-            None        => { self.pos = Some(Position::EscCode); None }
-        }
-    }
-
-    fn csi(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        // These must be kept sorted!!
-        static CSI_PRIVATE_MODES:   &'static [u8]   = &[b'>', b'?'];
-        static CSI_PRETERMINALS:    &'static [u8]   = &[b' ', b'!', b'"', b'$', b'\'', b'*'];
-        static CSI_TERMINALS:       &'static [u8]   = &[
-            b'@', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M',
-            b'P', b'S', b'T', b'X', b'Z', b'`', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h',
-            b'i', b'l', b'm', b'n', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y',
-            b'z', b'{', b'|', b'}', b'~',
-        ];
-
-        'csi: loop {
-            match byte(buf, *offset) {
-                Some(ch) if CSI_PRIVATE_MODES.binary_search(&ch).is_ok() => {
-                    self.ansi.private_mode = ch;
-                    *offset += 1;
-                }
-                Some(ch) if CSI_PRETERMINALS.binary_search(&ch).is_ok() => {
-                    self.ansi.preterminal = ch;
-                    *offset += 1;
-                }
-                Some(ch) if CSI_TERMINALS.binary_search(&ch).is_ok() => {
-                    self.ansi.terminal = ch;
-                    *offset += 1;
-                    break 'csi;
-                }
-                Some(b'0'...b'9') => {
-                    match ansi_num(buf, offset) {
-                        Some(n) => self.ansi.args.push(n),
-                        None    => {
-                            self.pos = Some(Position::CsiCode);
-                            return None;
-                        }
-                    }
-                }
-                Some(b';')  => {
-                    *offset += 1;
-                    continue 'csi;
-                }
-                Some(_)     => return None,
-                None        => {
-                    self.pos = Some(Position::CsiCode);
-                    return None;
-                }
-            }
-        }
-        let ret = self.ansi.csi();
-        self.ansi.clear();
-        ret
-    }
-
-    #[allow(unused)]
-    fn dcs(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        unimplemented!();
-    }
-
-    fn osc(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        'osc: loop {
-            match byte(buf, *offset) {
-                Some(b';')          => {
-                    *offset += 1;
-                    break 'osc;
-                }
-                Some(b'0'...b'9')   => {
-                    ansi_num(buf, offset).map(|n| self.ansi.args.push(n));
-                }
-                Some(_)             => return None,
-                None                => {
-                    self.pos = Some(Position::OscCode);
-                    return None;
-                }
-            }
-        }
-
-        match ansi_str(buf, offset) {
-            Some(Some(s))   => {
-                let ret = self.ansi.osc(s);
-                self.ansi.clear();
-                ret
-            }
-            Some(None)      => None,
-            None            => { self.pos = Some(Position::OscCode); None }
-        }
-
-    }
-
-    fn notty(&mut self, buf: &[u8], offset: &mut usize) -> Option<Box<Command>> {
-        static ARGCHARS: &'static str = ".0123456789;ABCDEFabcdef";
-        let mut string_term = false;
-        'notty: loop {
-            match code_point(buf, offset) {
-                Some(s) if ARGCHARS.contains(s) && !string_term => {
-                    *offset += 1;
-                    self.notty.args.push_str(s);
-                }
-                Some("#") if !string_term       => {
-                    match self.notty.attachments.append(buf, offset) {
-                        Some(0) => {
-                            continue
-                        }
-                        Some(n) => {
-                            self.pos = Some(Position::NottyAttach(n));
-                            return None
-                        }
-                        None        => {
-                            self.pos = Some(Position::NottyCode);
-                            return None
-                        }
-                    }
-                }
-                Some("\x1b") if !string_term    => {
-                    *offset += 1;
-                    string_term = true;
-                }
-                Some("\x07") if string_term     => {
-                    *offset += 1;
-                    break 'notty;
-                }
-                Some(_)                         => {
-                    return None
-                }
-                None                            => {
-                    self.pos = Some(Position::NottyCode);
-                    return None;
-                }
-            }
-        }
-        let ret = self.notty.parse();
-        self.notty.clear();
-        ret
-    }
-
-}
-
-fn byte(buf: &[u8], offset: usize) -> Option<u8> {
-    buf.get(offset).map(|&x|x)
-}
-
-fn code_point<'a>(buf: &'a [u8], offset: &mut usize) -> Option<&'a str> {
-    let width = match byte(buf, *offset) {
-        Some(0x00...0x7f)   => 1,
-        Some(0xc3...0xdf)   => 2,
-        Some(0xe0...0xef)   => 3,
-        Some(0xf0...0xf4)   => 4,
-        Some(_)             => {
-            *offset += 1;
-            return None;
-        }
-        None                => return None,
-    };
-    match str::from_utf8(&buf[*offset..(*offset + width)]) {
-        Ok(s)   => Some(s),
-        _       => {
-            *offset += 1;
-            None
-        }
-    }
-}
-
-fn ansi_str<'a>(buf: &'a [u8], offset: &mut usize) -> Option<Option<&'a str>> {
-    let mut offset_tmp = *offset;
-    loop {
-        match byte(buf, offset_tmp) {
-            Some(b'\x07')   => {
-                let ret = str::from_utf8(&buf[*offset..offset_tmp]).ok();
-                *offset = offset_tmp + 1;
-                return Some(ret)
-            }
-            Some(_)         => offset_tmp += 1,
-            None            => return None,
-        }
-    }
-}
-
-fn ansi_num(buf: &[u8], offset: &mut usize) -> Option<u32> {
-    let mut offset_tmp = *offset;
-    loop {
-        match byte(buf, offset_tmp) {
-            Some(b'0'...b'9')   => offset_tmp += 1,
-            Some(_)             => {
-                return str::from_utf8(&buf[*offset..offset_tmp]).ok().and_then(|s| {
-                    u32::from_str_radix(s, 10).ok()
-                }).map(|n| { *offset = offset_tmp; n })
-            }
-            None                => {
-                *offset -= 1;
-                return None
-            }
-        }
-    }
-}
-
-fn ignore(buf: &[u8], offset: &mut usize, ignore: &[u8]) {
-    if let Some(c) = byte(buf, *offset + 1) {
-        if ignore.contains(&c) {
-            *offset += 2;
-        }
-    }
+    NottyAttach,
+    Ignore(&'static [char]),
 }
 
 fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
@@ -438,11 +310,10 @@ mod tests {
 
     #[test]
     fn graphemes() {
-        let mut output = setup("E\u{301}\u{1f4a9}\u{1101}\u{1161}\u{11a8}E".as_bytes());
+        let mut output = setup("E\u{301}\u{1f4a9}E".as_bytes());
         assert_eq!(&output.next().unwrap().unwrap().repr(), "E");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "\u{301}");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "\u{1f4a9}");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "\u{1101}\u{1161}\u{11a8}");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "E");
     }
 
@@ -477,7 +348,7 @@ mod tests {
 
     #[test]
     fn notty_code() {
-        let mut output = setup(b"A\x1b_[30;8.ff.ff.ff\x1b\x07\x1b_[19;1;2\x1b\x07B");
+        let mut output = setup(b"A\x1b_[30;8.ff.ff.ff\x07\x1b_[19;1;2\x07B");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");

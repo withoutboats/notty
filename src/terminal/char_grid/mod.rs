@@ -108,19 +108,6 @@ impl CharGrid {
                 }
                 self.cursor.navigate(&mut self.grid, To(Right, 1, true));
             }
-            CellData::Grapheme(c)   => {
-                let width = c.width() as u32;
-                self.grid[self.cursor.coords] = CharCell::grapheme(c, self.cursor.text_style);
-                let bounds = self.grid.bounds();
-                let mut coords = self.cursor.coords;
-                for _ in 1..width {
-                    let next_coords = move_within(coords, To(Right, 1, false), bounds);
-                    if next_coords == coords { break; } else { coords = next_coords; }
-                    self.grid[coords] = CharCell::Extension(self.cursor.coords,
-                                                            self.cursor.text_style);
-                }
-                self.cursor.navigate(&mut self.grid, To(Right, 1, true));
-            }
             CellData::ExtensionChar(c)  => {
                 self.cursor.navigate(&mut self.grid, To(Left, 1, true));
                 if !self.grid[self.cursor.coords].extend_by(c) {

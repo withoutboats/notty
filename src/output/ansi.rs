@@ -14,177 +14,177 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cell::RefCell;
+use std::mem;
 
 use command::*;
 use datatypes::Code;
 use datatypes::args::*;
 
 #[derive(Debug)]
-pub struct AnsiCode {
-    pub private_mode: u8,
-    pub preterminal: u8,
-    pub terminal: u8,
+pub struct AnsiData {
+    pub private_mode: char,
+    pub preterminal: char,
     pub args: Vec<u32>,
+    pub arg_buf: String,
 }
 
-impl Default for AnsiCode {
-    fn default() -> AnsiCode {
-        AnsiCode {
-            private_mode: 0,
-            preterminal: 0,
-            terminal: 0,
+impl Default for AnsiData {
+    fn default() -> AnsiData {
+        AnsiData {
+            private_mode: '\0',
+            preterminal: '\0',
             args: vec![],
+            arg_buf: String::new(),
         }
     }
 }
 
-impl AnsiCode {
+impl AnsiData {
 
     pub fn clear(&mut self) {
-        self.private_mode = 0;
-        self.preterminal = 0;
-        self.terminal = 0;
+        self.private_mode = '\0';
+        self.preterminal = '\0';
         self.args.clear();
     }
 
-    pub fn csi(&self) -> Option<Box<Command>> {
+    pub fn csi(&self, terminal: char) -> Option<Box<Command>> {
         macro_rules! command_series {
             ($cmds:expr) => (wrap(CommandSeries(self.args.iter().filter_map($cmds).collect())))
         }
-        match (self.terminal, self.private_mode, self.preterminal) {
-            (b'@', 0, 0)        => wrap(InsertBlank::new(self.arg(0,1))),
-            (b'A', 0, 0)        => wrap(Move::new(To(Up, self.arg(0,1), false))),
-            (b'B', 0, 0)        => wrap(Move::new(To(Down, self.arg(0,1), false))),
-            (b'C', 0, 0)        => wrap(Move::new(To(Right, self.arg(0,1), false))),
-            (b'D', 0, 0)        => wrap(Move::new(To(Left, self.arg(0,1), false))),
-            (b'E', 0, 0)        => wrap(Move::new(NextLine(self.arg(0,1)))),
-            (b'F', 0, 0)        => wrap(Move::new(PreviousLine(self.arg(0,1)))),
-            (b'G', 0, 0)        => wrap(Move::new(Column(self.arg(0,1)-1))),
-            (b'H', 0, 0)        => wrap(Move::new(Position(Coords {
+        match (terminal, self.private_mode, self.preterminal) {
+            ('@', '\0', '\0')        => wrap(InsertBlank::new(self.arg(0,1))),
+            ('A', '\0', '\0')        => wrap(Move::new(To(Up, self.arg(0,1), false))),
+            ('B', '\0', '\0')        => wrap(Move::new(To(Down, self.arg(0,1), false))),
+            ('C', '\0', '\0')        => wrap(Move::new(To(Right, self.arg(0,1), false))),
+            ('D', '\0', '\0')        => wrap(Move::new(To(Left, self.arg(0,1), false))),
+            ('E', '\0', '\0')        => wrap(Move::new(NextLine(self.arg(0,1)))),
+            ('F', '\0', '\0')        => wrap(Move::new(PreviousLine(self.arg(0,1)))),
+            ('G', '\0', '\0')        => wrap(Move::new(Column(self.arg(0,1)-1))),
+            ('H', '\0', '\0')        => wrap(Move::new(Position(Coords {
                 x: self.arg(1,1)-1,
                 y: self.arg(0,1)-1,
             }))),
-            (b'I', 0, 0)        => wrap(Move::new(Tab(Right, self.arg(0,1), false))),
-            (b'J', 0, 0)        => match self.arg(0, 0) {
+            ('I', '\0', '\0')        => wrap(Move::new(Tab(Right, self.arg(0,1), false))),
+            ('J', '\0', '\0')        => match self.arg(0, 0) {
                 0   => wrap(Erase::new(CursorTo(ToEnd))),
                 1   => wrap(Erase::new(CursorTo(ToBeginning))),
                 2   => wrap(Erase::new(WholeScreen)),
-                3   => wrap(NoFeature(self.csi_code())),
+                3   => wrap(NoFeature(self.csi_code(terminal))),
                 _   => None
             },
-            (b'J', b'?', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'K', 0, 0)        => match self.arg(0, 0) {
+            ('J', '?', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('K', '\0', '\0')        => match self.arg(0, 0) {
                 0   => wrap(Erase::new(CursorTo(ToEdge(Right)))),
                 1   => wrap(Erase::new(CursorTo(ToEdge(Left)))),
                 2   => wrap(Erase::new(CursorRow)),
                 _   => None
             },
-            (b'K', b'?', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'L', 0, 0)        => wrap(InsertRows::new(self.arg(0,1), true)),
-            (b'M', 0, 0)        => wrap(RemoveRows::new(self.arg(0,1), true)),
-            (b'P', 0, 0)        => wrap(RemoveChars::new(self.arg(0,1))),
-            (b'S', 0, 0)        => wrap(ScrollScreen::new(Down, self.arg(0,1))),
-            (b'T', 0, 0)        => wrap(ScrollScreen::new(Up, self.arg(0,1))),
-            (b'T', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'X', 0, 0)        => wrap(Erase::new(CursorTo(To(Right, self.arg(0,1), false)))),
-            (b'Z', 0, 0)        => wrap(Move::new(Tab(Left, self.arg(0,1), false))),
-            (b'`', 0, 0)        => wrap(Move::new(Column(self.arg(0,1)-1))),
-            (b'a', 0, 0)        => wrap(Move::new(To(Right, self.arg(0,1), false))),
-            (b'b', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'c', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'c', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'd', 0, 0)        => wrap(Move::new(Row(self.arg(0,1)-1))),
-            (b'e', 0, 0)        => wrap(Move::new(To(Down, self.arg(0,1), false))),
-            (b'f', 0, 0)        => wrap(Move::new(Position(Coords {
+            ('K', '?', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('L', '\0', '\0')        => wrap(InsertRows::new(self.arg(0,1), true)),
+            ('M', '\0', '\0')        => wrap(RemoveRows::new(self.arg(0,1), true)),
+            ('P', '\0', '\0')        => wrap(RemoveChars::new(self.arg(0,1))),
+            ('S', '\0', '\0')        => wrap(ScrollScreen::new(Down, self.arg(0,1))),
+            ('T', '\0', '\0')        => wrap(ScrollScreen::new(Up, self.arg(0,1))),
+            ('T', '>', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('X', '\0', '\0')        => wrap(Erase::new(CursorTo(To(Right, self.arg(0,1), false)))),
+            ('Z', '\0', '\0')        => wrap(Move::new(Tab(Left, self.arg(0,1), false))),
+            ('`', '\0', '\0')        => wrap(Move::new(Column(self.arg(0,1)-1))),
+            ('a', '\0', '\0')        => wrap(Move::new(To(Right, self.arg(0,1), false))),
+            ('b', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('c', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('c', '>', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('d', '\0', '\0')        => wrap(Move::new(Row(self.arg(0,1)-1))),
+            ('e', '\0', '\0')        => wrap(Move::new(To(Down, self.arg(0,1), false))),
+            ('f', '\0', '\0')        => wrap(Move::new(Position(Coords {
                 x: self.arg(1,1)-1,
                 y: self.arg(0,1)-1
             }))),
-            (b'g', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'h', 0, 0)        => command_series!(|x| match *x {
-                2   => wrap(NoFeature(self.csi_code())),
-                4   => wrap(NoFeature(self.csi_code())),
-                12  => wrap(NoFeature(self.csi_code())),
+            ('g', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('h', '\0', '\0')        => command_series!(|x| match *x {
+                2   => wrap(NoFeature(self.csi_code(terminal))),
+                4   => wrap(NoFeature(self.csi_code(terminal))),
+                12  => wrap(NoFeature(self.csi_code(terminal))),
                 _   => None,
             }),
-            (b'h', b'?', 0)     => command_series!(|x| match *x {
+            ('h', '?', '\0')     => command_series!(|x| match *x {
                 1       => wrap(SetInputMode(Ansi(true))),
-                6       => wrap(NoFeature(self.csi_code())),
-                7       => wrap(NoFeature(self.csi_code())),
+                6       => wrap(NoFeature(self.csi_code(terminal))),
+                7       => wrap(NoFeature(self.csi_code(terminal))),
                 12      => wrap(SetCursorStyle(Blink(true))),
                 25      => wrap(SetCursorStyle(Opacity(0))),
-                30      => wrap(NoFeature(self.csi_code())),
-                41      => wrap(NoFeature(self.csi_code())),
-                47      => wrap(NoFeature(self.csi_code())),
-                66      => wrap(NoFeature(self.csi_code())),
-                69      => wrap(NoFeature(self.csi_code())),
-                1000    => wrap(NoFeature(self.csi_code())),
-                1001    => wrap(NoFeature(self.csi_code())),
-                1002    => wrap(NoFeature(self.csi_code())),
-                1003    => wrap(NoFeature(self.csi_code())),
-                1004    => wrap(NoFeature(self.csi_code())),
-                1005    => wrap(NoFeature(self.csi_code())),
-                1006    => wrap(NoFeature(self.csi_code())),
-                1007    => wrap(NoFeature(self.csi_code())),
-                1034    => wrap(NoFeature(self.csi_code())),
-                1035    => wrap(NoFeature(self.csi_code())),
-                1036    => wrap(NoFeature(self.csi_code())),
-                1037    => wrap(NoFeature(self.csi_code())),
-                1039    => wrap(NoFeature(self.csi_code())),
-                1040    => wrap(NoFeature(self.csi_code())),
-                1041    => wrap(NoFeature(self.csi_code())),
-                1042    => wrap(NoFeature(self.csi_code())),
-                1043    => wrap(NoFeature(self.csi_code())),
-                1047    => wrap(NoFeature(self.csi_code())),
-                1048    => wrap(NoFeature(self.csi_code())),
+                30      => wrap(NoFeature(self.csi_code(terminal))),
+                41      => wrap(NoFeature(self.csi_code(terminal))),
+                47      => wrap(NoFeature(self.csi_code(terminal))),
+                66      => wrap(NoFeature(self.csi_code(terminal))),
+                69      => wrap(NoFeature(self.csi_code(terminal))),
+                1000    => wrap(NoFeature(self.csi_code(terminal))),
+                1001    => wrap(NoFeature(self.csi_code(terminal))),
+                1002    => wrap(NoFeature(self.csi_code(terminal))),
+                1003    => wrap(NoFeature(self.csi_code(terminal))),
+                1004    => wrap(NoFeature(self.csi_code(terminal))),
+                1005    => wrap(NoFeature(self.csi_code(terminal))),
+                1006    => wrap(NoFeature(self.csi_code(terminal))),
+                1007    => wrap(NoFeature(self.csi_code(terminal))),
+                1034    => wrap(NoFeature(self.csi_code(terminal))),
+                1035    => wrap(NoFeature(self.csi_code(terminal))),
+                1036    => wrap(NoFeature(self.csi_code(terminal))),
+                1037    => wrap(NoFeature(self.csi_code(terminal))),
+                1039    => wrap(NoFeature(self.csi_code(terminal))),
+                1040    => wrap(NoFeature(self.csi_code(terminal))),
+                1041    => wrap(NoFeature(self.csi_code(terminal))),
+                1042    => wrap(NoFeature(self.csi_code(terminal))),
+                1043    => wrap(NoFeature(self.csi_code(terminal))),
+                1047    => wrap(NoFeature(self.csi_code(terminal))),
+                1048    => wrap(NoFeature(self.csi_code(terminal))),
                 1049    => wrap(PushBuffer(false)),
-                1050    => wrap(NoFeature(self.csi_code())),
-                2004    => wrap(NoFeature(self.csi_code())),
+                1050    => wrap(NoFeature(self.csi_code(terminal))),
+                2004    => wrap(NoFeature(self.csi_code(terminal))),
                 _       => None
             }),
-            (b'i', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'i', b'?', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'l', 0, 0)        => command_series!(|x| match *x {
-                2   => wrap(NoFeature(self.csi_code())),
-                4   => wrap(NoFeature(self.csi_code())),
-                12  => wrap(NoFeature(self.csi_code())),
+            ('i', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('i', '?', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('l', '\0', '\0')        => command_series!(|x| match *x {
+                2   => wrap(NoFeature(self.csi_code(terminal))),
+                4   => wrap(NoFeature(self.csi_code(terminal))),
+                12  => wrap(NoFeature(self.csi_code(terminal))),
                 _   => None,
             }),
-            (b'l', b'?', 0)      => command_series!(|x| match *x {
+            ('l', '?', '\0')      => command_series!(|x| match *x {
                 1       => wrap(SetInputMode(Ansi(false))),
-                6       => wrap(NoFeature(self.csi_code())),
-                7       => wrap(NoFeature(self.csi_code())),
+                6       => wrap(NoFeature(self.csi_code(terminal))),
+                7       => wrap(NoFeature(self.csi_code(terminal))),
                 12      => wrap(SetCursorStyle(Blink(false))),
                 25      => wrap(SetCursorStyle(Opacity(0xff))),
-                30      => wrap(NoFeature(self.csi_code())),
-                41      => wrap(NoFeature(self.csi_code())),
-                47      => wrap(NoFeature(self.csi_code())),
-                66      => wrap(NoFeature(self.csi_code())),
-                69      => wrap(NoFeature(self.csi_code())),
-                1000    => wrap(NoFeature(self.csi_code())),
-                1001    => wrap(NoFeature(self.csi_code())),
-                1002    => wrap(NoFeature(self.csi_code())),
-                1003    => wrap(NoFeature(self.csi_code())),
-                1004    => wrap(NoFeature(self.csi_code())),
-                1005    => wrap(NoFeature(self.csi_code())),
-                1006    => wrap(NoFeature(self.csi_code())),
-                1007    => wrap(NoFeature(self.csi_code())),
-                1034    => wrap(NoFeature(self.csi_code())),
-                1035    => wrap(NoFeature(self.csi_code())),
-                1036    => wrap(NoFeature(self.csi_code())),
-                1037    => wrap(NoFeature(self.csi_code())),
-                1039    => wrap(NoFeature(self.csi_code())),
-                1040    => wrap(NoFeature(self.csi_code())),
-                1041    => wrap(NoFeature(self.csi_code())),
-                1042    => wrap(NoFeature(self.csi_code())),
-                1043    => wrap(NoFeature(self.csi_code())),
-                1047    => wrap(NoFeature(self.csi_code())),
-                1048    => wrap(NoFeature(self.csi_code())),
+                30      => wrap(NoFeature(self.csi_code(terminal))),
+                41      => wrap(NoFeature(self.csi_code(terminal))),
+                47      => wrap(NoFeature(self.csi_code(terminal))),
+                66      => wrap(NoFeature(self.csi_code(terminal))),
+                69      => wrap(NoFeature(self.csi_code(terminal))),
+                1000    => wrap(NoFeature(self.csi_code(terminal))),
+                1001    => wrap(NoFeature(self.csi_code(terminal))),
+                1002    => wrap(NoFeature(self.csi_code(terminal))),
+                1003    => wrap(NoFeature(self.csi_code(terminal))),
+                1004    => wrap(NoFeature(self.csi_code(terminal))),
+                1005    => wrap(NoFeature(self.csi_code(terminal))),
+                1006    => wrap(NoFeature(self.csi_code(terminal))),
+                1007    => wrap(NoFeature(self.csi_code(terminal))),
+                1034    => wrap(NoFeature(self.csi_code(terminal))),
+                1035    => wrap(NoFeature(self.csi_code(terminal))),
+                1036    => wrap(NoFeature(self.csi_code(terminal))),
+                1037    => wrap(NoFeature(self.csi_code(terminal))),
+                1039    => wrap(NoFeature(self.csi_code(terminal))),
+                1040    => wrap(NoFeature(self.csi_code(terminal))),
+                1041    => wrap(NoFeature(self.csi_code(terminal))),
+                1042    => wrap(NoFeature(self.csi_code(terminal))),
+                1043    => wrap(NoFeature(self.csi_code(terminal))),
+                1047    => wrap(NoFeature(self.csi_code(terminal))),
+                1048    => wrap(NoFeature(self.csi_code(terminal))),
                 1049    => wrap(PopBuffer),
-                1050    => wrap(NoFeature(self.csi_code())),
-                2004    => wrap(NoFeature(self.csi_code())),
+                1050    => wrap(NoFeature(self.csi_code(terminal))),
+                2004    => wrap(NoFeature(self.csi_code(terminal))),
                 _       => None
             }),
-            (b'm', 0, 0)        => match self.arg(0, 0) {
+            ('m', '\0', '\0')        => match self.arg(0, 0) {
                 0               => wrap(DefaultTextStyle),
                 38              => match self.arg(1, 0) {
                     2   => match (self.arg(3, 257), self.arg(4, 257), self.arg(5, 257)) {
@@ -232,32 +232,32 @@ impl AnsiCode {
                 })
                 }
             },
-            (b'm', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'n', 0, 0)        => match self.arg(0,5) {
+            ('m', '>', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('n', '\0', '\0')        => match self.arg(0,5) {
                 5   => wrap(StaticResponse("\x1b[0n")),
                 6   => wrap(ReportPosition(Code::ANSI)),
                 _   => None
             },
-            (b'n', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'n', b'?', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'p', 0, b'!')     => wrap(NoFeature(self.csi_code())),
-            (b'p', 0, b'$')     => wrap(NoFeature(self.csi_code())),
-            (b'p', 0, b'"')     => wrap(NoFeature(self.csi_code())),
-            (b'p', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'p', b'?', b'$')  => wrap(NoFeature(self.csi_code())),
-            (b'q', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'q', 0, b' ')     => match self.arg(0,1) {
-                0 | 1   => wrap(NoFeature(self.csi_code())),
-                2       => wrap(NoFeature(self.csi_code())),
-                3       => wrap(NoFeature(self.csi_code())),
-                4       => wrap(NoFeature(self.csi_code())),
-                5       => wrap(NoFeature(self.csi_code())),
-                6       => wrap(NoFeature(self.csi_code())),
+            ('n', '>', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('n', '?', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('p', '\0', '!')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('p', '\0', '$')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('p', '\0', '"')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('p', '>', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('p', '?', '$')  => wrap(NoFeature(self.csi_code(terminal))),
+            ('q', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('q', '\0', ' ')     => match self.arg(0,1) {
+                0 | 1   => wrap(NoFeature(self.csi_code(terminal))),
+                2       => wrap(NoFeature(self.csi_code(terminal))),
+                3       => wrap(NoFeature(self.csi_code(terminal))),
+                4       => wrap(NoFeature(self.csi_code(terminal))),
+                5       => wrap(NoFeature(self.csi_code(terminal))),
+                6       => wrap(NoFeature(self.csi_code(terminal))),
                 _       => None,
             },
-            (b'q', 0, b'"')     => wrap(NoFeature(self.csi_code())),
-            (b'r', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'r', 0, b'$')     => {
+            ('q', '\0', '"')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('r', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('r', '\0', '$')     => {
                 let area = match (self.arg(0,0), self.arg(1,0), self.arg(2,0), self.arg(3,0)) {
                     (0, _, _, _) | (_, 0, _, _) | (_, _, 0, _) | (_, _, _, 0)   => WholeScreen,
                     (t, l, b, r)    => Bound(Region::new(l-1, t-1, r-1, b-1))
@@ -282,28 +282,28 @@ impl AnsiCode {
                     _               => None,
                 }
             }
-            (b'r', b'?', 0)     => wrap(NoFeature(self.csi_code())),
-            (b's', 0, 0)        => wrap(NoFeature(self.csi_code())), //left and right margins
-            (b's', b'?', 0)     => wrap(NoFeature(self.csi_code())),
-            (b't', 0, 0)        => wrap(NoFeature(self.csi_code())), //window manipulation
-            (b't', 0, b' ')     => wrap(NoFeature(self.csi_code())),
-            (b't', 0, b'$')     => wrap(NoFeature(self.csi_code())), // DECRARA
-            (b't', b'>', 0)     => wrap(NoFeature(self.csi_code())),
-            (b'u', 0, 0)        => wrap(NoFeature(self.csi_code())), // Restore cursor?
-            (b'u', 0, b' ')     => wrap(NoFeature(self.csi_code())),
-            (b'v', 0, b'$')     => wrap(NoFeature(self.csi_code())), // Copy an area
-            (b'w', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'x', 0, 0)        => wrap(NoFeature(self.csi_code())),
-            (b'x', 0, b'*')     => wrap(NoFeature(self.csi_code())),
-            (b'x', 0, b'$')     => wrap(NoFeature(self.csi_code())),
-            (b'y', 0, b'*')     => wrap(NoFeature(self.csi_code())),
-            (b'z', 0, b'$')     => wrap(NoFeature(self.csi_code())), // erase rectangular area
-            (b'z', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'{', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'{', 0, b'$')     => wrap(NoFeature(self.csi_code())),
-            (b'|', 0, b'\'')    => wrap(NoFeature(self.csi_code())),
-            (b'}', 0, b'\'')    => wrap(NoFeature(self.csi_code())), 
-            (b'~', 0, b'\'')    => wrap(NoFeature(self.csi_code())), 
+            ('r', '?', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('s', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))), //left and right margins
+            ('s', '?', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('t', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))), //window manipulation
+            ('t', '\0', ' ')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('t', '\0', '$')     => wrap(NoFeature(self.csi_code(terminal))), // DECRARA
+            ('t', '>', '\0')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('u', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))), // Restore cursor?
+            ('u', '\0', ' ')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('v', '\0', '$')     => wrap(NoFeature(self.csi_code(terminal))), // Copy an area
+            ('w', '\0', '\'')    => wrap(NoFeature(self.csi_code(terminal))),
+            ('x', '\0', '\0')        => wrap(NoFeature(self.csi_code(terminal))),
+            ('x', '\0', '*')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('x', '\0', '$')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('y', '\0', '*')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('z', '\0', '$')     => wrap(NoFeature(self.csi_code(terminal))), // erase rectangular area
+            ('z', '\0', '\'')    => wrap(NoFeature(self.csi_code(terminal))),
+            ('{', '\0', '\'')    => wrap(NoFeature(self.csi_code(terminal))),
+            ('{', '\0', '$')     => wrap(NoFeature(self.csi_code(terminal))),
+            ('|', '\0', '\'')    => wrap(NoFeature(self.csi_code(terminal))),
+            ('}', '\0', '\'')    => wrap(NoFeature(self.csi_code(terminal))), 
+            ('~', '\0', '\'')    => wrap(NoFeature(self.csi_code(terminal))), 
             _                   => None
         }
     }
@@ -311,17 +311,20 @@ impl AnsiCode {
     #[allow(unused, dead_code)]
     pub fn dcs(&self, strarg: &str) -> Option<Box<Command>> {
         match (self.private_mode, self.preterminal) {
-            (b'|', 0)       => unimplemented!(),
-            (b'$', b'q')    => unimplemented!(),
-            (b'+', b'p')    => unimplemented!(),
-            (b'+', b'q')    => unimplemented!(),
+            ('|', '\0')   => unimplemented!(),
+            ('$', 'q')    => unimplemented!(),
+            ('+', 'p')    => unimplemented!(),
+            ('+', 'q')    => unimplemented!(),
             _               => unreachable!(),
         }
     }
 
-    pub fn osc(&self, strarg: &str) -> Option<Box<Command>> {
+    pub fn osc(&mut self) -> Option<Box<Command>> {
         match self.arg(0, 0) {
-            0...2   => wrap(SetTitle(RefCell::new(Some(String::from(strarg))))),
+            0...2   =>  {
+                let title = mem::replace(&mut self.arg_buf, String::new());
+                wrap(SetTitle(RefCell::new(Some(title))))
+            }
             3   => unimplemented!(),
             4   => unimplemented!(),
             5   => unimplemented!(),
@@ -341,10 +344,9 @@ impl AnsiCode {
         self.args.get(idx).map_or(default, |&x|x)
     }
 
-    fn csi_code(&self) -> String {
+    fn csi_code(&self, terminal: char) -> String {
         let args = self.args.iter().map(ToString::to_string).collect::<Vec<_>>().join(";");
-        format!("^[[{}{}{}{}", self.private_mode as char, args,
-                self.preterminal as char, self.terminal as char)
+        format!("^[[{}{}{}{}", self.private_mode, args, self.preterminal, terminal)
     }
 
 }

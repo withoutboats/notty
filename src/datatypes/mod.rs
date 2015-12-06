@@ -64,8 +64,6 @@ pub enum CellData {
     /// An extension code point such as U+301. Normally, writing this to the screen does not
     /// overwrite a cell, but instead applies it to the char in the cell.
     ExtensionChar(char),
-    /// A multi code-point grapheme, such as a Hangul triplet.
-    Grapheme(String),
     /// Non-character media data, with a mime type, positioning and size info.
     Image {
         pos: MediaPosition,

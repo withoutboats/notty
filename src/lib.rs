@@ -13,8 +13,9 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#![feature(str_char, drain)]
+#![feature(io, drain)]
 
+extern crate base64;
 extern crate image;
 extern crate mime;
 extern crate notty_encoding;

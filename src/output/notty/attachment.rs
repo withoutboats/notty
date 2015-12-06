@@ -13,116 +13,71 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::str;
+use base64;
 
-#[derive(Default)]
 pub struct Attachments {
-    data: Vec<u8>,
-    points: Vec<usize>,
+    data: Vec<String>,
+}
+
+impl Default for Attachments {
+    fn default() -> Attachments {
+        Attachments { data: vec![String::new()] }
+    }
 }
 
 impl Attachments {
 
     pub fn clear(&mut self) {
-        self.data.clear();
-        self.points.clear();
+        self.data.truncate(1);
+        self.data.last_mut().unwrap().clear();
     }
 
     pub fn iter(&self) -> AttachmentIter {
         self.into_iter()
     }
 
-    pub fn append(&mut self, buf: &[u8], offset: &mut usize) -> Option<usize> {
-        let mut offset_tmp = *offset + 1;
-        'len: loop {
-            match buf.get(offset_tmp).map(|&x|x) {
-                Some(b'0'...b'9') | Some(b'A'...b'F') | Some(b'a'...b'f') => offset_tmp += 1,
-                // According to the spec, the first byte after the length header must be ';'.
-                // However, in order to continue making some sort of progress on malformed data,
-                // any byte that is not a hexadigit will be treated as the terminal byte.
-                Some(_) => break,
-                None    => return None,
+    pub fn append(&mut self, ch: char) -> Option<bool> {
+        match ch {
+            '0'...'9' | 'A'...'Z' | 'a'...'z' | '+' | '/' | '=' => {
+                self.data.last_mut().unwrap().push(ch);
+                None
             }
+            '#'                                                 => {
+                self.data.push(String::new());
+                None
+            }
+            '\x07'                                              => Some(true),
+            _                                                   => Some(false),
         }
-        let len = usize::from_str_radix(unsafe {
-            str::from_utf8_unchecked(&buf[*offset + 1 .. offset_tmp])
-        }, 16).unwrap();
-        offset_tmp += 1;
-        if offset_tmp + len > buf.len() {
-            let data = &buf[offset_tmp..];
-            self.data.extend(data);
-            *offset = buf.len();
-            Some(len - data.len())
-        } else {
-            *offset = offset_tmp + len;
-            self.push(&buf[offset_tmp..*offset]);
-            Some(0)
-        }
-    }
-
-    pub fn append_incomplete(&mut self, buf: &[u8], offset: &mut usize, rem: usize) -> usize {
-        if *offset + rem > buf.len() {
-            let data = &buf[*offset..];
-            self.data.extend(data);
-            *offset = buf.len();
-            rem - data.len()
-        } else {
-            self.push(&buf[*offset..*offset + rem]);
-            *offset += rem;
-            0
-        }
-    }
-
-    fn push(&mut self, data: &[u8]) {
-        self.data.extend(data);
-        self.points.push(self.data.len());
     }
 
 }
 
 impl<'a> IntoIterator for &'a Attachments {
-    type Item = &'a [u8];
+    type Item = Vec<u8>;
     type IntoIter = AttachmentIter<'a>;
     fn into_iter(self) -> AttachmentIter<'a> {
         AttachmentIter {
-            attachments: self,
-            ctr: 0,
-            prev: Some(0),
+            attachments: self.data.iter(),
         }
     }
 }
 
 pub struct AttachmentIter<'a>{
-    attachments: &'a Attachments,
-    ctr: usize,
-    prev: Option<usize>,
+    attachments: <&'a Vec<String> as IntoIterator>::IntoIter,
 }
 
 impl<'a> Iterator for AttachmentIter<'a> {
-    type Item = &'a [u8];
-    fn next(&mut self) -> Option<&'a [u8]> {
-        match self.prev.take() {
-            Some(begin) => match self.attachments.points.get(self.ctr) {
-                Some(&end)  => {
-                    self.ctr += 1;
-                    self.prev = Some(end);
-                    Some(&self.attachments.data[begin..end])
-                }
-                None        => {
-                    self.ctr += 1;
-                    self.prev = None;
-                    Some(&self.attachments.data[begin..])
-                }
-            },
-            None        => None,
-        }
+    type Item = Vec<u8>;
+    fn next(&mut self) -> Option<Vec<u8>> {
+        self.attachments.next().and_then(|data| base64::u8de(data.as_bytes()).ok())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
 
+    use base64;
     use super::*;
 
     static BLOCKS: &'static [&'static str] = &[
@@ -136,10 +91,9 @@ mod tests {
     
     #[test]
     fn iterates() {
-        let mut attachments = Attachments::default();
-        for block in BLOCKS {
-            attachments.push(block.as_bytes());
-        }
+        let attachments = Attachments {
+            data: BLOCKS.iter().map(|s| base64::encode(s).unwrap()).collect()
+        };
         for (attachment, block) in (&attachments).into_iter().zip(BLOCKS) {
             assert_eq!(attachment, block.as_bytes());
         }
@@ -147,21 +101,24 @@ mod tests {
 
     #[test]
     fn appends() {
-        let buf = b"{10;YELLOW SUBMARINE{d;HELLO, ";
-        let mut offset = 0;
         let mut attachments = Attachments::default();
-        assert_eq!(attachments.append(buf, &mut offset), Some(0));
-        assert_eq!(offset, 20);
-        assert_eq!(attachments.append(buf, &mut offset), Some(6));
-        assert_eq!(offset, buf.len());
-        let buf = b"WORLD!}";
-        let mut offset = 0;
-        assert_eq!(attachments.append_incomplete(buf, &mut offset, 6), 0);
-        assert_eq!(offset, buf.len() - 1);
-        assert_eq!(buf[offset], b'}');
-        for (attachment, block) in attachments.iter().zip(&["YELLOW SUBMARINE", "HELLO, WORLD!"]) {
+        for data in BLOCKS.iter().map(|s| base64::encode(s).unwrap()) {
+            for ch in data.chars() {
+                assert_eq!(attachments.append(ch), None);
+            }
+            assert_eq!(attachments.append('#'), None);
+        }
+        assert_eq!(attachments.append('\x07'), Some(true));
+        for (attachment, block) in (&attachments).into_iter().zip(BLOCKS) {
             assert_eq!(attachment, block.as_bytes());
         }
+    }
+
+    #[test]
+    fn wont_append_invalid_chars() {
+        let mut attachments = Attachments::default();
+        assert_eq!(attachments.append('~'), Some(false));
+        assert_eq!(attachments.data.last().unwrap().len(), 0);
     }
 
 }

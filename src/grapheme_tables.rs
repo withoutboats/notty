@@ -37,16 +37,6 @@ pub enum GraphemeCat {
     GC_V,
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum GraphemeState {
-    Start,
-    HangulL,
-    HangulLV,
-    HangulLVT,
-    Regional,
-}
-
 fn bsearch_range_value_table(c: char, r: &'static [(char, char, GraphemeCat)]) -> GraphemeCat {
     use std::cmp::Ordering::{Equal, Less, Greater};
     if let Ok(idx) = r.binary_search_by(|&(lo, hi, _)| {
