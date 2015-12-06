@@ -280,13 +280,11 @@ mod tests {
         run_test(|mut grid, _| {
             for c in vec![
                 CellData::Char('Q'),
-                CellData::Grapheme(String::from("E\u{301}")),
                 CellData::Char('E'),
                 CellData::ExtensionChar('\u{301}'),
             ].into_iter() { grid.write(c); }
             assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "Q");
             assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "E\u{301}");
-            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "E\u{301}");
         });
     }
 
