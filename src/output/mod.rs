@@ -224,7 +224,7 @@ impl<R: io::BufRead> Output<R> {
         else if ch == '#' {
             (NottyAttach, None)
         }
-        else if ch == '\x07' {
+        else if ch == '\u{9c}' {
             let ret = (Character, self.notty.parse());
             self.notty.clear();
             ret
@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn notty_code() {
-        let mut output = setup(b"A\x1b_[30;8.ff.ff.ff\x07\x1b_[19;1;2\x07B");
+        let mut output = setup("A\x1b_[30;8.ff.ff.ff\u{9c}\x1b_[19;1;2\u{9c}B".as_bytes());
         assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
         assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");
