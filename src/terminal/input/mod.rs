@@ -23,11 +23,13 @@ mod ansi;
 mod line_echo;
 mod modifiers;
 mod notty;
+mod screen_echo;
 
 use self::buffer::InputBuffer;
 use self::line_echo::LineEcho;
 use self::modifiers::Modifiers;
 use self::notty::Extended;
+use self::screen_echo::ScreenEcho;
 use self::InputMode::*;
 
 pub struct Input {
@@ -41,7 +43,7 @@ impl Input {
     pub fn new<W: Write + 'static>(tty: W) -> Input {
         Input {
             tty: Box::new(tty),
-            mode: InputMode::Ansi(false),
+            mode: Ansi(false),
             modifiers: Modifiers::new(),
         }
     }
@@ -56,6 +58,8 @@ impl Input {
                 ExtendedLine(LineEcho::new(settings), Extended),
             InputSettings::LineBufferEcho(echo, buffer) =>
                 ExtendedLineBuffer(LineEcho::new(echo), InputBuffer::new(buffer)),
+            InputSettings::ScreenEcho(settings)         =>
+                ExtendedScreen(ScreenEcho::new(settings), Extended)
         }
     }
 
@@ -72,6 +76,7 @@ pub enum InputMode {
     ExtendedRaw(Extended),
     ExtendedLine(LineEcho, Extended),
     ExtendedLineBuffer(LineEcho, InputBuffer),
+    ExtendedScreen(ScreenEcho, Extended),
 }
 
 impl InputMode {
@@ -97,6 +102,11 @@ impl InputMode {
                 if let Some(data) = buffer.write(&key, echo.settings) {
                     try!(tty.write_all(data.as_bytes()))
                 }
+                if press { Ok(echo.echo(key)) } else { Ok(None) }
+            }
+            ExtendedScreen(ref mut echo, notty) => {
+                let data = notty.encode(&key, press, modifiers);
+                try!(tty.write_all(data.as_bytes()));
                 if press { Ok(echo.echo(key)) } else { Ok(None) }
             }
             _                                   => Ok(None)
