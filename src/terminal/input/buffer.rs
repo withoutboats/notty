@@ -3,17 +3,25 @@ use std::mem;
 use datatypes::{BufferSettings, EchoSettings, Key};
 use datatypes::Key::*;
 
-#[derive(Default)]
 pub struct InputBuffer {
     data: String,
     cursor: usize,
+    settings: BufferSettings,
 }
 
 impl InputBuffer {
 
-    pub fn write(&mut self, key: &Key, buf: BufferSettings, echo: EchoSettings) -> Option<String> {
+    pub fn new(settings: BufferSettings) -> InputBuffer {
+        InputBuffer {
+            data: String::new(),
+            cursor: 0,
+            settings: settings
+        }
+    }
+
+    pub fn write(&mut self, key: &Key, echo: EchoSettings) -> Option<String> {
         match (self.cursor == self.data.len(), key) {
-            (_, &Char(c)) if c == '\n' || buf.eol(c)    => {
+            (_, &Char(c)) if c == '\n' || self.settings.eol(c)  => {
                 self.data.push(c);
                 self.cursor = 0;
                 Some(mem::replace(&mut self.data, String::new()))
@@ -23,7 +31,7 @@ impl InputBuffer {
                 self.cursor = 0;
                 Some(mem::replace(&mut self.data, String::new()))
             }
-            (_, &Char(c)) if buf.signal(c)              => Some(c.to_string()),
+            (_, &Char(c)) if self.settings.signal(c)    => Some(c.to_string()),
             (_, &Char(c)) if c == echo.lerase as char   => {
                 self.data.clear();
                 self.cursor = 0;

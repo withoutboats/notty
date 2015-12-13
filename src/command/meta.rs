@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use notty_encoding::cmds::{PushBuffer, PopBuffer, SetInputMode};
 
 use command::prelude::*;
-use datatypes::InputMode;
+use datatypes::InputSettings;
 
 impl Command for PushBuffer {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
@@ -64,9 +64,11 @@ impl Command for SetInputMode {
     }
     fn repr(&self) -> String {
         match self.0 {
-            InputMode::Ansi(false)  => String::from("SET INPUTMODE ANSI"),
-            InputMode::Ansi(true)   => String::from("SET INPUTMODE APPLICATION"),
-            InputMode::Notty(_)     => String::from("SET INPUTMODE EXTENDED"),
+            InputSettings::Ansi(false)          => String::from("SET INPUTMODE ANSI"),
+            InputSettings::Ansi(true)           => String::from("SET INPUTMODE APPLICATION"),
+            InputSettings::Notty(_)             => String::from("SET INPUTMODE EXTENDED"),
+            InputSettings::LineEcho(_)          => String::from("SET INPUTMODE LINE ECHO"),
+            InputSettings::LineBufferEcho(_, _) => String::from("SET INPUTMODE LINEBUFFER ECHO"), 
         }
     }
 }

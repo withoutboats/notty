@@ -39,7 +39,7 @@ pub mod args {
         Color,
         Direction,
         EchoSettings,
-        InputMode,
+        InputSettings,
         MediaAlignment,
         MediaPosition,
         Movement,
@@ -48,7 +48,7 @@ pub mod args {
     };
     pub use super::Area::*;
     pub use super::Direction::*;
-    pub use super::InputMode::*;
+    pub use super::InputSettings::*;
     pub use super::MediaAlignment::*;
     pub use super::MediaPosition::*;
     pub use super::Movement::*;

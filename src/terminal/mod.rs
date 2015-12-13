@@ -20,7 +20,7 @@ use std::ops::{Deref, DerefMut};
 mod char_grid;
 mod input;
 
-use datatypes::{BufferSettings, EchoSettings, InputMode, Key};
+use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip};
 
@@ -84,16 +84,8 @@ impl Terminal {
         self.title = title;
     }
 
-    pub fn set_input_mode(&mut self, mode: InputMode) {
+    pub fn set_input_mode(&mut self, mode: InputSettings) {
         self.tty.set_mode(mode);
-    }
-
-    pub fn set_buffer_mode(&mut self, buffer: Option<BufferSettings>) {
-        self.tty.set_buffer(buffer);
-    }
-
-    pub fn set_echo_mode(&mut self, echo: Option<EchoSettings>) {
-        self.tty.set_echo(echo);
     }
 
     pub fn bell(&mut self) {

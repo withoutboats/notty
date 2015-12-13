@@ -40,36 +40,43 @@ macro_rules! key {
     });
 }
 
-pub fn encode(key: &Key, press: bool, _: (), mods: Modifiers) -> Cow<'static, str> {
-    match *key {
-        Char(c)             => char_key(c, press, mods),
-        Enter               => char_key('\n', press, mods),
-        Backspace           => char_key('\x08', press, mods),
-        Delete              => char_key('\x7f', press, mods),
-        UpArrow             => key!('1', press, mods),
-        DownArrow           => key!('2', press, mods),
-        LeftArrow           => key!('3', press, mods),
-        RightArrow          => key!('4', press, mods),
-        PageUp              => key!('5', press, mods),
-        PageDown            => key!('6', press, mods),
-        Home                => key!('7', press, mods),
-        End                 => key!('8', press, mods),
-        Insert              => key!('9', press, mods),
-        ShiftLeft           => key!("a", press, mods),
-        ShiftRight          => key!("a", press, mods),
-        CtrlLeft            => key!("b", press, mods),
-        CtrlRight           => key!("b", press, mods),
-        AltLeft             => key!("c", press, mods),
-        AltGr               => key!("d", press, mods),
-        Meta                => key!("e", press, mods),
-        Menu                => key!("f", press, mods),
-        NumLock             => unimplemented!(),
-        ScrollLock          => unimplemented!(),
-        CapsLock            => unimplemented!(), 
-        Function(_)         => unimplemented!(),
-        Cmd(ref s)          => s.clone(),
-        MenuSelection(_)    => unimplemented!(),
+#[derive(Copy, Clone)]
+pub struct Extended;
+
+impl Extended {
+
+    pub fn encode(&self, key: &Key, press: bool, mods: Modifiers) -> Cow<'static, str> {
+        match *key {
+            Char(c)             => char_key(c, press, mods),
+            Enter               => char_key('\n', press, mods),
+            Backspace           => char_key('\x08', press, mods),
+            Delete              => char_key('\x7f', press, mods),
+            UpArrow             => key!('1', press, mods),
+            DownArrow           => key!('2', press, mods),
+            LeftArrow           => key!('3', press, mods),
+            RightArrow          => key!('4', press, mods),
+            PageUp              => key!('5', press, mods),
+            PageDown            => key!('6', press, mods),
+            Home                => key!('7', press, mods),
+            End                 => key!('8', press, mods),
+            Insert              => key!('9', press, mods),
+            ShiftLeft           => key!("a", press, mods),
+            ShiftRight          => key!("a", press, mods),
+            CtrlLeft            => key!("b", press, mods),
+            CtrlRight           => key!("b", press, mods),
+            AltLeft             => key!("c", press, mods),
+            AltGr               => key!("d", press, mods),
+            Meta                => key!("e", press, mods),
+            Menu                => key!("f", press, mods),
+            NumLock             => unimplemented!(),
+            ScrollLock          => unimplemented!(),
+            CapsLock            => unimplemented!(), 
+            Function(_)         => unimplemented!(),
+            Cmd(ref s)          => s.clone(),
+            MenuSelection(_)    => unimplemented!(),
+        }
     }
+
 }
 
 fn char_key(c: char, press: bool, mods: Modifiers) -> Cow<'static, str> {

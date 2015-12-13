@@ -18,7 +18,6 @@ use std::io::Write;
 
 use command::prelude::*;
 
-mod echo;
 mod erase;
 mod input;
 mod meta;
@@ -29,7 +28,6 @@ mod style;
 mod tooltip;
 
 pub use notty_encoding::cmds::{
-    SetBufferMode, SetEchoMode,
     Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows,
     PushBuffer, PopBuffer, SetInputMode,
     Move, ScrollScreen,

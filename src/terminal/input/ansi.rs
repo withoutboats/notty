@@ -47,6 +47,7 @@ macro_rules! tilde_key {
     });
 }
 
+
 pub fn encode(key: &Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static, str>> {
     match *key {
         Char(c) if mods.alt()   => Some(Cow::Owned(format!("\x1b{}", c))),

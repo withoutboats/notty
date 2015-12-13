@@ -16,25 +16,24 @@
 use std::io::{self, Write};
 
 use command::Command;
-use datatypes::{BufferSettings, EchoSettings, InputMode, Key};
-use datatypes::InputMode::*;
+use datatypes::{InputSettings, Key};
 
 mod buffer;
 mod ansi;
-mod echo;
+mod line_echo;
 mod modifiers;
 mod notty;
 
 use self::buffer::InputBuffer;
+use self::line_echo::LineEcho;
 use self::modifiers::Modifiers;
+use self::notty::Extended;
+use self::InputMode::*;
 
 pub struct Input {
     tty: Box<Write>,
     mode: InputMode,
     modifiers: Modifiers,
-    buffer: InputBuffer,
-    echo_set: Option<EchoSettings>,
-    buffer_set: Option<BufferSettings>,
 }
 
 impl Input {
@@ -44,63 +43,63 @@ impl Input {
             tty: Box::new(tty),
             mode: InputMode::Ansi(false),
             modifiers: Modifiers::new(),
-            buffer: InputBuffer::default(),
-            echo_set: None,
-            buffer_set: None,
         }
     }
 
-    pub fn set_mode(&mut self, mode: InputMode) {
-        self.mode = mode;
-    }
-
-    pub fn set_echo(&mut self, echo: Option<EchoSettings>) {
-        self.echo_set = echo;
-    }
-
-    pub fn set_buffer(&mut self, buffer: Option<BufferSettings>) {
-        self.buffer_set = buffer;
-    }
-
-    pub fn write(&mut self, mut key: Key, press: bool) -> io::Result<Option<Box<Command>>> {
-        if key.is_modifier() {
-            self.modifiers.apply(&key, press);
+    pub fn set_mode(&mut self, mode: InputSettings) {
+        self.mode = match mode {
+            InputSettings::Ansi(flag)                   =>
+                Ansi(flag),
+            InputSettings::Notty(_)                     =>
+                ExtendedRaw(Extended),
+            InputSettings::LineEcho(settings)           =>
+                ExtendedLine(LineEcho::new(settings), Extended),
+            InputSettings::LineBufferEcho(echo, buffer) =>
+                ExtendedLineBuffer(LineEcho::new(echo), InputBuffer::new(buffer)),
         }
-        if self.modifiers.ctrl() {
-            key = key.ctrl_modify();
-        }
-        match (self.buffer_set, self.echo_set) {
-            (Some(buffer), Some(echo)) if press => {
-               if let Some(data) = self.buffer.write(&key, buffer, echo) {
-                   try!(self.tty.write_all(data.as_bytes()));
-               }
+    }
+
+    pub fn write(&mut self, key: Key, press: bool) -> io::Result<Option<Box<Command>>> {
+        if key.is_modifier() { self.modifiers.apply(&key, press); }
+        let key = if self.modifiers.ctrl() { key.ctrl_modify() } else { key };
+        self.mode.write(key, press, &mut self.tty, self.modifiers)
+    }
+
+}
+
+pub enum InputMode {
+    Ansi(bool),
+    ExtendedRaw(Extended),
+    ExtendedLine(LineEcho, Extended),
+    ExtendedLineBuffer(LineEcho, InputBuffer),
+}
+
+impl InputMode {
+
+    pub fn write(&mut self, key: Key, press: bool, tty: &mut Write, modifiers: Modifiers)
+            -> io::Result<Option<Box<Command>>> {
+        match *self {
+            Ansi(app_mode) if press && !key.is_modifier() => {
+                if let Some(data) = ansi::encode(&key, app_mode, modifiers) {
+                    tty.write_all(data.as_bytes()).and(Ok(None))
+                } else { Ok(None) }
             }
-            (None, _)   => try!(self.send(&key, press)),
-            _           => ()
-        }
-        match self.echo_set {
-            Some(set) if press  => {
-                Ok(echo::encode(key, set.lerase as char, set.lnext as char, set.werase as char))
+            ExtendedRaw(notty)                  => {
+                let data = notty.encode(&key, press, modifiers);
+                tty.write_all(data.as_bytes()).and(Ok(None))
             }
-            _                   => Ok(None),
-        }
-    }
-
-    fn send(&mut self, key: &Key, press: bool) -> io::Result<()> {
-        match self.mode {
-            InputMode::Ansi(_) if key.is_modifier()     => {
-                Ok(())
+            ExtendedLine(ref mut echo, notty)   => {
+                let data = notty.encode(&key, press, modifiers);
+                try!(tty.write_all(data.as_bytes()));
+                if press { Ok(echo.echo(key)) } else { Ok(None) }
             }
-            InputMode::Ansi(app_mode) if press          => {
-                match ansi::encode(key, app_mode, self.modifiers) {
-                    Some(code)  => self.tty.write_all(code.as_bytes()),
-                    None        => Ok(()),
+            ExtendedLineBuffer(ref mut echo, ref mut buffer) => {
+                if let Some(data) = buffer.write(&key, echo.settings) {
+                    try!(tty.write_all(data.as_bytes()))
                 }
+                if press { Ok(echo.echo(key)) } else { Ok(None) }
             }
-            InputMode::Ansi(_)                          => Ok(()),
-            InputMode::Notty(flags)                     => {
-                self.tty.write_all(notty::encode(key, press, flags, self.modifiers).as_bytes())
-            }
+            _                                   => Ok(None)
         }
     }
 
