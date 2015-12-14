@@ -67,7 +67,6 @@ impl Command for SetInputMode {
             InputSettings::Ansi(false)          => String::from("SET INPUTMODE ANSI"),
             InputSettings::Ansi(true)           => String::from("SET INPUTMODE APPLICATION"),
             InputSettings::Notty(_)             => String::from("SET INPUTMODE EXTENDED"),
-            InputSettings::LineEcho(_)          => String::from("SET INPUTMODE LINE ECHO"),
             InputSettings::LineBufferEcho(_, _) => String::from("SET INPUTMODE LINEBUFFER ECHO"), 
             InputSettings::ScreenEcho(_)        => String::from("SET INPUTMODE SCREEN ECHO"),
         }

@@ -54,8 +54,6 @@ impl Input {
                 Ansi(flag),
             InputSettings::Notty(_)                     =>
                 ExtendedRaw(Extended),
-            InputSettings::LineEcho(settings)           =>
-                ExtendedLine(LineEcho::new(settings), Extended),
             InputSettings::LineBufferEcho(echo, buffer) =>
                 ExtendedLineBuffer(LineEcho::new(echo), InputBuffer::new(buffer)),
             InputSettings::ScreenEcho(settings)         =>
@@ -74,7 +72,6 @@ impl Input {
 pub enum InputMode {
     Ansi(bool),
     ExtendedRaw(Extended),
-    ExtendedLine(LineEcho, Extended),
     ExtendedLineBuffer(LineEcho, InputBuffer),
     ExtendedScreen(ScreenEcho, Extended),
 }
@@ -92,11 +89,6 @@ impl InputMode {
             ExtendedRaw(notty)                  => {
                 let data = notty.encode(&key, press, modifiers);
                 tty.write_all(data.as_bytes()).and(Ok(None))
-            }
-            ExtendedLine(ref mut echo, notty)   => {
-                let data = notty.encode(&key, press, modifiers);
-                try!(tty.write_all(data.as_bytes()));
-                if press { Ok(echo.echo(key)) } else { Ok(None) }
             }
             ExtendedLineBuffer(ref mut echo, ref mut buffer) => {
                 if let Some(data) = buffer.write(&key, echo.settings) {
