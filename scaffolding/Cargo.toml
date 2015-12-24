@@ -5,9 +5,9 @@ authors = ["Without Boats <woboats@gmail.com>"]
 license = "AGPL-3.0+"
 
 [dependencies]
-gdk = "0.1.4"
-gtk = "0.0.5"
-cairo-rs = "0.0.6"
+gdk = "0.2.0"
+gtk = "0.0.6"
+cairo-rs = "0.0.7"
 
 [dependencies.tty]
 path = "tty"
