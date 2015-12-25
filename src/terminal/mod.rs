@@ -92,14 +92,11 @@ impl Terminal {
         println!("BELL");
     }
 
-    pub fn set_visible_height(&mut self, rows: u32) {
-        self.active.set_height(rows);
-        self.height = rows;
-    }
-
-    pub fn set_visible_width(&mut self, cols: u32) {
+    pub fn set_winsize(&mut self, cols: u32, rows: u32) {
         self.active.set_width(cols);
         self.width = cols;
+        self.active.set_height(rows);
+        self.height = rows;
     }
 
 }
