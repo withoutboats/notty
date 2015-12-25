@@ -16,8 +16,7 @@
 use std::cell::RefCell;
 use std::str::FromStr;
 
-use image::{self, DynamicImage, ImageFormat};
-use mime::{Mime, TopLevel, SubLevel};
+use mime::{Mime, SubLevel};
 
 use command::*;
 use datatypes::args::*;
@@ -42,8 +41,8 @@ impl NottyData {
                 let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
                 let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
                 let p = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
-                if let Some(img) = image(self.attachments.iter()) {
-                    wrap(Some(Put::new_image(img, p, w, h)))
+                if let Some((mime, data)) = image(self.attachments.iter()) {
+                    wrap(Some(Put::new_image(data, mime, p, w, h)))
                 } else { None }
             }
             Some(0x15)  => {
@@ -51,8 +50,8 @@ impl NottyData {
                 let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
                 let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
                 let p = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
-                if let Some(img) = image(self.attachments.iter()) {
-                    wrap(Some(PutAt::new_image(img, p, w, h, coords)))
+                if let Some((mime, data)) = image(self.attachments.iter()) {
+                    wrap(Some(PutAt::new_image(data, mime, p, w, h, coords)))
                 } else { None }
             }
             Some(0x18)  => {
@@ -135,28 +134,17 @@ impl NottyData {
 
 }
 
-fn image<I: Iterator<Item=Vec<u8>>>(mut attachments: I) -> Option<DynamicImage> {
-
-    let mime = match attachments.next()
-        .and_then(|data| String::from_utf8(data).ok())
-        .and_then(|string| Mime::from_str(&string).ok()) { Some(m) => m, None => return None };
-    let fmt = match (mime.0, mime.1) {
-        (TopLevel::Image, SubLevel::Gif) | (TopLevel::Star, SubLevel::Gif)      => {
-            ImageFormat::GIF
-        }
-        (TopLevel::Image, SubLevel::Jpeg) | (TopLevel::Star, SubLevel::Jpeg)    => {
-            ImageFormat::JPEG
-        }
-        (TopLevel::Image, SubLevel::Png) | (TopLevel::Star, SubLevel::Png)      => {
-            ImageFormat::PNG
-        }
-        _                                                                       => return None
-    };
-
-    let data = match attachments.next() { Some(data) => data, None => return None };
-
-    image::load_from_memory_with_format(&data, fmt).ok()
-
+fn image<I: Iterator<Item=Vec<u8>>>(mut attachments: I) -> Option<(Mime, Vec<u8>)> {
+    attachments.next().and_then(|data| {
+        String::from_utf8(data).ok()
+    }).and_then(|string| {
+        Mime::from_str(&string).ok()
+    }).and_then(|mime| match mime.1 {
+        SubLevel::Gif | SubLevel::Jpeg | SubLevel::Png  => Some(mime),
+        _                                               => None
+    }).and_then(|mime| {
+        attachments.next().map(|data| (mime, data))
+    })
 }
 
 fn wrap<T: Command>(cmd: Option<T>) -> Option<Box<Command>> {

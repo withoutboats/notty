@@ -19,7 +19,7 @@
 //! any methods on any type in this submodule are required to take the receiver immutably.
 use std::cmp;
 
-use image::DynamicImage;
+use mime::Mime;
 
 use cfg;
 
@@ -69,7 +69,8 @@ pub enum CellData {
         pos: MediaPosition,
         width: u32,
         height: u32,
-        data: DynamicImage,
+        data: Vec<u8>,
+        mime: Mime,
     }
 }
 

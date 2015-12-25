@@ -13,7 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use image::DynamicImage;
+use mime::Mime;
 
 use datatypes::{Coords, MediaPosition};
 use terminal::Styles;
@@ -26,7 +26,8 @@ pub enum CharCell {
     Char(char, Styles),
     Grapheme(String, Styles),
     Image {
-        data: DynamicImage,
+        data: Vec<u8>,
+        mime: Mime,
         pos: MediaPosition,
         end: Coords,
         style: Styles,
@@ -44,9 +45,10 @@ impl CharCell {
        Grapheme(grapheme, style)
     }
 
-    pub fn image(data: DynamicImage, pos: MediaPosition, end: Coords, style: Styles) -> CharCell {
+    pub fn image(data: Vec<u8>, mime: Mime, pos: MediaPosition, end: Coords, style: Styles) -> CharCell {
         Image {
             data: data,
+            mime: mime,
             pos: pos,
             end: end,
             style: style,

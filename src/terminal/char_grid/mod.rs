@@ -116,14 +116,15 @@ impl CharGrid {
                     self.cursor.navigate(&mut self.grid, To(Right, 1, true));
                 }
             }
-            CellData::Image { pos, width, height, data }   => {
+            CellData::Image { pos, width, height, data, mime }   => {
                 let mut end = self.cursor.coords;
                 end = move_within(end, To(Right, width, false), self.grid.bounds());
                 end = move_within(end, To(Down, height, false), self.grid.bounds());
                 let mut iter = CoordsIter::from_area(CursorBound(end),
                                                      self.cursor.coords, self.grid.bounds());
                 if let Some(cu_coords) = iter.next() {
-                    self.grid[cu_coords] = CharCell::image(data, pos, end, self.cursor.text_style);
+                    self.grid[cu_coords] = CharCell::image(data, mime, pos, end,
+                                                           self.cursor.text_style);
                     for coords in iter {
                         self.grid[coords] = CharCell::Extension(cu_coords, self.cursor.text_style);
                     }

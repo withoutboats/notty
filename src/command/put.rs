@@ -13,7 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use image::DynamicImage;
+use mime::Mime;
 
 use std::cell::RefCell;
 
@@ -30,12 +30,13 @@ impl Put {
     pub fn new_extension(ch: char) -> Put {
         Put(RefCell::new(Some(CellData::ExtensionChar(ch))))
     }
-    pub fn new_image(data: DynamicImage, pos: MediaPosition, w: u32, h: u32) -> Put {
+    pub fn new_image(data: Vec<u8>, mime: Mime, pos: MediaPosition, w: u32, h: u32) -> Put {
         Put(RefCell::new(Some(CellData::Image {
             pos: pos,
             width: w,
             height: h,
-            data: data
+            data: data,
+            mime: mime,
         })))
     }
 }
@@ -63,12 +64,14 @@ pub struct PutAt(RefCell<Option<CellData>>, Coords);
 
 impl PutAt {
 
-    pub fn new_image(data: DynamicImage, pos: MediaPosition, w: u32, h: u32, at: Coords) -> PutAt {
+    pub fn new_image(data: Vec<u8>, mime: Mime, pos: MediaPosition, w: u32, h: u32, at: Coords)
+            -> PutAt {
         PutAt(RefCell::new(Some(CellData::Image {
             pos: pos,
             width: w,
             height: h,
             data: data,
+            mime: mime,
         })), at)
     }
 }
