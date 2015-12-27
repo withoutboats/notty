@@ -37,7 +37,7 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Write + 'static>(width: u32, height: u32, tty: W) -> Terminal {
+    pub fn new<W: Write + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
         let grid = CharGrid::new(width, height, false, true);
         let tty = Input::new(tty);
         Terminal {

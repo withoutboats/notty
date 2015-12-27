@@ -33,14 +33,14 @@ use self::screen_echo::ScreenEcho;
 use self::InputMode::*;
 
 pub struct Input {
-    tty: Box<Write>,
+    tty: Box<Write + Send>,
     mode: InputMode,
     modifiers: Modifiers,
 }
 
 impl Input {
 
-    pub fn new<W: Write + 'static>(tty: W) -> Input {
+    pub fn new<W: Write + Send + 'static>(tty: W) -> Input {
         Input {
             tty: Box::new(tty),
             mode: Ansi(false),
