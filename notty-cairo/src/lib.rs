@@ -25,17 +25,13 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(canvas: &cairo::Context) -> Renderer {
+    pub fn new(canvas: &cairo::Context, scroll: u32) -> Renderer {
         let (char_w, char_h) = char_dimensions(canvas);
-        Renderer { char_w: char_w, char_h: char_h, scroll: 0 }
+        Renderer { char_w: char_w, char_h: char_h, scroll: scroll }
     }
 
     pub fn reset_dimensions(&self, terminal: &mut Terminal, x_pix: u32, y_pix: u32) {
         terminal.set_winsize(x_pix / self.char_w as u32, y_pix / self.char_h as u32);
-    }
-
-    pub fn set_scroll(&mut self, scroll: u32) {
-        self.scroll = scroll;
     }
 
     pub fn draw(&self, terminal: &Terminal, canvas: &cairo::Context) {
