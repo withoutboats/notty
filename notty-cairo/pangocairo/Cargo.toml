@@ -1,0 +1,10 @@
+[package]
+name = "pangocairo"
+version = "0.1.0"
+authors = ["Without Boats <woboats@gmail.com>"]
+license = "AGPL-3.0+"
+
+[dependencies]
+cairo-rs = "*"
+pango = "*"
+gobject-sys = "*"

@@ -1,0 +1,17 @@
+[package]
+authors = ["Without Boats <woboats@gmail.com>"]
+name = "notty-cairo"
+version = "0.1.0"
+
+[dependencies]
+cairo-rs = "0.0.7"
+gdk = "0.2.0"
+gdk-pixbuf-sys = "0.2.1"
+gio-sys = "0.2.1"
+itertools = "0.4.4"
+
+[dependencies.notty]
+path = ".."
+
+[dependencies.pangocairo]
+path = "pangocairo"
