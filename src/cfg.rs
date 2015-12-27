@@ -17,7 +17,7 @@ use datatypes::Color;
 
 // FONTS
 
-pub static FONT: &'static str = "Inconsolatazi4 10";
+pub static FONT: &'static str = "Inconsolata 10";
 
 // LOGGING
 
