@@ -1,20 +1,18 @@
 [package]
-name = "scaffolding-terminal"
-version = "0.1.0"
 authors = ["Without Boats <woboats@gmail.com>"]
 license = "AGPL-3.0+"
+name = "scaffolding-terminal"
+version = "0.1.0"
 
 [dependencies]
 gdk = "0.2.0"
 gtk = "0.0.6"
-cairo-rs = "0.0.7"
-
-[dependencies.tty]
-path = "tty"
-
-[dependencies.pangocairo]
-path = "pangocairo"
 
 [dependencies.notty]
 path = ".."
 
+[dependencies.notty-cairo]
+path = "../notty-cairo"
+
+[dependencies.tty]
+path = "tty"

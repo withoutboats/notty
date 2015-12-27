@@ -15,11 +15,10 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern crate gdk;
 extern crate gtk;
-extern crate pangocairo;
-extern crate cairo;
 
 extern crate tty;
 extern crate notty;
+extern crate notty_cairo;
 
 use std::cell::{Cell, RefCell};
 use std::env;
@@ -28,15 +27,16 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use notty::{Output, Command, KeyPress, KeyRelease};
-use notty::terminal::Terminal;
 use gtk::{WidgetTrait, WidgetSignals, ContainerTrait};
 
-mod key;
-mod text;
-mod screen;
+use notty::{Output, Command, KeyPress, KeyRelease};
+use notty::terminal::Terminal;
+use notty_cairo::Renderer;
 
-use screen::ScreenRenderer;
+mod commands;
+mod key;
+
+use commands::CommandApplicator;
 use key::FromEvent;
 
 static mut X_PIXELS: Option<u32> = None;
@@ -72,36 +72,21 @@ fn main() {
     let (scroll2, scroll3) = (scroll.clone(), scroll.clone());
 
     // Set up logical terminal and renderer.
-    let terminal   = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
-    let renderer = ScreenRenderer::new(terminal.clone(), scroll.clone(), handle);
+    let terminal        = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
 
-    // Process screen logic every 50 miliseconds.
-    let canvas2 = canvas.clone();
-    gdk::glib::timeout_add(50, move || {
-        use std::sync::mpsc::TryRecvError::*;
-
-        let mut terminal = terminal.borrow_mut();
-        let mut redraw = false;
-        loop {
-            match rx.try_recv() {
-                Ok(cmd)             => {
-                    redraw = true;
-                    cmd.apply(&mut terminal).unwrap();
-                }
-                Err(Disconnected)   => {
-                    gtk::main_quit();
-                    panic!();
-                }
-                Err(Empty)          => break,
-            }
-        }
-        if redraw { canvas2.queue_draw(); }
-        gdk::glib::Continue(true)
-    });
+    // Process screen logic every 125 milliseconds.
+    let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());
+    gdk::glib::timeout_add(125, move || cmd.apply());
 
     // Connect signal to draw on canvas.
     canvas.connect_draw(move |_, canvas| {
-        renderer.draw(canvas);
+        let mut terminal = terminal.borrow_mut();
+        let skip = terminal.grid_height.saturating_sub(terminal.height + scroll.get() as u32);
+        let renderer = Renderer::new(&canvas, skip);
+        if let (Some(x_pix), Some(y_pix)) = unsafe {(X_PIXELS.take(), Y_PIXELS.take())} {
+            renderer.reset_dimensions(&mut terminal, x_pix, y_pix);
+        }
+        renderer.draw(&terminal, &canvas);
         gtk::signal::Inhibit(false)
     });
 
