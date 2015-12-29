@@ -34,7 +34,6 @@ pub struct NottyData {
 impl NottyData {
 
     pub fn parse(&self) -> Option<Box<Command>> {
-        println!("{}", self.args);
         let mut args = self.args.split(';');
         match u32::decode(args.next(), None) {
             Some(0x14)  => {

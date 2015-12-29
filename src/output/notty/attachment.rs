@@ -46,7 +46,7 @@ impl Attachments {
                 self.data.push(String::new());
                 None
             }
-            '\x07'                                              => Some(true),
+            '\u{9c}'                                            => Some(true),
             _                                                   => Some(false),
         }
     }
