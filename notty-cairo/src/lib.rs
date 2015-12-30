@@ -51,10 +51,10 @@ impl Renderer {
                     &CharCell::Char(ch, style)                          => text.push(ch, style),
                     &CharCell::Grapheme(ref s, style)                   => text.push_str(s, style),
                     &CharCell::Extension(..)                            => { }
-                    &CharCell::Image { ref data, pos, end, style, ..}   => {
-                        if (x_pos + end.x as usize) < col_n {
+                    &CharCell::Image { ref data, width, style, ..}      => {
+                        if (x_pos + width as usize) < col_n {
                             text.draw(canvas);
-                            text = TextRenderer::new(x_pix(canvas, x_pos + end.x as usize), y_pix);
+                            text = TextRenderer::new(x_pix(canvas, x_pos + width as usize), y_pix);
                         }
                         ImageRenderer::new(&data, style, x_pix(canvas, x_pos), y_pix).draw(canvas);
                     }

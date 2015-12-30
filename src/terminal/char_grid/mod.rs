@@ -123,7 +123,7 @@ impl CharGrid {
                 let mut iter = CoordsIter::from_area(CursorBound(end),
                                                      self.cursor.coords, self.grid.bounds());
                 if let Some(cu_coords) = iter.next() {
-                    self.grid[cu_coords] = CharCell::image(data, mime, pos, end,
+                    self.grid[cu_coords] = CharCell::image(data, mime, pos, width, height,
                                                            self.cursor.text_style);
                     for coords in iter {
                         self.grid[coords] = CharCell::Extension(cu_coords, self.cursor.text_style);

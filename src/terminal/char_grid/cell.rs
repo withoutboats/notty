@@ -29,7 +29,8 @@ pub enum CharCell {
         data: Vec<u8>,
         mime: Mime,
         pos: MediaPosition,
-        end: Coords,
+        width: u32,
+        height: u32,
         style: Styles,
     },
     Extension(Coords, Styles),
@@ -45,12 +46,18 @@ impl CharCell {
        Grapheme(grapheme, style)
     }
 
-    pub fn image(data: Vec<u8>, mime: Mime, pos: MediaPosition, end: Coords, style: Styles) -> CharCell {
+    pub fn image(data: Vec<u8>,
+                 mime: Mime,
+                 pos: MediaPosition, 
+                 width: u32,
+                 height: u32,
+                 style: Styles) -> CharCell {
         Image {
             data: data,
             mime: mime,
             pos: pos,
-            end: end,
+            width: width,
+            height: height,
             style: style,
         }
     }
