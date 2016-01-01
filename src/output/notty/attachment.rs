@@ -108,7 +108,7 @@ mod tests {
             }
             assert_eq!(attachments.append('#'), None);
         }
-        assert_eq!(attachments.append('\x07'), Some(true));
+        assert_eq!(attachments.append('\u{9c}'), Some(true));
         for (attachment, block) in (&attachments).into_iter().zip(BLOCKS) {
             assert_eq!(attachment, block.as_bytes());
         }
