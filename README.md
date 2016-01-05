@@ -104,7 +104,13 @@ License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Conduct
+
+The __notty__ project is committed to upholding the
+[Rust Code of Conduct][rust-coc]. Please see CONDUCT.md for more information.
+
 [anterminal]: https://destroyallsoftware.com/talks/a-whole-new-world
 [invis-island]: http://invisible-island.net/xterm
 [rust]: https://www.rust-lang.org
+[rust-coc]: https://www.rust-lang.org/conduct.html
 [vt100]: http://vt100.net
