@@ -28,7 +28,7 @@ pub struct ImageData {
     coords: Coords,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum CharCell {
     Empty(Styles),
     Char(char, Styles),

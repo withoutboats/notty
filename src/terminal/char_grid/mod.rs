@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::ops::Index;
 
 use unicode_width::*;
 
@@ -264,6 +265,13 @@ impl<'a> IntoIterator for &'a CharGrid {
     type Item = &'a CharCell;
     fn into_iter(self) -> Self::IntoIter {
         self.grid.into_iter()
+    }
+}
+
+impl Index<Coords> for CharGrid {
+    type Output = CharCell;
+    fn index(&self, idx: Coords) -> &CharCell {
+        &self.grid[idx]
     }
 }
 

@@ -18,6 +18,7 @@ use std::mem;
 use std::ops::{Deref, DerefMut};
 
 mod char_grid;
+mod screen;
 mod input;
 
 use Command;
@@ -25,6 +26,7 @@ use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
+pub use self::screen::{Screen, ScreenIter};
 
 use self::input::Input;
 
@@ -32,21 +34,21 @@ pub struct Terminal {
     width: u32,
     height: u32,
     title: String,
-    active: CharGrid,
-    inactive: Vec<CharGrid>,
+    active: Screen,
+    inactive: Vec<Screen>,
     tty: Input,
 }
 
 impl Terminal {
 
     pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
-        let grid = CharGrid::new(width, height, false, true);
+        let screen = Screen::new(width, height);
         let tty = Input::new(tty);
         Terminal {
             width: width,
             height: height,
             title: String::new(),
-            active: grid,
+            active: screen,
             inactive: Vec::new(),
             tty: tty,
         }
@@ -76,14 +78,14 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
-        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y);
-        mem::swap(&mut grid, &mut self.active);
-        self.inactive.push(grid);
+    pub fn push_buffer(&mut self) {
+        let mut screen = Screen::new(self.width, self.height);
+        mem::swap(&mut screen, &mut self.active);
+        self.inactive.push(screen);
     }
 
     pub fn pop_buffer(&mut self) {
-        self.inactive.pop().map(|grid| self.active = grid);
+        self.inactive.pop().map(|screen| self.active = screen);
     }
 
     pub fn set_title(&mut self, title: String) {
@@ -109,14 +111,14 @@ impl Terminal {
 }
 
 impl Deref for Terminal {
-    type Target = CharGrid;
-    fn deref(&self) -> &CharGrid {
+    type Target = Screen;
+    fn deref(&self) -> &Screen {
         &self.active
     }
 }
 
 impl DerefMut for Terminal {
-    fn deref_mut(&mut self) -> &mut CharGrid {
+    fn deref_mut(&mut self) -> &mut Screen {
         &mut self.active
     }
 }

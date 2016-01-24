@@ -22,7 +22,7 @@ use datatypes::InputSettings;
 
 impl Command for PushBuffer {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.push_buffer(false, self.0);
+        terminal.push_buffer();
         Ok(())
     }
     fn repr(&self) -> String {
