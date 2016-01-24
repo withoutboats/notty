@@ -33,14 +33,24 @@ impl Screen {
     }
 
     pub fn split_horizontal(&mut self, row: u32, save_left: bool, tag: u64) {
-        // resize current grid
-        let grid = CharGrid::new(self.width, self.height - row, false, false);
+        let grid = if save_left {
+            self.active_grid.1.set_height(row);
+            CharGrid::new(self.width, self.height - row, false, false)
+        else {
+            self.active_grid.1.set_height(self.height - row);
+            CharGrid::new(self.width, row, false, false)
+        }
         self.split(SplitKind::Horizontal(row), save_left, tag, grid);
     }
 
     pub fn split_vertical(&mut self, col: u32, save_left: bool, tag: u64) {
-        // resize current grid
-        let grid = CharGrid::new(self.width - col, self.height, false, false);
+        let grid = if save_left {
+            self.active_grid.1.set_width(col);
+            CharGrid::new(self.width - col, self.height, false, false)
+        } else {
+            self.active_grid.1.set_width(self.width - col);
+            CharGrid::new(col, self.height, false, false)
+        }
         self.split(SplitKind::Vertical(col), save_left, tag, grid);
     }
 
