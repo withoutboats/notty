@@ -12,6 +12,7 @@ pub enum SplitKind {
 pub enum GridHierarchy {
     Grid(u64),
     Split {
+        tag: u64,
         kind: SplitKind,
         left: Box<GridHierarchy>,
         right: Box<GridHierarchy>,
@@ -19,38 +20,60 @@ pub enum GridHierarchy {
 }
 
 impl GridHierarchy {
-    pub fn remove(&mut self, tag: u64) -> bool {
-        if let Some(new_grid) = if let Split { ref left, ref right, .. } = *self {
+    
+    pub fn find_first_grid(&self, tag: u64) -> Option<u64> {
+        fn is_grid(grid: &GridHierarchy) -> u64 {
+            match *grid {
+                Grid(tag) => tag,
+                Split { ref left, .. } => is_grid(left),
+            }
+        }
+        self.find(tag).map(is_grid)
+    }
+
+    pub fn remove(&mut self, remove: u64) -> Option<(u64, SplitKind)> {
+        if let Some((new_grid, k)) = if let Split { ref left, ref right, kind, .. } = *self {
             match (left, right) {
-                (&box Grid(ltag), _) if ltag == tag => Some(*right.clone()),
-                (_, &box Grid(rtag)) if rtag == tag => Some(*left.clone()),
+                (&box Grid(tag), _) | (&box Split { tag, .. }, _) 
+                    if tag == remove => Some((*right.clone(), kind)),
+                (_, &box Grid(tag)) | (_, &box Split { tag, .. })
+                    if tag == remove => Some((*left.clone(), kind)),
                 _                                   => None
             }
         } else { None } {
+            let tag = new_grid.tag();
             mem::replace(self, new_grid);
-            true
-        } else {
-            if let Split { ref mut left, ref mut right, .. } = *self {
-                if let Split { .. } = **left {
-                    if left.remove(tag) { return true; }
-                }
-                if let Split { .. } = **right {
-                    if right.remove(tag) { return true; }
-                }
-            }
-            false
-        } 
+            Some((tag, k))
+        } else if let Split { ref mut left, ref mut right, .. } = *self {
+            left.remove(remove).or_else(move || right.remove(remove))
+        } else { None }
     }
 
     pub fn replace(&mut self, tag: u64, new: GridHierarchy) {
         self.find_mut(tag).map(|grid| *grid = new);
     }
 
-    fn find_mut(&mut self, tag: u64) -> Option<&mut GridHierarchy> {
+    fn tag(&self) -> u64 {
         match *self {
-            Grid(id) if id == tag => Some(self),
+            Grid(tag) | Split { tag, .. } => tag
+        }
+    }
+
+    fn find(&self, id: u64) -> Option<&GridHierarchy> {
+        match *self {
+            Grid(tag) | Split { tag, .. } if id == tag => Some(self),
+            Split { ref left, ref right, .. } => {
+                left.find(id).or_else(move || right.find(id))
+            }
+            _ => None
+        }
+    }
+
+    fn find_mut(&mut self, id: u64) -> Option<&mut GridHierarchy> {
+        match *self {
+            Grid(tag) | Split { tag, .. } if id == tag => Some(self),
             Split { ref mut left, ref mut right, .. } => {
-                left.find_mut(tag).or_else(move || right.find_mut(tag))
+                left.find_mut(id).or_else(move || right.find_mut(id))
             }
             _ => None
         }
@@ -64,57 +87,62 @@ mod tests {
     use super::GridHierarchy::*;
 
     // The hierarchy this sets up is:
-    //  _
+    //  0
     //  | \
-    //  _  1
+    //  1  2
     //  | \
-    //  0 0x0beefdad
+    //  3 0x0beefdad
     // Beef Dad is the needle for these tests.
     fn setup_grid_hierarchy() -> GridHierarchy {
         Split {
+            tag: 0,
             kind: SplitKind::Horizontal(2),
             left: Box::new(Split {
+                tag: 1,
                 kind: SplitKind::Horizontal(2),
-                left: Box::new(Grid(0)),
+                left: Box::new(Grid(3)),
                 right: Box::new(Grid(0x0beefdad)),
             }),
-            right: Box::new(Grid(1)),
+            right: Box::new(Grid(2)),
         }
     }
 
     // After this test:
-    // _
+    // 0
     // | \
-    // 0  1
+    // 3  2
     #[test]
     fn remove_a_tag() {
         let mut gh = setup_grid_hierarchy();
         gh.remove(0x0beefdad);
         assert_eq!(gh, Split {
+            tag: 0,
             kind: SplitKind::Horizontal(2),
-            left: Box::new(Grid(0)),
-            right: Box::new(Grid(1)),
+            left: Box::new(Grid(3)),
+            right: Box::new(Grid(2)),
         })
     }
 
     // After this test:
-    // _
+    // 0
     // | \
-    // _  1
+    // 1  2
     // | \
-    // 0 0x0badcafe
+    // 3 0x0badcafe
     #[test]
     fn replace_a_tag() {
         let mut gh = setup_grid_hierarchy();
         gh.replace(0x0beefdad, GridHierarchy::Grid(0x0badcafe));
         assert_eq!(gh, Split {
+            tag: 0,
             kind: SplitKind::Horizontal(2),
             left: Box::new(Split {
+                tag: 1,
                 kind: SplitKind::Horizontal(2),
-                left: Box::new(Grid(0)),
+                left: Box::new(Grid(3)),
                 right: Box::new(Grid(0x0badcafe)),
             }),
-            right: Box::new(Grid(1)),
+            right: Box::new(Grid(2)),
         })
     }
 }

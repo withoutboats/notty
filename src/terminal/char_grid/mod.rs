@@ -13,7 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::cmp::Ordering;
+use std::cmp::{self, Ordering};
 use std::collections::HashMap;
 use std::ops::Index;
 
@@ -75,6 +75,7 @@ impl CharGrid {
                 self.grid.add_to_bottom(vec![CharCell::default(); n]);
             }
         }
+        self.cursor.coords.y = cmp::min(self.cursor.coords.y, h.saturating_sub(1));
         self.grid_height = h;
     }
 
@@ -91,6 +92,7 @@ impl CharGrid {
                 self.grid.add_to_right(vec![CharCell::default(); n]);
             }
         }
+        self.cursor.coords.x = cmp::min(self.cursor.coords.x, w.saturating_sub(1));
         self.grid_width = w;
     }
 

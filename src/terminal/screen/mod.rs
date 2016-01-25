@@ -12,6 +12,7 @@ mod tests;
 
 use self::grid_hierarchy::{GridHierarchy, SplitKind};
 use self::grid_hierarchy::GridHierarchy::*;
+use self::grid_hierarchy::SplitKind::*;
 
 pub struct Screen {
     width: u32,
@@ -32,62 +33,97 @@ impl Screen {
         }
     }
 
-    pub fn split_horizontal(&mut self, row: u32, save_left: bool, tag: u64) {
-        let grid = if save_left {
-            self.active_grid.1.set_height(row);
-            CharGrid::new(self.width, self.height - row, false, false)
-        else {
-            self.active_grid.1.set_height(self.height - row);
-            CharGrid::new(self.width, row, false, false)
-        }
-        self.split(SplitKind::Horizontal(row), save_left, tag, grid);
+    pub fn split_horizontal(&mut self, row: u32, save: SaveGrid, ltag: u64, rtag: u64) {
+        let grid = match save {
+            SaveGrid::Left  => {
+                self.active_grid.1.set_height(row);
+                CharGrid::new(self.width, self.height - row, false, false)
+            }
+            SaveGrid::Right => {
+                self.active_grid.1.set_height(self.height - row);
+                CharGrid::new(self.width, row, false, false)
+            }
+            SaveGrid::Dont  => unimplemented!()
+        };
+        self.split(SplitKind::Horizontal(row), save, ltag, rtag, grid);
     }
 
-    pub fn split_vertical(&mut self, col: u32, save_left: bool, tag: u64) {
-        let grid = if save_left {
-            self.active_grid.1.set_width(col);
-            CharGrid::new(self.width - col, self.height, false, false)
-        } else {
-            self.active_grid.1.set_width(self.width - col);
-            CharGrid::new(col, self.height, false, false)
-        }
-        self.split(SplitKind::Vertical(col), save_left, tag, grid);
+    pub fn split_vertical(&mut self, col: u32, save: SaveGrid, ltag: u64, rtag: u64) {
+        let grid = match save {
+            SaveGrid::Left  => {
+                self.active_grid.1.set_width(col);
+                CharGrid::new(self.width - col, self.height, false, false)
+            }
+            SaveGrid::Right => {
+                self.active_grid.1.set_width(self.width - col);
+                CharGrid::new(col, self.height, false, false)
+            }
+            SaveGrid::Dont  => unimplemented!()
+        };
+        self.split(Vertical(col), save, ltag, rtag, grid);
     }
 
     pub fn switch(&mut self, tag: u64) {
-        if let Some(grid) = self.grids.remove(&tag) {
-            let (tag, grid) = mem::replace(&mut self.active_grid, (tag, grid));
-            self.grids.insert(tag, grid);
+        if let Some(tag) = self.grid_hierarchy.find_first_grid(tag) {
+            if let Some(grid) = self.grids.remove(&tag) {
+                let (tag, grid) = mem::replace(&mut self.active_grid, (tag, grid));
+                self.grids.insert(tag, grid);
+            }
         }
     }
 
     pub fn remove(&mut self, tag: u64) {
-        if tag != self.active_grid.0 {
-            self.grid_hierarchy.remove(tag);
-            self.grids.remove(&tag);
+        if tag != 0 {
+            if let Some((neighbor, split)) = self.grid_hierarchy.remove(tag) {
+                let mut n = match split {
+                    Horizontal(_)   =>
+                        self.grids.get(&tag).unwrap_or(&self.active_grid.1).grid_height,
+                    Vertical(_)     =>
+                        self.grids.get(&tag).unwrap_or(&self.active_grid.1).grid_width,
+                };
+                {
+                    let grid = self.grids.get_mut(&neighbor).unwrap_or(&mut self.active_grid.1);
+                    match split {
+                        Horizontal(_)    => {
+                            n += grid.grid_height;
+                            grid.set_height(n);
+                        }
+                        Vertical(_)      => {
+                            n += grid.grid_width;
+                            grid.set_width(n);
+                        }
+                    }
+                }
+                if tag == self.active_grid.0 {
+                    self.switch(neighbor);
+                    self.grids.remove(&tag);
+                } else {
+                    self.grids.remove(&tag);
+                }
+            }
         }
     }
 
-    fn split(&mut self, kind: SplitKind, save_left: bool, tag: u64, grid: CharGrid) {
-        self.grid_hierarchy.replace(self.active_grid.0, if save_left {
-            Split {
-                kind: kind,
-                left: Box::new(Grid(self.active_grid.0)),
-                right: Box::new(Grid(tag)),
-            }
-        } else {
-            Split {
-                kind: kind,
-                left: Box::new(Grid(tag)),
-                right: Box::new(Grid(self.active_grid.0)),
-            }
+    fn split(&mut self, kind: SplitKind, save: SaveGrid, ltag: u64, rtag: u64, grid: CharGrid) {
+        let tag = self.active_grid.0;
+        self.grid_hierarchy.replace(self.active_grid.0, Split {
+            tag: tag,
+            kind: kind,
+            left: Box::new(Grid(ltag)),
+            right: Box::new(Grid(rtag)),
         });
-        if save_left {
-            self.grids.insert(tag, grid);
-        } else {
-            let (tag, grid) = mem::replace(&mut self.active_grid, (tag, grid));
-            self.grids.insert(tag, grid);
-        }
+        match save {
+            SaveGrid::Left  => {
+                self.active_grid.0 = ltag;
+                self.grids.insert(rtag, grid);
+            }
+            SaveGrid::Right => {
+                self.active_grid.0 = rtag;
+                let (tag, grid) = mem::replace(&mut self.active_grid, (ltag, grid));
+                self.grids.insert(tag, grid);
+            }
+            SaveGrid::Dont  => unimplemented!()
+        };
     }
 }
 
@@ -110,16 +146,16 @@ impl Index<Coords> for Screen {
         fn index_grid_tree(grid_tree: &GridHierarchy, idx: Coords) -> (u64, Coords) {
             match *grid_tree {
                 Grid(key) => (key, idx),
-                Split { kind: SplitKind::Horizontal(n), ref left, .. } if idx.y < n => {
+                Split { kind: Horizontal(n), ref left, .. } if idx.y < n => {
                     index_grid_tree(left, idx)
                 }
-                Split { kind: SplitKind::Horizontal(n), ref right, .. } if idx.y >= n => {
+                Split { kind: Horizontal(n), ref right, .. } if idx.y >= n => {
                     index_grid_tree(right, Coords{y: idx.y - n, ..idx})
                 }
-                Split { kind: SplitKind::Vertical(n), ref left, .. } if idx.x < n => {
+                Split { kind: Vertical(n), ref left, .. } if idx.x < n => {
                     index_grid_tree(left, idx)
                 }
-                Split { kind: SplitKind::Vertical(n), ref right, .. } if idx.x >= n => {
+                Split { kind: Vertical(n), ref right, .. } if idx.x >= n => {
                     index_grid_tree(right, Coords{x: idx.x - n, ..idx})
                 }
                 _ => unreachable!()
@@ -151,4 +187,8 @@ impl<'a> Iterator for ScreenIter<'a> {
     fn next(&mut self) -> Option<&'a CharCell> {
         self.iter.next().map(|coords| &self.screen[coords])
     }
+}
+
+pub enum SaveGrid {
+    Left, Right, Dont
 }
