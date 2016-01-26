@@ -17,6 +17,11 @@ pub enum GridHierarchy {
         left: Box<GridHierarchy>,
         right: Box<GridHierarchy>,
     },
+    Stack {
+        tag: u64,
+        top: usize,
+        stack: Vec<GridHierarchy>,
+    }
 }
 
 impl GridHierarchy {
@@ -24,19 +29,30 @@ impl GridHierarchy {
     pub fn find_first_grid(&self, tag: u64) -> Option<u64> {
         fn is_grid(grid: &GridHierarchy) -> u64 {
             match *grid {
-                Grid(tag) => tag,
-                Split { ref left, .. } => is_grid(left),
+                Grid(tag)                       => tag,
+                Split { ref left, .. }          => is_grid(left),
+                Stack { top, ref stack, .. }    => is_grid(&stack[top])
             }
         }
         self.find(tag).map(is_grid)
     }
 
+    pub fn clone_with_tag(&self, new_tag: u64) -> GridHierarchy {
+        let mut new = self.clone();
+        match new {
+            Grid(ref mut tag) | Split { ref mut tag, .. } | Stack{ ref mut tag, .. } => {
+                *tag = new_tag;
+            }
+        };
+        new
+    }
+
     pub fn remove(&mut self, remove: u64) -> Option<(u64, SplitKind)> {
         if let Some((new_grid, k)) = if let Split { ref left, ref right, kind, .. } = *self {
             match (left, right) {
-                (&box Grid(tag), _) | (&box Split { tag, .. }, _) 
+                (&box Grid(tag), _) | (&box Split { tag, .. }, _) | (&box Stack { tag, .. }, _)
                     if tag == remove => Some((*right.clone(), kind)),
-                (_, &box Grid(tag)) | (_, &box Split { tag, .. })
+                (_, &box Grid(tag)) | (_, &box Split { tag, .. }) | (_, &box Stack { tag, .. })
                     if tag == remove => Some((*left.clone(), kind)),
                 _                                   => None
             }
@@ -46,16 +62,20 @@ impl GridHierarchy {
             Some((tag, k))
         } else if let Split { ref mut left, ref mut right, .. } = *self {
             left.remove(remove).or_else(move || right.remove(remove))
+        } else if let Stack { ref mut stack, .. } = *self {
+            stack.iter_mut().map(|grid| grid.remove(remove)).find(|res| res.is_some())
+                 .unwrap_or(None)
         } else { None }
     }
 
-    pub fn replace(&mut self, tag: u64, new: GridHierarchy) {
-        self.find_mut(tag).map(|grid| *grid = new);
+    pub fn replace<F>(&mut self, tag: u64, func: F)
+    where F: FnOnce(&GridHierarchy) -> GridHierarchy {
+        self.find_mut(tag).map(|grid| *grid = func(grid));
     }
 
     fn tag(&self) -> u64 {
         match *self {
-            Grid(tag) | Split { tag, .. } => tag
+            Grid(tag) | Split { tag, .. } | Stack { tag, .. } => tag
         }
     }
 
@@ -64,6 +84,9 @@ impl GridHierarchy {
             Grid(tag) | Split { tag, .. } if id == tag => Some(self),
             Split { ref left, ref right, .. } => {
                 left.find(id).or_else(move || right.find(id))
+            }
+            Stack { ref stack, .. } => {
+                stack.iter().map(|grid| grid.find(id)).find(|res| res.is_some()).unwrap_or(None)
             }
             _ => None
         }
@@ -74,6 +97,10 @@ impl GridHierarchy {
             Grid(tag) | Split { tag, .. } if id == tag => Some(self),
             Split { ref mut left, ref mut right, .. } => {
                 left.find_mut(id).or_else(move || right.find_mut(id))
+            }
+            Stack { ref mut stack, .. } => {
+                stack.iter_mut().map(|grid| grid.find_mut(id)).find(|res| res.is_some())
+                     .unwrap_or(None)
             }
             _ => None
         }

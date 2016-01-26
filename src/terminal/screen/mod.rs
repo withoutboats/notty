@@ -33,15 +33,35 @@ impl Screen {
         }
     }
 
+    pub fn stack(&mut self, save: SaveGrid, btag: u64, ttag: u64) {
+        let grid = CharGrid::new(self.active_grid.1.grid_width, self.active_grid.1.grid_height,
+                                 false, false);
+        match save {
+            SaveGrid::Left | SaveGrid::Right => {
+                let (tag, grid) = mem::replace(&mut self.active_grid, (ttag, grid));
+                self.grid_hierarchy.replace(tag, |grid| Stack {
+                    tag: tag,
+                    top: 1,
+                    stack: vec![grid.clone_with_tag(btag), Grid(ttag)]
+                });
+                self.grids.insert(btag, grid);
+            }
+            SaveGrid::Dont  => unimplemented!()
+        }
+
+    }
+
     pub fn split_horizontal(&mut self, row: u32, save: SaveGrid, ltag: u64, rtag: u64) {
         let grid = match save {
             SaveGrid::Left  => {
+                let height = self.active_grid.1.grid_height - row;
                 self.active_grid.1.set_height(row);
-                CharGrid::new(self.width, self.height - row, false, false)
+                CharGrid::new(self.active_grid.1.grid_width, height, false, false)
             }
             SaveGrid::Right => {
-                self.active_grid.1.set_height(self.height - row);
-                CharGrid::new(self.width, row, false, false)
+                let height = self.active_grid.1.grid_height - row;
+                self.active_grid.1.set_height(height);
+                CharGrid::new(self.active_grid.1.grid_width, row, false, false)
             }
             SaveGrid::Dont  => unimplemented!()
         };
@@ -51,12 +71,14 @@ impl Screen {
     pub fn split_vertical(&mut self, col: u32, save: SaveGrid, ltag: u64, rtag: u64) {
         let grid = match save {
             SaveGrid::Left  => {
+                let width = self.active_grid.1.grid_width - col;
                 self.active_grid.1.set_width(col);
-                CharGrid::new(self.width - col, self.height, false, false)
+                CharGrid::new(width, self.active_grid.1.grid_height, false, false)
             }
             SaveGrid::Right => {
-                self.active_grid.1.set_width(self.width - col);
-                CharGrid::new(col, self.height, false, false)
+                let width = self.active_grid.1.grid_width - col;
+                self.active_grid.1.set_width(width);
+                CharGrid::new(col, self.active_grid.1.grid_height, false, false)
             }
             SaveGrid::Dont  => unimplemented!()
         };
@@ -73,6 +95,7 @@ impl Screen {
     }
 
     pub fn remove(&mut self, tag: u64) {
+        // FIXME when the neighbor is not a grid
         if tag != 0 {
             if let Some((neighbor, split)) = self.grid_hierarchy.remove(tag) {
                 let mut n = match split {
@@ -106,11 +129,20 @@ impl Screen {
 
     fn split(&mut self, kind: SplitKind, save: SaveGrid, ltag: u64, rtag: u64, grid: CharGrid) {
         let tag = self.active_grid.0;
-        self.grid_hierarchy.replace(self.active_grid.0, Split {
-            tag: tag,
-            kind: kind,
-            left: Box::new(Grid(ltag)),
-            right: Box::new(Grid(rtag)),
+        self.grid_hierarchy.replace(self.active_grid.0, |grid| match save {
+            SaveGrid::Left  => Split {
+                tag: tag,
+                kind: kind,
+                left: Box::new(grid.clone_with_tag(ltag)),
+                right: Box::new(Grid(rtag)),
+            },
+            SaveGrid::Right => Split {
+                tag: tag,
+                kind: kind,
+                left: Box::new(Grid(ltag)),
+                right: Box::new(grid.clone_with_tag(rtag)),
+            },
+            SaveGrid::Dont  => unimplemented!(),
         });
         match save {
             SaveGrid::Left  => {
@@ -158,6 +190,7 @@ impl Index<Coords> for Screen {
                 Split { kind: Vertical(n), ref right, .. } if idx.x >= n => {
                     index_grid_tree(right, Coords{x: idx.x - n, ..idx})
                 }
+                Stack { top, ref stack, .. } => index_grid_tree(&stack[top], idx),
                 _ => unreachable!()
             }
         }

@@ -192,6 +192,8 @@ mod four {
         let mut s = setup_screen();
         s.switch(0);
         s.remove(22);
+        s.switch(23);
+        super::fill_grid(&mut s.active_grid.1, '3');
         for (n, c) in (&s).into_iter().enumerate() {
             if n < 40 {
                 assert_eq!(*c, CharCell::character(if (n % 8) / 4 == 0 { '0' } else { '1' },

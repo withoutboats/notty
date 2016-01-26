@@ -14,7 +14,6 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::{self, Write};
-use std::mem;
 use std::ops::{Deref, DerefMut};
 
 mod char_grid;
@@ -26,7 +25,7 @@ use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
-pub use self::screen::{Screen, ScreenIter};
+pub use self::screen::{Screen, ScreenIter, SaveGrid};
 
 use self::input::Input;
 
@@ -34,23 +33,19 @@ pub struct Terminal {
     width: u32,
     height: u32,
     title: String,
-    active: Screen,
-    inactive: Vec<Screen>,
+    screen: Screen,
     tty: Input,
 }
 
 impl Terminal {
 
     pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
-        let screen = Screen::new(width, height);
-        let tty = Input::new(tty);
         Terminal {
             width: width,
             height: height,
             title: String::new(),
-            active: screen,
-            inactive: Vec::new(),
-            tty: tty,
+            screen: Screen::new(width, height),
+            tty: Input::new(tty),
         }
     }
 
@@ -78,16 +73,6 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn push_buffer(&mut self) {
-        let mut screen = Screen::new(self.width, self.height);
-        mem::swap(&mut screen, &mut self.active);
-        self.inactive.push(screen);
-    }
-
-    pub fn pop_buffer(&mut self) {
-        self.inactive.pop().map(|screen| self.active = screen);
-    }
-
     pub fn set_title(&mut self, title: String) {
         self.title = title;
     }
@@ -101,9 +86,9 @@ impl Terminal {
     }
 
     pub fn set_winsize(&mut self, cols: u32, rows: u32) -> io::Result<()> {
-        self.active.set_width(cols);
+        self.set_width(cols);
         self.width = cols;
-        self.active.set_height(rows);
+        self.set_height(rows);
         self.height = rows;
         self.tty.set_winsize(cols, rows)
     }
@@ -113,12 +98,12 @@ impl Terminal {
 impl Deref for Terminal {
     type Target = Screen;
     fn deref(&self) -> &Screen {
-        &self.active
+        &self.screen
     }
 }
 
 impl DerefMut for Terminal {
     fn deref_mut(&mut self) -> &mut Screen {
-        &mut self.active
+        &mut self.screen
     }
 }
