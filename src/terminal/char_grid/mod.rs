@@ -62,6 +62,20 @@ impl CharGrid {
         }
     }
 
+    pub fn resize_to_fill(&mut self, region: Region) {
+        if self.grid_width < region.width() {
+            self.grid_width = region.width();
+            let n = (region.width() - self.grid_width) * self.grid_height;
+            self.grid.add_to_right(vec![CharCell::default(); n as usize]);
+            self.grid_width = region.width();
+        }
+        if self.grid_height < region.height() {
+            let n = (region.height() - self.grid_height) * self.grid_width;
+            self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
+            self.grid_height = region.height();
+        }
+    }
+
     pub fn set_height(&mut self, h: u32) {
         if self.grid.scrolls_y { return; }
         match self.grid_height.cmp(&h) {

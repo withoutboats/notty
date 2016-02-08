@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::mem;
 use std::ops::{Deref, DerefMut, Index};
 
 use datatypes::{Coords, CoordsIter, Region};
@@ -10,165 +9,81 @@ mod grid_hierarchy;
 #[cfg(test)]
 mod tests;
 
-use self::grid_hierarchy::{GridHierarchy, SplitKind};
+use self::grid_hierarchy::GridHierarchy;
 use self::grid_hierarchy::GridHierarchy::*;
 use self::grid_hierarchy::SplitKind::*;
 
+pub use self::grid_hierarchy::{SplitKind, ResizeRule, SaveGrid};
+
 pub struct Screen {
-    width: u32,
-    height: u32,
-    active_grid: (u64, CharGrid),
+    active_grid: u64,
     grid_hierarchy: GridHierarchy,
     grids: HashMap<u64, CharGrid>,
 }
 
 impl Screen {
+
     pub fn new(width: u32, height: u32) -> Screen {
+        let mut grids = HashMap::new();
+        grids.insert(0, CharGrid::new(width, height, false, false));
         Screen {
-            width: width,
-            height: height,
-            active_grid: (0, CharGrid::new(width, height, false, false)),
-            grid_hierarchy: Grid(0),
-            grids: HashMap::new(),
+            active_grid: 0,
+            grid_hierarchy: Grid(0, Region::new(0, 0, width, height)),
+            grids: grids,
         }
     }
 
-    pub fn stack(&mut self, save: SaveGrid, btag: u64, ttag: u64) {
-        let grid = CharGrid::new(self.active_grid.1.grid_width, self.active_grid.1.grid_height,
-                                 false, false);
-        match save {
-            SaveGrid::Left | SaveGrid::Right => {
-                let (tag, grid) = mem::replace(&mut self.active_grid, (ttag, grid));
-                self.grid_hierarchy.replace(tag, |grid| Stack {
-                    tag: tag,
-                    top: 1,
-                    stack: vec![grid.clone_with_tag(btag), Grid(ttag)]
-                });
-                self.grids.insert(btag, grid);
-            }
-            SaveGrid::Dont  => unimplemented!()
+    pub fn resize(&mut self, width: Option<u32>, height: Option<u32>, rule: ResizeRule) {
+        let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
+        let new_a = match (width, height) {
+            (Some(w), Some(h))  => Region::new(0, 0, w, h),
+            (Some(w), None)     => grid_hierarchy.area().set_width(w),
+            (None,    Some(h))  => grid_hierarchy.area().set_height(h),
+            (None,    None)     => return
+        };
+        grid_hierarchy.resize(new_a, grids, rule);
+    }
+
+    pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
+                 stag: Option<u64>, ltag: u64, rtag: u64) {
+        let Screen { active_grid, ref mut grid_hierarchy, ref mut grids } = *self;
+        if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(active_grid)) {
+            grid.split(grids, save, kind, rule, ltag, rtag);
         }
-
+        if stag.unwrap_or(active_grid) == active_grid {
+            self.active_grid = match save {
+                SaveGrid::Left  => ltag,
+                SaveGrid::Right => rtag,
+                SaveGrid::Dont  => ltag,
+            };
+        }
     }
 
-    pub fn split_horizontal(&mut self, row: u32, save: SaveGrid, ltag: u64, rtag: u64) {
-        let grid = match save {
-            SaveGrid::Left  => {
-                let height = self.active_grid.1.grid_height - row;
-                self.active_grid.1.set_height(row);
-                CharGrid::new(self.active_grid.1.grid_width, height, false, false)
-            }
-            SaveGrid::Right => {
-                let height = self.active_grid.1.grid_height - row;
-                self.active_grid.1.set_height(height);
-                CharGrid::new(self.active_grid.1.grid_width, row, false, false)
-            }
-            SaveGrid::Dont  => unimplemented!()
-        };
-        self.split(SplitKind::Horizontal(row), save, ltag, rtag, grid);
-    }
-
-    pub fn split_vertical(&mut self, col: u32, save: SaveGrid, ltag: u64, rtag: u64) {
-        let grid = match save {
-            SaveGrid::Left  => {
-                let width = self.active_grid.1.grid_width - col;
-                self.active_grid.1.set_width(col);
-                CharGrid::new(width, self.active_grid.1.grid_height, false, false)
-            }
-            SaveGrid::Right => {
-                let width = self.active_grid.1.grid_width - col;
-                self.active_grid.1.set_width(width);
-                CharGrid::new(col, self.active_grid.1.grid_height, false, false)
-            }
-            SaveGrid::Dont  => unimplemented!()
-        };
-        self.split(Vertical(col), save, ltag, rtag, grid);
+    pub fn remove(&mut self, tag: u64, rule: ResizeRule) {
+        if tag != 0 && tag != self.active_grid {
+            let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
+            grid_hierarchy.remove(grids, tag, rule);
+        }
     }
 
     pub fn switch(&mut self, tag: u64) {
-        if let Some(tag) = self.grid_hierarchy.find_first_grid(tag) {
-            if let Some(grid) = self.grids.remove(&tag) {
-                let (tag, grid) = mem::replace(&mut self.active_grid, (tag, grid));
-                self.grids.insert(tag, grid);
-            }
+        if self.grid_hierarchy.find(tag).map(|grid| grid.is_grid()).unwrap_or(false) {
+            self.active_grid = tag;
         }
     }
 
-    pub fn remove(&mut self, tag: u64) {
-        // FIXME when the neighbor is not a grid
-        if tag != 0 {
-            if let Some((neighbor, split)) = self.grid_hierarchy.remove(tag) {
-                let mut n = match split {
-                    Horizontal(_)   =>
-                        self.grids.get(&tag).unwrap_or(&self.active_grid.1).grid_height,
-                    Vertical(_)     =>
-                        self.grids.get(&tag).unwrap_or(&self.active_grid.1).grid_width,
-                };
-                {
-                    let grid = self.grids.get_mut(&neighbor).unwrap_or(&mut self.active_grid.1);
-                    match split {
-                        Horizontal(_)    => {
-                            n += grid.grid_height;
-                            grid.set_height(n);
-                        }
-                        Vertical(_)      => {
-                            n += grid.grid_width;
-                            grid.set_width(n);
-                        }
-                    }
-                }
-                if tag == self.active_grid.0 {
-                    self.switch(neighbor);
-                    self.grids.remove(&tag);
-                } else {
-                    self.grids.remove(&tag);
-                }
-            }
-        }
-    }
-
-    fn split(&mut self, kind: SplitKind, save: SaveGrid, ltag: u64, rtag: u64, grid: CharGrid) {
-        let tag = self.active_grid.0;
-        self.grid_hierarchy.replace(self.active_grid.0, |grid| match save {
-            SaveGrid::Left  => Split {
-                tag: tag,
-                kind: kind,
-                left: Box::new(grid.clone_with_tag(ltag)),
-                right: Box::new(Grid(rtag)),
-            },
-            SaveGrid::Right => Split {
-                tag: tag,
-                kind: kind,
-                left: Box::new(Grid(ltag)),
-                right: Box::new(grid.clone_with_tag(rtag)),
-            },
-            SaveGrid::Dont  => unimplemented!(),
-        });
-        match save {
-            SaveGrid::Left  => {
-                self.active_grid.0 = ltag;
-                self.grids.insert(rtag, grid);
-            }
-            SaveGrid::Right => {
-                self.active_grid.0 = rtag;
-                let (tag, grid) = mem::replace(&mut self.active_grid, (ltag, grid));
-                self.grids.insert(tag, grid);
-            }
-            SaveGrid::Dont  => unimplemented!()
-        };
-    }
 }
 
 impl Deref for Screen {
     type Target = CharGrid;
     fn deref(&self) -> &CharGrid {
-        &self.active_grid.1
+        self.grids.get(&self.active_grid).unwrap()
     }
 }
 
 impl DerefMut for Screen {
     fn deref_mut(&mut self) -> &mut CharGrid {
-        &mut self.active_grid.1
+        self.grids.get_mut(&self.active_grid).unwrap()
     }
 }
 
@@ -177,7 +92,7 @@ impl Index<Coords> for Screen {
     fn index(&self, idx: Coords) -> &CharCell {
         fn index_grid_tree(grid_tree: &GridHierarchy, idx: Coords) -> (u64, Coords) {
             match *grid_tree {
-                Grid(key) => (key, idx),
+                Grid(key, _) => (key, idx),
                 Split { kind: Horizontal(n), ref left, .. } if idx.y < n => {
                     index_grid_tree(left, idx)
                 }
@@ -190,12 +105,12 @@ impl Index<Coords> for Screen {
                 Split { kind: Vertical(n), ref right, .. } if idx.x >= n => {
                     index_grid_tree(right, Coords{x: idx.x - n, ..idx})
                 }
-                Stack { top, ref stack, .. } => index_grid_tree(&stack[top], idx),
+                Stack { ref stack, .. } => index_grid_tree(stack.last().unwrap(), idx),
                 _ => unreachable!()
             }
         }
         let (key, idx) = index_grid_tree(&self.grid_hierarchy, idx);
-        &self.grids.get(&key).or(Some(&self.active_grid.1)).unwrap()[idx]
+        &self.grids.get(&key).unwrap()[idx]
     }
 }
 
@@ -205,7 +120,7 @@ impl<'a> IntoIterator for &'a Screen {
     fn into_iter(self) -> ScreenIter<'a> {
         ScreenIter {
             screen: self,
-            iter: CoordsIter::from_region(Region::new(0, 0, self.width, self.height)),
+            iter: CoordsIter::from_region(self.grid_hierarchy.area()),
         }
     }
 }
@@ -222,6 +137,3 @@ impl<'a> Iterator for ScreenIter<'a> {
     }
 }
 
-pub enum SaveGrid {
-    Left, Right, Dont
-}

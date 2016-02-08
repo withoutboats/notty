@@ -1,5 +1,4 @@
 pub use super::*;
-pub use super::grid_hierarchy::*;
 pub use terminal::{CharCell, CharGrid, Styles};
 pub use datatypes::{CellData, Movement};
 
