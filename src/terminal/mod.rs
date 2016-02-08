@@ -30,8 +30,6 @@ pub use self::screen::{Screen, ScreenIter, SaveGrid, SplitKind, ResizeRule};
 use self::input::Input;
 
 pub struct Terminal {
-    width: u32,
-    height: u32,
     title: String,
     screen: Screen,
     tty: Input,
@@ -41,8 +39,6 @@ impl Terminal {
 
     pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
         Terminal {
-            width: width,
-            height: height,
             title: String::new(),
             screen: Screen::new(width, height),
             tty: Input::new(tty),
@@ -85,11 +81,8 @@ impl Terminal {
         println!("BELL");
     }
 
-    pub fn set_winsize(&mut self, cols: u32, rows: u32) -> io::Result<()> {
-        self.set_width(cols);
-        self.width = cols;
-        self.set_height(rows);
-        self.height = rows;
+    pub fn set_winsize(&mut self, cols: u32, rows: u32, rule: ResizeRule) -> io::Result<()> {
+        self.resize(Some(cols), Some(rows), rule);
         self.tty.set_winsize(cols, rows)
     }
 

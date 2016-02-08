@@ -13,7 +13,6 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::cmp::{self, Ordering};
 use std::collections::HashMap;
 use std::ops::Index;
 
@@ -43,6 +42,7 @@ pub struct CharGrid {
     tooltips: HashMap<Coords, Tooltip>,
     pub grid_width: u32,
     pub grid_height: u32,
+    window: Region,
 }
 
 impl CharGrid {
@@ -59,10 +59,16 @@ impl CharGrid {
             tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
+            window: Region::new(0, 0, w, h),
         }
     }
 
-    pub fn resize_to_fill(&mut self, region: Region) {
+    pub fn window_idx(&self, Coords {x, y}: Coords) -> &CharCell {
+        &self[Coords { x: x + self.window.left, y: y + self.window.top }]
+    }
+
+
+    pub fn resize(&mut self, region: Region) {
         if self.grid_width < region.width() {
             self.grid_width = region.width();
             let n = (region.width() - self.grid_width) * self.grid_height;
@@ -74,40 +80,8 @@ impl CharGrid {
             self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
             self.grid_height = region.height();
         }
-    }
-
-    pub fn set_height(&mut self, h: u32) {
-        if self.grid.scrolls_y { return; }
-        match self.grid_height.cmp(&h) {
-            Ordering::Greater   => {
-                let n = (self.grid_height - h) as usize;
-                self.grid.remove_from_bottom(n);
-            }
-            Ordering::Equal     => (),
-            Ordering::Less      => {
-                let n = ((h - self.grid_height) * self.grid_width) as usize;
-                self.grid.add_to_bottom(vec![CharCell::default(); n]);
-            }
-        }
-        self.cursor.coords.y = cmp::min(self.cursor.coords.y, h.saturating_sub(1));
-        self.grid_height = h;
-    }
-
-    pub fn set_width(&mut self, w: u32) {
-        if self.grid.scrolls_x { return; }
-        match self.grid_width.cmp(&w) {
-            Ordering::Greater   => {
-                let n = (self.grid_width - w) as usize;
-                self.grid.remove_from_right(n);
-            }
-            Ordering::Equal     => (),
-            Ordering::Less      => {
-                let n = ((w - self.grid_width) * self.grid_height) as usize;
-                self.grid.add_to_right(vec![CharCell::default(); n]);
-            }
-        }
-        self.cursor.coords.x = cmp::min(self.cursor.coords.x, w.saturating_sub(1));
-        self.grid_width = w;
+        self.window.set_width(region.width());
+        self.window.set_height(region.height());
     }
 
     pub fn write(&mut self, data: CellData) {
@@ -157,6 +131,8 @@ impl CharGrid {
     pub fn move_cursor(&mut self, movement: Movement) {
         self.cursor.navigate(&mut self.grid, movement);
         self.grid_height = self.grid.height as u32;
+        self.grid_width = self.grid.width as u32;
+        self.window = self.window.move_to_contain(self.cursor.coords);
     }
 
     pub fn add_tooltip(&mut self, coords: Coords, tooltip: String) {

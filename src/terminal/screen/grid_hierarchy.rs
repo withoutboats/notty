@@ -162,7 +162,7 @@ impl GridHierarchy {
         match *self {
             Grid(tag, ref mut area) => {
                 *area = new_a;
-                grids.get_mut(&tag).unwrap().resize_to_fill(new_a);
+                grids.get_mut(&tag).unwrap().resize(new_a);
             }
             Stack { ref mut area, ref mut stack, .. } => {
                 *area = new_a;

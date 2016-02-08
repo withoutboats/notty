@@ -11,7 +11,6 @@ mod tests;
 
 use self::grid_hierarchy::GridHierarchy;
 use self::grid_hierarchy::GridHierarchy::*;
-use self::grid_hierarchy::SplitKind::*;
 
 pub use self::grid_hierarchy::{SplitKind, ResizeRule, SaveGrid};
 
@@ -90,27 +89,17 @@ impl DerefMut for Screen {
 impl Index<Coords> for Screen {
     type Output = CharCell;
     fn index(&self, idx: Coords) -> &CharCell {
-        fn index_grid_tree(grid_tree: &GridHierarchy, idx: Coords) -> (u64, Coords) {
-            match *grid_tree {
-                Grid(key, _) => (key, idx),
-                Split { kind: Horizontal(n), ref left, .. } if idx.y < n => {
-                    index_grid_tree(left, idx)
-                }
-                Split { kind: Horizontal(n), ref right, .. } if idx.y >= n => {
-                    index_grid_tree(right, Coords{y: idx.y - n, ..idx})
-                }
-                Split { kind: Vertical(n), ref left, .. } if idx.x < n => {
-                    index_grid_tree(left, idx)
-                }
-                Split { kind: Vertical(n), ref right, .. } if idx.x >= n => {
-                    index_grid_tree(right, Coords{x: idx.x - n, ..idx})
-                }
-                Stack { ref stack, .. } => index_grid_tree(stack.last().unwrap(), idx),
+        fn _index(grid_h: &GridHierarchy, idx: Coords) -> (u64, Coords) {
+            match *grid_h {
+                Grid(tag, area) => (tag, area.offset(idx)),
+                Split { ref left, .. } if left.area().contains(idx) => _index(left, idx),
+                Split { ref right, .. } if right.area().contains(idx) => _index(right, idx),
+                Stack { ref stack, .. } => _index(stack.last().unwrap(), idx),
                 _ => unreachable!()
             }
         }
-        let (key, idx) = index_grid_tree(&self.grid_hierarchy, idx);
-        &self.grids.get(&key).unwrap()[idx]
+        let (tag, idx) = _index(&self.grid_hierarchy, idx);
+        self.grids.get(&tag).unwrap().window_idx(idx)
     }
 }
 

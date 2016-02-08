@@ -20,7 +20,7 @@ use itertools::Itertools;
 
 use notty::cfg::CONFIG;
 use notty::datatypes::Color;
-use notty::terminal::{CharCell, Terminal, ImageData};
+use notty::terminal::{CharCell, Terminal, ImageData, ResizeRule};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
@@ -49,7 +49,8 @@ impl Renderer {
         });
         let width = pix_w / (char_w as u32);
         let height = pix_h / (char_h as u32);
-        terminal.set_winsize(width, height).unwrap_or_else(|e| panic!("{}", e));
+        terminal.set_winsize(width, height, ResizeRule::Percentage)
+                .unwrap_or_else(|e| panic!("{}", e));
     }
 
     pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
