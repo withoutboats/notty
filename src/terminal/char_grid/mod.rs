@@ -63,11 +63,6 @@ impl CharGrid {
         }
     }
 
-    pub fn window_idx(&self, Coords {x, y}: Coords) -> &CharCell {
-        &self[Coords { x: x + self.window.left, y: y + self.window.top }]
-    }
-
-
     pub fn resize(&mut self, region: Region) {
         if self.grid_width < region.width() {
             self.grid_width = region.width();
@@ -262,8 +257,8 @@ impl<'a> IntoIterator for &'a CharGrid {
 
 impl Index<Coords> for CharGrid {
     type Output = CharCell;
-    fn index(&self, idx: Coords) -> &CharCell {
-        &self.grid[idx]
+    fn index(&self, Coords {x, y}: Coords) -> &CharCell {
+        &self.grid[Coords { x: x + self.window.left, y: y + self.window.top }]
     }
 }
 

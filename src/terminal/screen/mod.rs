@@ -99,7 +99,7 @@ impl Index<Coords> for Screen {
             }
         }
         let (tag, idx) = _index(&self.grid_hierarchy, idx);
-        self.grids.get(&tag).unwrap().window_idx(idx)
+        &self.grids.get(&tag).unwrap()[idx]
     }
 }
 
