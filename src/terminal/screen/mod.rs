@@ -42,7 +42,7 @@ impl Screen {
         };
         grid_hierarchy.resize(grids,
                               new_a,
-                              &|grids, tag, area| { grids.get_mut(&tag).unwrap().resize(area); },
+                              &resize_grid,
                               rule);
     }
 
@@ -51,8 +51,8 @@ impl Screen {
         let Screen { active_grid, ref mut grid_hierarchy, ref mut grids } = *self;
         if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(active_grid)) {
             grid.split(grids,
-                       |grids, tag, grid| { grids.insert(tag, grid); },
-                       |grids, tag, area| { grids.get_mut(&tag).unwrap().resize(area); },
+                       |grids, tag, w, h| { grids.insert(tag, CharGrid::new(w, h, false, false)); },
+                       resize_grid,
                        save, kind, rule, ltag, rtag);
         }
         if stag.unwrap_or(active_grid) == active_grid {
@@ -69,7 +69,7 @@ impl Screen {
             let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
             grid_hierarchy.remove(grids,
                                   |grids, tag| { grids.remove(&tag); },
-                                  |grids, tag, a| { grids.get_mut(&tag).unwrap().resize(a); },
+                                  resize_grid,
                                   tag, rule);
         }
     }
@@ -80,6 +80,10 @@ impl Screen {
         }
     }
 
+}
+
+fn resize_grid(grids: &mut HashMap<u64, CharGrid>, tag: u64, area: Region) {
+    grids.get_mut(&tag).unwrap().resize(area);
 }
 
 impl Deref for Screen {

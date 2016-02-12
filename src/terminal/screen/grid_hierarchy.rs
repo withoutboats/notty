@@ -1,7 +1,6 @@
 use std::cmp;
 
 use datatypes::Region;
-use terminal::char_grid::CharGrid;
 
 use self::GridHierarchy::*;
 use self::SplitKind::*;
@@ -80,14 +79,13 @@ impl GridHierarchy {
                             rule: ResizeRule,
                             ltag: u64,
                             rtag: u64)
-    where F1: Fn(&mut T, u64, CharGrid), F2: Fn(&mut T, u64, Region) {
+    where F1: Fn(&mut T, u64, u32, u32), F2: Fn(&mut T, u64, Region) {
         let (l_region, r_region) = self.split_region(kind, rule);
         match save {
             SaveGrid::Left  => {
                 let mut l_grid_h = self.make_new(ltag);
                 l_grid_h.resize(grids, l_region, &resize_grid, rule);
-                add_grid(grids, rtag,
-                         CharGrid::new(r_region.width(), r_region.height(), false, false));
+                add_grid(grids, rtag, r_region.width(), r_region.height());
                 *self = GridHierarchy::Split {
                     tag: self.tag(),
                     area: self.area(),
@@ -97,8 +95,7 @@ impl GridHierarchy {
                 }
             }
             SaveGrid::Right => {
-                add_grid(grids, ltag,
-                         CharGrid::new(l_region.width(), l_region.height(), false, false));
+                add_grid(grids, ltag, l_region.width(), l_region.height());
                 let mut r_grid_h = self.make_new(rtag);
                 r_grid_h.resize(grids, r_region, &resize_grid, rule);
                 *self = GridHierarchy::Split {
@@ -110,10 +107,8 @@ impl GridHierarchy {
                 }
             }
             SaveGrid::Dont  => {
-                add_grid(grids, ltag,
-                         CharGrid::new(l_region.width(), l_region.height(), false, false));
-                add_grid(grids, rtag,
-                         CharGrid::new(r_region.width(), r_region.height(), false, false));
+                add_grid(grids, ltag, l_region.width(), l_region.height());
+                add_grid(grids, rtag, l_region.width(), l_region.height());
                 *self = GridHierarchy::Split {
                     tag: self.tag(),
                     area: self.area(),
