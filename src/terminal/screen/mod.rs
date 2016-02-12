@@ -1,34 +1,31 @@
-use std::collections::HashMap;
 use std::ops::{Deref, DerefMut, Index};
 
 use datatypes::{Coords, CoordsIter, Region};
 use terminal::char_grid::{CharGrid, CharCell};
 
 mod grid_hierarchy;
+mod grid_map;
 
 //#[cfg(test)]
 //mod tests;
 
 use self::grid_hierarchy::GridHierarchy;
 use self::grid_hierarchy::GridHierarchy::*;
+use self::grid_map::GridMap;
 
 pub use self::grid_hierarchy::{SplitKind, ResizeRule, SaveGrid};
 
 pub struct Screen {
-    active_grid: u64,
+    grids: GridMap,
     grid_hierarchy: GridHierarchy,
-    grids: HashMap<u64, CharGrid>,
 }
 
 impl Screen {
 
     pub fn new(width: u32, height: u32) -> Screen {
-        let mut grids = HashMap::new();
-        grids.insert(0, CharGrid::new(width, height, false, false));
         Screen {
-            active_grid: 0,
+            grids: GridMap::new(width, height),
             grid_hierarchy: Grid(0, Region::new(0, 0, width, height)),
-            grids: grids,
         }
     }
 
@@ -42,60 +39,54 @@ impl Screen {
         };
         grid_hierarchy.resize(grids,
                               new_a,
-                              &resize_grid,
+                              &|grids, tag, area| grids.resize(tag, area),
                               rule);
     }
 
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
                  stag: Option<u64>, ltag: u64, rtag: u64) {
-        let Screen { active_grid, ref mut grid_hierarchy, ref mut grids } = *self;
-        if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(active_grid)) {
+        let Screen { ref mut grid_hierarchy, ref mut grids } = *self;
+        if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(grids.active_tag())) {
             grid.split(grids,
-                       |grids, tag, w, h| { grids.insert(tag, CharGrid::new(w, h, false, false)); },
-                       resize_grid,
+                       |grids, tag, w, h| grids.insert(tag, w, h),
+                       |grids, tag, area| grids.resize(tag, area),
                        save, kind, rule, ltag, rtag);
         }
-        if stag.unwrap_or(active_grid) == active_grid {
-            self.active_grid = match save {
+        if stag.map_or(true, |stag| grids.is_active(stag)) {
+            grids.switch(match save {
                 SaveGrid::Left  => ltag,
                 SaveGrid::Right => rtag,
                 SaveGrid::Dont  => ltag,
-            };
+            });
         }
     }
 
     pub fn remove(&mut self, tag: u64, rule: ResizeRule) {
-        if tag != 0 && tag != self.active_grid {
+        if tag != 0 && !self.grids.is_active(tag) {
             let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
             grid_hierarchy.remove(grids,
-                                  |grids, tag| { grids.remove(&tag); },
-                                  resize_grid,
+                                  |grids, tag| grids.remove(tag),
+                                  |grids, tag, area| grids.resize(tag, area),
                                   tag, rule);
         }
     }
 
     pub fn switch(&mut self, tag: u64) {
-        if self.grid_hierarchy.find(tag).map(|grid| grid.is_grid()).unwrap_or(false) {
-            self.active_grid = tag;
-        }
+        self.grids.switch(tag);
     }
 
-}
-
-fn resize_grid(grids: &mut HashMap<u64, CharGrid>, tag: u64, area: Region) {
-    grids.get_mut(&tag).unwrap().resize(area);
 }
 
 impl Deref for Screen {
     type Target = CharGrid;
     fn deref(&self) -> &CharGrid {
-        self.grids.get(&self.active_grid).unwrap()
+        self.grids.active()
     }
 }
 
 impl DerefMut for Screen {
     fn deref_mut(&mut self) -> &mut CharGrid {
-        self.grids.get_mut(&self.active_grid).unwrap()
+        self.grids.active_mut()
     }
 }
 
@@ -112,7 +103,7 @@ impl Index<Coords> for Screen {
             }
         }
         let (tag, idx) = _index(&self.grid_hierarchy, idx);
-        &self.grids.get(&tag).unwrap()[idx]
+        &self.grids.find(tag).unwrap()[idx]
     }
 }
 
