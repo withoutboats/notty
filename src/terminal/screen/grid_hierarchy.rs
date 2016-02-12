@@ -1,5 +1,4 @@
 use std::cmp;
-use std::collections::HashMap;
 
 use datatypes::Region;
 use terminal::char_grid::CharGrid;
@@ -72,20 +71,23 @@ impl GridHierarchy {
         }
     }
 
-    pub fn split(&mut self,
-                 grids: &mut HashMap<u64, CharGrid>,
-                 save: SaveGrid,
-                 kind: SplitKind,
-                 rule: ResizeRule,
-                 ltag: u64,
-                 rtag: u64) {
+    pub fn split<T, F1, F2>(&mut self,
+                            grids: &mut T,
+                            add_grid: F1,
+                            resize_grid: F2,
+                            save: SaveGrid,
+                            kind: SplitKind,
+                            rule: ResizeRule,
+                            ltag: u64,
+                            rtag: u64)
+    where F1: Fn(&mut T, u64, CharGrid), F2: Fn(&mut T, u64, Region) {
         let (l_region, r_region) = self.split_region(kind, rule);
         match save {
             SaveGrid::Left  => {
                 let mut l_grid_h = self.make_new(ltag);
-                l_grid_h.resize(l_region, grids, rule);
-                let r_grid = CharGrid::new(r_region.width(), r_region.height(), false, false);
-                grids.insert(rtag, r_grid);
+                l_grid_h.resize(grids, l_region, &resize_grid, rule);
+                add_grid(grids, rtag,
+                         CharGrid::new(r_region.width(), r_region.height(), false, false));
                 *self = GridHierarchy::Split {
                     tag: self.tag(),
                     area: self.area(),
@@ -95,10 +97,10 @@ impl GridHierarchy {
                 }
             }
             SaveGrid::Right => {
-                let l_grid = CharGrid::new(l_region.width(), l_region.height(), false, false);
-                grids.insert(ltag, l_grid);
+                add_grid(grids, ltag,
+                         CharGrid::new(l_region.width(), l_region.height(), false, false));
                 let mut r_grid_h = self.make_new(rtag);
-                r_grid_h.resize(r_region, grids, rule);
+                r_grid_h.resize(grids, r_region, &resize_grid, rule);
                 *self = GridHierarchy::Split {
                     tag: self.tag(),
                     area: self.area(),
@@ -108,10 +110,10 @@ impl GridHierarchy {
                 }
             }
             SaveGrid::Dont  => {
-                let l_grid = CharGrid::new(l_region.width(), l_region.height(), false, false);
-                let r_grid = CharGrid::new(r_region.width(), r_region.height(), false, false);
-                grids.insert(ltag, l_grid);
-                grids.insert(rtag, r_grid);
+                add_grid(grids, ltag,
+                         CharGrid::new(l_region.width(), l_region.height(), false, false));
+                add_grid(grids, rtag,
+                         CharGrid::new(r_region.width(), r_region.height(), false, false));
                 *self = GridHierarchy::Split {
                     tag: self.tag(),
                     area: self.area(),
@@ -123,11 +125,18 @@ impl GridHierarchy {
         }
     }
 
-    pub fn remove(&mut self, grids: &mut HashMap<u64, CharGrid>, tag: u64, rule: ResizeRule) {
+    pub fn remove<T, F1, F2>(&mut self,
+                             grids: &mut T,
+                             remove_grid: F1,
+                             resize_grid: F2,
+                             tag: u64,
+                             rule: ResizeRule)
+    where F1: Fn(&mut T, u64), F2: Fn(&mut T, u64, Region) {
         let replacement_grid = if let Some(parent_grid) = self.find_parent(tag) {
             match *parent_grid {
                 Grid(..) => unreachable!(),
                 Stack { ref mut stack, .. } => {
+                    //TODO does this remove dead grids from the hash map?
                     if stack.last().unwrap().tag() == tag {
                         stack.pop();
                     } else {
@@ -142,12 +151,12 @@ impl GridHierarchy {
                 }
                 Split { ref mut left, ref mut right, area, .. } => {
                     if left.tag() == tag {
-                        for grid in left.grid_tags() { grids.remove(&grid); }
-                        right.resize(area, grids, rule);
+                        for grid in left.grid_tags() { remove_grid(grids, grid) }
+                        right.resize(grids, area, &resize_grid, rule);
                         Some((**right).clone())
                     } else if right.tag() == tag {
-                        for grid in right.grid_tags() { grids.remove(&grid); };
-                        left.resize(area, grids, rule);
+                        for grid in right.grid_tags() { remove_grid(grids, grid) };
+                        left.resize(grids, area, &resize_grid, rule);
                         Some((**left).clone())
                     } else { unreachable!() }
                 }
@@ -158,16 +167,21 @@ impl GridHierarchy {
         }
     }
 
-    pub fn resize(&mut self, new_a: Region, grids: &mut HashMap<u64, CharGrid>, rule: ResizeRule) {
+    pub fn resize<T>(&mut self,
+                     grids: &mut T,
+                     new_a: Region,
+                     resize_grid: &Fn(&mut T, u64, Region),
+                     rule: ResizeRule)
+    {
         match *self {
             Grid(tag, ref mut area) => {
                 *area = new_a;
-                grids.get_mut(&tag).unwrap().resize(new_a);
+                resize_grid(grids, tag, new_a);
             }
             Stack { ref mut area, ref mut stack, .. } => {
                 *area = new_a;
                 for grid in stack {
-                    grid.resize(new_a, grids, rule);
+                    grid.resize(grids, new_a, resize_grid, rule);
                 }
             }
             Split { ref mut left, ref mut right, ref mut area, kind, .. } => {
@@ -184,8 +198,8 @@ impl GridHierarchy {
                 };
                 *area = new_a;
                 let (l_area, r_area) = split_region(new_a, kind, rule);
-                left.resize(l_area, grids, rule);
-                right.resize(r_area, grids, rule);
+                left.resize(grids, l_area, resize_grid, rule);
+                right.resize(grids, r_area, resize_grid, rule);
             }
         }
     }
@@ -286,6 +300,8 @@ mod tests {
     use super::*;
     use super::GridHierarchy::*;
 
+    use datatypes::Region;
+
     // The hierarchy this sets up is:
     //  0
     //  | \
@@ -296,14 +312,16 @@ mod tests {
     fn setup_grid_hierarchy() -> GridHierarchy {
         Split {
             tag: 0,
-            kind: SplitKind::Horizontal(2),
+            area: Region::new(0, 0, 8, 8),
+            kind: SplitKind::Vertical(4),
             left: Box::new(Split {
                 tag: 1,
-                kind: SplitKind::Horizontal(2),
-                left: Box::new(Grid(3)),
-                right: Box::new(Grid(0x0beefdad)),
+                area: Region::new(0, 0, 4, 8),
+                kind: SplitKind::Horizontal(4),
+                left: Box::new(Grid(3), Region::new(0, 0, 4, 4)),
+                right: Box::new(Grid(0x0beefdad), Region::new(0, 4, 4, 8)),
             }),
-            right: Box::new(Grid(2)),
+            right: Box::new(Grid(2), Region::new(4, 0, 8, 8)),
         }
     }
 
@@ -317,9 +335,10 @@ mod tests {
         gh.remove(0x0beefdad);
         assert_eq!(gh, Split {
             tag: 0,
-            kind: SplitKind::Horizontal(2),
-            left: Box::new(Grid(3)),
-            right: Box::new(Grid(2)),
+            area: Region::new(0, 0, 8, 8)
+            kind: SplitKind::Vertical(4),
+            left: Box::new(Grid(3, Region::new(0, 0, 4, 8))),
+            right: Box::new(Grid(2), Region::new(4, 0, 8, 8)),
         })
     }
 

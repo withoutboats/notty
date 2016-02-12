@@ -6,8 +6,8 @@ use terminal::char_grid::{CharGrid, CharCell};
 
 mod grid_hierarchy;
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 use self::grid_hierarchy::GridHierarchy;
 use self::grid_hierarchy::GridHierarchy::*;
@@ -40,14 +40,20 @@ impl Screen {
             (None,    Some(h))  => grid_hierarchy.area().set_height(h),
             (None,    None)     => return
         };
-        grid_hierarchy.resize(new_a, grids, rule);
+        grid_hierarchy.resize(grids,
+                              new_a,
+                              &|grids, tag, area| { grids.get_mut(&tag).unwrap().resize(area); },
+                              rule);
     }
 
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
                  stag: Option<u64>, ltag: u64, rtag: u64) {
         let Screen { active_grid, ref mut grid_hierarchy, ref mut grids } = *self;
         if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(active_grid)) {
-            grid.split(grids, save, kind, rule, ltag, rtag);
+            grid.split(grids,
+                       |grids, tag, grid| { grids.insert(tag, grid); },
+                       |grids, tag, area| { grids.get_mut(&tag).unwrap().resize(area); },
+                       save, kind, rule, ltag, rtag);
         }
         if stag.unwrap_or(active_grid) == active_grid {
             self.active_grid = match save {
@@ -61,7 +67,10 @@ impl Screen {
     pub fn remove(&mut self, tag: u64, rule: ResizeRule) {
         if tag != 0 && tag != self.active_grid {
             let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
-            grid_hierarchy.remove(grids, tag, rule);
+            grid_hierarchy.remove(grids,
+                                  |grids, tag| { grids.remove(&tag); },
+                                  |grids, tag, a| { grids.get_mut(&tag).unwrap().resize(a); },
+                                  tag, rule);
         }
     }
 
