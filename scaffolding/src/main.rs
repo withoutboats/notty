@@ -27,7 +27,7 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use gtk::{WidgetTrait, WidgetSignals, ContainerTrait};
+use gtk::{WindowTrait, WidgetTrait, WidgetSignals, ContainerTrait};
 
 use notty::{Output, Command, KeyPress, KeyRelease};
 use notty::terminal::Terminal;
@@ -117,6 +117,7 @@ fn main() {
     });
 
     // Show the window and run the GTK event loop.
+    window.set_default_size(800, 800);
     window.show_all();
     gtk::main();
 
