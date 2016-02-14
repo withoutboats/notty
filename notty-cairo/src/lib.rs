@@ -79,5 +79,6 @@ fn x_pix(canvas: &cairo::Context, position: usize) -> f64 {
 }
 
 fn y_pix(canvas: &cairo::Context, position: usize) -> f64 {
-    position as f64 * (canvas.font_extents().height)
+    let f_extents = canvas.font_extents();
+    position as f64 * (f_extents.height + f_extents.ascent + f_extents.descent)
 }
