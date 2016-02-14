@@ -38,7 +38,7 @@ struct Winsize {
     ws_ypixel: libc::c_ushort,
 }
 
-pub fn pty(name: &str, width: u16, height: u16) -> (Reader, Writer, Arc<Handle>) {
+pub fn pty(name: &str, width: u16, height: u16) -> (Reader, Writer) {
     let mut amaster = 0;
     let winsize = Winsize {
         ws_row: height as libc::c_ushort,
@@ -57,7 +57,7 @@ pub fn pty(name: &str, width: u16, height: u16) -> (Reader, Writer, Arc<Handle>)
         }
         n if n > 0  => {
             let handle = Arc::new(Handle(amaster));
-            (Reader(handle.clone()), Writer(handle.clone()), handle)
+            (Reader(handle.clone()), Writer(handle.clone()))
         }
         _           => panic!("Fork failed.")
     }
