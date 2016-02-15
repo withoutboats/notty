@@ -116,6 +116,11 @@ fn main() {
         gtk::signal::Inhibit(false)
     });
 
+    window.connect_delete_event(|_, _| {
+        gtk::main_quit();
+        gtk::signal::Inhibit(false)
+    });
+
     // Show the window and run the GTK event loop.
     window.set_default_size(800, 800);
     window.show_all();
