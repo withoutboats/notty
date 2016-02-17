@@ -153,7 +153,7 @@ pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region) ->
             let tab = ((x / cfg::TAB_STOP).saturating_sub(n)) * cfg::TAB_STOP;
             Coords {x: cmp::max(tab, region.left), y: y}
         }
-        Tab(Right, n, false)                => {
+        Tab(Right, n, _)                => {
             let tab = ((x / cfg::TAB_STOP) + n) * cfg::TAB_STOP;
             Coords {x: cmp::min(tab, region.right - 1), y: y}
         }
