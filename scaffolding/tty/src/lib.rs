@@ -20,8 +20,14 @@ use std::ptr;
 use std::sync::Arc;
 
 extern crate libc;
+extern crate notty;
 
-static TIOCSWINSZ: libc::c_ulong = 0x5414;
+use notty::terminal::Tty;
+
+#[cfg(target_os="linux")]
+const TIOCSWINSZ: libc::c_ulong = 0x5414;
+#[cfg(target_os="macos")]
+const TIOCSWINSZ: libc::c_ulong = 1074295912;
 
 #[link(name="util")]
 extern {
@@ -101,6 +107,12 @@ impl io::Write for Writer {
         }
     }
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
+}
+
+impl Tty for Writer {
+    fn set_winsize(&mut self, width: u16, height: u16) -> io::Result<()> {
+        (**self).set_winsize(width, height)
+    }
 }
 
 pub struct Handle(libc::c_int);

@@ -6,3 +6,6 @@ license = "AGPL-3.0+"
 
 [dependencies]
 libc = "0.2.1"
+
+[dependencies.notty]
+path = "../.."
