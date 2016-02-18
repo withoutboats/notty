@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io;
 use std::ffi::CString;
+use std::ops::Deref;
 use std::ptr;
 use std::sync::Arc;
 
@@ -65,6 +66,13 @@ pub fn pty(name: &str, width: u16, height: u16) -> (Reader, Writer) {
 
 pub struct Reader(Arc<Handle>);
 
+impl Deref for Reader {
+    type Target = Handle;
+    fn deref(&self) -> &Handle {
+        &*self.0
+    }
+}
+
 impl io::Read for Reader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match unsafe {libc::read(**self.0, buf.as_mut_ptr() as *mut _, buf.len() as libc::size_t)}
@@ -76,6 +84,13 @@ impl io::Read for Reader {
 }
 
 pub struct Writer(Arc<Handle>);
+
+impl Deref for Writer {
+    type Target = Handle;
+    fn deref(&self) -> &Handle {
+        &*self.0
+    }
+}
 
 impl io::Write for Writer {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -105,7 +120,7 @@ impl Handle {
     }
 }
 
-impl ::std::ops::Deref for Handle {
+impl Deref for Handle {
     type Target = libc::c_int;
     fn deref(&self) -> &libc::c_int { &self.0 }
 }
