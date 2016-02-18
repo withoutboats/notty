@@ -31,7 +31,8 @@ impl Renderer {
     }
 
     pub fn reset_dimensions(&self, terminal: &mut Terminal, x_pix: u32, y_pix: u32) {
-        terminal.set_winsize(x_pix / self.char_w as u32, y_pix / self.char_h as u32);
+        terminal.set_winsize(x_pix / self.char_w as u32, y_pix / self.char_h as u32)
+                .unwrap_or_else(|e| panic!("{}", e))
     }
 
     pub fn draw(&self, terminal: &Terminal, canvas: &cairo::Context) {

@@ -32,15 +32,19 @@ use self::notty::Extended;
 use self::screen_echo::ScreenEcho;
 use self::InputMode::*;
 
+pub trait Tty: Write {
+    fn set_winsize(&mut self, u16, u16) -> io::Result<()>;
+}
+
 pub struct Input {
-    tty: Box<Write + Send>,
+    tty: Box<Tty + Send>,
     mode: InputMode,
     modifiers: Modifiers,
 }
 
 impl Input {
 
-    pub fn new<W: Write + Send + 'static>(tty: W) -> Input {
+    pub fn new<W: Tty + Send + 'static>(tty: W) -> Input {
         Input {
             tty: Box::new(tty),
             mode: Ansi(false),
@@ -59,6 +63,10 @@ impl Input {
             InputSettings::ScreenEcho(settings)         =>
                 ExtendedScreen(ScreenEcho::new(settings), Extended)
         }
+    }
+
+    pub fn set_winsize(&mut self, width: u32, height: u32) -> io::Result<()> {
+        self.tty.set_winsize(width as u16, height as u16)
     }
 
     pub fn write(&mut self, key: Key, press: bool) -> io::Result<Option<Box<Command>>> {

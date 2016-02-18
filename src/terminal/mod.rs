@@ -23,6 +23,7 @@ mod input;
 use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip};
+pub use self::input::Tty;
 
 use self::input::Input;
 
@@ -37,7 +38,7 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Write + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
+    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
         let grid = CharGrid::new(width, height, false, true);
         let tty = Input::new(tty);
         Terminal {
@@ -92,11 +93,12 @@ impl Terminal {
         println!("BELL");
     }
 
-    pub fn set_winsize(&mut self, cols: u32, rows: u32) {
+    pub fn set_winsize(&mut self, cols: u32, rows: u32) -> io::Result<()> {
         self.active.set_width(cols);
         self.width = cols;
         self.active.set_height(rows);
         self.height = rows;
+        self.tty.set_winsize(cols, rows)
     }
 
 }
