@@ -9,6 +9,7 @@ gdk = "0.2.0"
 gdk-pixbuf-sys = "0.2.1"
 gio-sys = "0.2.1"
 itertools = "0.4.4"
+libc = "0.1"
 
 [dependencies.notty]
 path = ".."

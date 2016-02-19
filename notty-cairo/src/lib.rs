@@ -3,6 +3,7 @@ extern crate gdk;
 extern crate gdk_pixbuf_sys as pixbuf;
 extern crate gio_sys as gio;
 extern crate itertools;
+extern crate libc;
 extern crate notty;
 extern crate pangocairo;
 
