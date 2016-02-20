@@ -1,19 +1,19 @@
 //  notty is a new kind of terminal emulator.
 //  Copyright (C) 2015 without boats
-//  
+//
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as published by
 //  the Free Software Foundation, either version 3 of the License, or
 //  (at your option) any later version.
-//  
+//
 //  This program is distributed in the hope that it will be useful,
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU Affero General Public License for more details.
-//  
+//
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use cfg::CONFIG;
+use cfg::Config;
 use datatypes::{Coords, Movement, move_within};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
@@ -24,9 +24,19 @@ pub struct Cursor {
     pub coords: Coords,
     pub style: Styles,
     pub text_style: Styles,
+    config: Config,
 }
 
 impl Cursor {
+
+    pub fn new(config: Config) -> Cursor {
+        Cursor {
+            coords: Coords::default(),
+            style: Styles::default(),
+            text_style: Styles::default(),
+            config: config,
+        }
+    }
 
     pub fn navigate(&mut self, grid: &mut Grid<CharCell>, movement: Movement) {
         match movement {
@@ -48,7 +58,7 @@ impl Cursor {
             }
             _   => (),
         }
-        let mut coords = move_within(self.coords, movement, grid.bounds(), CONFIG.tab_stop);
+        let mut coords = move_within(self.coords, movement, grid.bounds(), self.config.tab_stop);
 
         if let CharCell::Extension(source, _) = grid[coords] {
             match movement {
@@ -72,7 +82,7 @@ impl Cursor {
                 Up | Left                   => self.coords = source,
                 dir @ Down | dir @ Right    => loop {
                     let next_coords = move_within(coords, To(dir, 1, false), grid.bounds(),
-                                                  CONFIG.tab_stop);
+                                                  self.config.tab_stop);
                     if next_coords == coords { self.coords = source; return; }
                     if let CharCell::Extension(source2, _) = grid[next_coords] {
                         if source2 != source { self.coords = source2; return; }
@@ -86,25 +96,11 @@ impl Cursor {
 
 }
 
-impl Default for Cursor {
-    fn default() -> Cursor {
-        Cursor {
-            coords: Coords::default(),
-            style: Styles {
-                fg_color: CONFIG.cursor_color,
-                ..Styles::default()
-            },
-            text_style: Styles::default(),
-        }
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    
+
     use datatypes::{Coords, Movement};
     use datatypes::Direction::*;
     use datatypes::Movement::*;
@@ -117,7 +113,7 @@ mod tests {
     ];
 
     fn cursor() -> Cursor {
-        Cursor { coords: Coords {x: 2, y: 2}, ..Cursor::default() }
+        Cursor { coords: Coords {x: 2, y: 2}, ..Cursor::new(Config::default()) }
     }
 
     #[test]
@@ -161,7 +157,7 @@ mod tests {
         grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::default());
         grid[Coords{x:2,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::default());
         for &(init, mov, end) in MOVEMENTS_EXTENDED {
-            let mut cursor = Cursor { coords: init, ..Cursor::default() };
+            let mut cursor = Cursor { coords: init, ..Cursor::new(Config::default()) };
             cursor.navigate(&mut grid, mov);
             assert_eq!(cursor.coords, end);
         }
@@ -185,7 +181,7 @@ mod tests {
         grid[Coords{x:0,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::default());
         grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::default());
         for &(init, mov, end) in MOVEMENTS_EXTENDED_AT_BORDER {
-            let mut cursor = Cursor { coords: init, ..Cursor::default() };
+            let mut cursor = Cursor { coords: init, ..Cursor::new(Config::default()) };
             cursor.navigate(&mut grid, mov);
             assert_eq!(cursor.coords, end);
         }

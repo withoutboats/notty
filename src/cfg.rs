@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use datatypes::Color;
 
+#[derive(Copy)]
 pub struct Config {
     pub font: &'static str,
     pub scrollback: u32,
@@ -23,6 +24,20 @@ pub struct Config {
     pub bg_color: Color,
     pub cursor_color: Color,
     pub colors: [Color; 256]
+}
+
+impl Clone for Config {
+    fn clone(&self) -> Config {
+        Config{
+            font: self.font.clone(),
+            scrollback: self.scrollback.clone(),
+            tab_stop: self.tab_stop.clone(),
+            fg_color: self.fg_color.clone(),
+            bg_color: self.bg_color.clone(),
+            cursor_color: self.cursor_color.clone(),
+            colors: self.colors,
+        }
+    }
 }
 
 impl Default for Config {

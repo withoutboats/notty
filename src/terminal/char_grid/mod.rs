@@ -56,7 +56,7 @@ impl CharGrid {
         };
         CharGrid {
             grid: grid,
-            cursor: Cursor::default(),
+            cursor: Cursor::new(config),
             tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
