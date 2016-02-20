@@ -12,7 +12,7 @@ mod text_renderer;
 
 use itertools::Itertools;
 
-use notty::cfg;
+use notty::cfg::CONFIG;
 use notty::datatypes::Color;
 use notty::terminal::{CharCell, Terminal};
 
@@ -37,7 +37,7 @@ impl Renderer {
     }
 
     pub fn draw(&self, terminal: &Terminal, canvas: &cairo::Context) {
-        let Color(r,g,b) = cfg::DEFAULT_BG;
+        let Color(r,g,b) = CONFIG.bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 

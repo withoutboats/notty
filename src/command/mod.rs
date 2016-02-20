@@ -13,9 +13,6 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::fs::File;
-use std::io::Write;
-
 use command::prelude::*;
 
 mod erase;
@@ -79,9 +76,6 @@ pub struct NoFeature(pub String);
 
 impl Command for NoFeature {
     fn apply(&self, _: &mut Terminal) -> io::Result<()> {
-        if let Ok(mut file) = File::open(::cfg::LOGFILE) {
-            let _ = write!(file, "{}", self.repr());
-        }
         Ok(())
     }
     fn repr(&self) -> String {

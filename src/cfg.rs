@@ -15,30 +15,46 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use datatypes::Color;
 
+pub struct Config {
+    pub font: &'static str,
+    pub scrollback: u32,
+    pub tab_stop: u32,
+    pub fg_color: Color,
+    pub bg_color: Color,
+    pub cursor_color: Color,
+    pub colors: [Color; 256]
+}
+
+pub const CONFIG: Config = Config {
+    font: FONT,
+    scrollback: SCROLLBACK,
+    tab_stop: TAB_STOP,
+    fg_color: DEFAULT_FG,
+    bg_color: DEFAULT_BG,
+    cursor_color: CURSOR_COLOR,
+    colors: COLORS_256,
+};
+
 // FONTS
 
 pub const FONT: &'static str = "Inconsolata 10";
 
-// LOGGING
-
-pub const LOGFILE: &'static str = "~/.log/notty";
-
 // SCOLLBACK
 
-pub const SCROLLBACK: u32 = 512;
+const SCROLLBACK: u32 = 512;
 
 // TABS
 
-pub const TAB_STOP: u32 = 4;
+const TAB_STOP: u32 = 4;
 
 // COLORS
 
-pub const DEFAULT_FG: Color = Color(0xff,0xff,0xff);
-pub const DEFAULT_BG: Color = Color(0x00,0x00,0x00);
+const DEFAULT_FG: Color = Color(0xff,0xff,0xff);
+const DEFAULT_BG: Color = Color(0x00,0x00,0x00);
 
-pub const CURSOR_COLOR: Color = Color(0xbb,0xbb,0xbb);
+const CURSOR_COLOR: Color = Color(0xbb,0xbb,0xbb);
 
-pub const COLORS_256: [Color; 256] = [
+const COLORS_256: [Color; 256] = [
     /*  0    */ Color(0x00,0x00,0x00),
     /*  1    */ Color(0x55,0x55,0xff),
     /*  2    */ Color(0x55,0xff,0x55),

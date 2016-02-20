@@ -13,7 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use cfg;
+use cfg::CONFIG;
 use datatypes::{Color, Style};
 use datatypes::Style::*;
 
@@ -45,11 +45,11 @@ impl Styles {
             Blink(flag)             => self.blink = flag,
             Opacity(n)              => self.opacity = n,
             FgColor(color)          => self.fg_color = color,
-            FgColorCfg(Some(n))     => self.fg_color = cfg::COLORS_256[n as usize],
-            FgColorCfg(None)        => self.fg_color = cfg::DEFAULT_FG,
+            FgColorCfg(Some(n))     => self.fg_color = CONFIG.colors[n as usize],
+            FgColorCfg(None)        => self.fg_color = CONFIG.fg_color,
             BgColor(color)          => self.bg_color = color,
-            BgColorCfg(Some(n))     => self.bg_color = cfg::COLORS_256[n as usize],
-            BgColorCfg(None)        => self.bg_color = cfg::DEFAULT_BG,
+            BgColorCfg(Some(n))     => self.bg_color = CONFIG.colors[n as usize],
+            BgColorCfg(None)        => self.bg_color = CONFIG.bg_color,
         }
     }
 }
@@ -57,8 +57,8 @@ impl Styles {
 impl Default for Styles {
     fn default() -> Styles {
         Styles {
-            fg_color:           cfg::DEFAULT_FG,
-            bg_color:           cfg::DEFAULT_BG,
+            fg_color:           CONFIG.fg_color,
+            bg_color:           CONFIG.bg_color,
             opacity:            0xff,
             bold:               false,
             italic:             false,
@@ -74,7 +74,7 @@ impl Default for Styles {
 #[cfg(test)]
 mod tests {
 
-    use cfg;
+    use cfg::CONFIG;
     use datatypes::Color;
     use datatypes::Style::*;
     use super::*;
@@ -103,9 +103,9 @@ mod tests {
         assert_eq!(style.bg_color, Color(0x10, 0x10, 0x10));
 
         style.update(FgColorCfg(None));
-        assert_eq!(style.fg_color, cfg::DEFAULT_FG);
+        assert_eq!(style.fg_color, CONFIG.fg_color);
         style.update(BgColorCfg(None));
-        assert_eq!(style.bg_color, cfg::DEFAULT_BG);
+        assert_eq!(style.bg_color, CONFIG.bg_color);
     }
 
 }

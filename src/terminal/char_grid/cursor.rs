@@ -13,7 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use cfg;
+use cfg::CONFIG;
 use datatypes::{Coords, Movement, move_within};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
@@ -48,7 +48,7 @@ impl Cursor {
             }
             _   => (),
         }
-        let mut coords = move_within(self.coords, movement, grid.bounds(), cfg::TAB_STOP);
+        let mut coords = move_within(self.coords, movement, grid.bounds(), CONFIG.tab_stop);
 
         if let CharCell::Extension(source, _) = grid[coords] {
             match movement {
@@ -72,7 +72,7 @@ impl Cursor {
                 Up | Left                   => self.coords = source,
                 dir @ Down | dir @ Right    => loop {
                     let next_coords = move_within(coords, To(dir, 1, false), grid.bounds(),
-                                                  cfg::TAB_STOP);
+                                                  CONFIG.tab_stop);
                     if next_coords == coords { self.coords = source; return; }
                     if let CharCell::Extension(source2, _) = grid[next_coords] {
                         if source2 != source { self.coords = source2; return; }
@@ -91,7 +91,7 @@ impl Default for Cursor {
         Cursor {
             coords: Coords::default(),
             style: Styles {
-                fg_color: cfg::CURSOR_COLOR,
+                fg_color: CONFIG.cursor_color,
                 ..Styles::default()
             },
             text_style: Styles::default(),
