@@ -18,6 +18,7 @@
 extern crate base64;
 extern crate mime;
 extern crate notty_encoding;
+extern crate parsell;
 extern crate unicode_width;
 
 pub mod cfg;
