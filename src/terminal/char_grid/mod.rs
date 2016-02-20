@@ -101,7 +101,8 @@ impl CharGrid {
                 let bounds = self.grid.bounds();
                 let mut coords = self.cursor.coords;
                 for _ in 1..width {
-                    let next_coords = move_within(coords, To(Right, 1, false), bounds);
+                    let next_coords = move_within(coords, To(Right, 1, false), bounds,
+                                                  cfg::TAB_STOP);
                     if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
@@ -118,10 +119,11 @@ impl CharGrid {
             }
             CellData::Image { pos, width, height, data, mime }   => {
                 let mut end = self.cursor.coords;
-                end = move_within(end, To(Right, width, false), self.grid.bounds());
-                end = move_within(end, To(Down, height, false), self.grid.bounds());
+                end = move_within(end, To(Right, width, false), self.grid.bounds(), cfg::TAB_STOP);
+                end = move_within(end, To(Down, height, false), self.grid.bounds(), cfg::TAB_STOP);
                 let mut iter = CoordsIter::from_area(CursorBound(end),
-                                                     self.cursor.coords, self.grid.bounds());
+                                                     self.cursor.coords, self.grid.bounds(),
+                                                     cfg::TAB_STOP);
                 if let Some(cu_coords) = iter.next() {
                     self.grid[cu_coords] = CharCell::image(data, mime, pos, width, height,
                                                            self.cursor.text_style);
@@ -163,7 +165,8 @@ impl CharGrid {
     pub fn insert_blank_at(&mut self, n: u32) {
         let mut iter = CoordsIter::from_area(CursorTo(ToEdge(Right)),
                                              self.cursor.coords,
-                                             self.grid.bounds());
+                                             self.grid.bounds(),
+                                             cfg::TAB_STOP);
         iter.next();
         for coords in iter.rev().skip(n as usize) {
             self.grid.moveover(coords, Coords {x: coords.x + n, y: coords.y});
@@ -248,7 +251,8 @@ impl CharGrid {
     }
 
     fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {
-        for coords in CoordsIter::from_area(area, self.cursor.coords, self.grid.bounds()) {
+        for coords in CoordsIter::from_area(area, self.cursor.coords, self.grid.bounds(),
+                                            cfg::TAB_STOP) {
             f(&mut self.grid, coords);
         }
     }

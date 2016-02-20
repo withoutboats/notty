@@ -21,8 +21,6 @@ use std::cmp;
 
 use mime::Mime;
 
-use cfg;
-
 mod iter;
 mod key;
 
@@ -82,7 +80,7 @@ pub enum Code {
 }
 
 /// Calculate the movement from one coordinate to another within a region.
-pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region) -> Coords {
+pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region, tab: u32) -> Coords {
     use self::Movement::*;
     use self::Direction::*;
     match movement {
@@ -150,11 +148,11 @@ pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region) ->
             unimplemented!()
         }
         Tab(Left, n, _)                 => {
-            let tab = ((x / cfg::TAB_STOP).saturating_sub(n)) * cfg::TAB_STOP;
+            let tab = ((x / tab).saturating_sub(n)) * tab;
             Coords {x: cmp::max(tab, region.left), y: y}
         }
         Tab(Right, n, _)                => {
-            let tab = ((x / cfg::TAB_STOP) + n) * cfg::TAB_STOP;
+            let tab = ((x / tab) + n) * tab;
             Coords {x: cmp::min(tab, region.right - 1), y: y}
         }
         Tab(..)                             => unimplemented!(),

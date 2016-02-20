@@ -48,7 +48,7 @@ impl Cursor {
             }
             _   => (),
         }
-        let mut coords = move_within(self.coords, movement, grid.bounds());
+        let mut coords = move_within(self.coords, movement, grid.bounds(), cfg::TAB_STOP);
 
         if let CharCell::Extension(source, _) = grid[coords] {
             match movement {
@@ -71,7 +71,8 @@ impl Cursor {
             match movement.direction(self.coords) {
                 Up | Left                   => self.coords = source,
                 dir @ Down | dir @ Right    => loop {
-                    let next_coords = move_within(coords, To(dir, 1, false), grid.bounds());
+                    let next_coords = move_within(coords, To(dir, 1, false), grid.bounds(),
+                                                  cfg::TAB_STOP);
                     if next_coords == coords { self.coords = source; return; }
                     if let CharCell::Extension(source2, _) = grid[next_coords] {
                         if source2 != source { self.coords = source2; return; }
