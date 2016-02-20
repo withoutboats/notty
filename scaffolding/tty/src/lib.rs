@@ -62,8 +62,7 @@ pub fn pty(name: &str, width: u16, height: u16) -> (Reader, Writer) {
         0           => {
             let name = CString::new(name).unwrap();
             unsafe {
-                libc::execvp(name.as_ptr(),
-                             ptr::null());
+                libc::execvp(name.as_ptr(), ptr::null());
             }
             unreachable!();
         }

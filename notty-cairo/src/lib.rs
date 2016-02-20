@@ -18,8 +18,8 @@ use gdk::glib::translate::ToGlibPtr;
 
 use itertools::Itertools;
 
-use notty::cfg::CONFIG;
 use notty::datatypes::{Coords, Color};
+use notty::cfg::Config;
 use notty::terminal::{CharCell, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
@@ -36,14 +36,14 @@ impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
             images: HashMap::new(),
-            char_d: None 
+            char_d: None
         }
     }
 
     pub fn reset_dimensions(&mut self, canvas: &cairo::Context, terminal: &mut Terminal,
                             pix_w: u32, pix_h: u32) {
         let (char_w, char_h) = self.char_d.unwrap_or_else(|| {
-            let char_d = char_dimensions(canvas);
+            let char_d = self.char_dimensions(canvas, &terminal.config);
             self.char_d = Some(char_d);
             char_d
         });
@@ -54,9 +54,9 @@ impl Renderer {
 
     pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
         if self.char_d.is_none() {
-            self.char_d = Some(char_dimensions(canvas));
+            self.char_d = Some(self.char_dimensions(canvas, &terminal.config));
         }
-        let Color(r,g,b) = CONFIG.bg_color;
+        let Color(r,g,b) = terminal.config.bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 
@@ -92,7 +92,7 @@ impl Renderer {
                     &CharCell::Image(ref image, ref mime, ref pos, (ref w, ref h), _) => {
                         let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + *w as usize) < col_n {
-                            text.draw(canvas);
+                            text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
                         if let Some(image) = self.images.get(image) {
@@ -108,8 +108,20 @@ impl Renderer {
                     }
                 }
             }
-            text.draw(canvas);
+            text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
         }
+    }
+
+    fn char_dimensions(&self, canvas: &cairo::Context, config: &Config) -> (f64, f64) {
+        //save the canvas position
+        let (x_save, y_save) = canvas.get_current_point();
+        let string = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN\
+                      OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+        let cairo = canvas.to_glib_none();
+        let (w, h) = PangoLayout::new(cairo.0, &config.font, string,
+                                      PangoAttrList::new()).extents();
+        canvas.move_to(x_save, y_save);
+        ((w / string.len() as i32) as f64, h as f64)
     }
 
     fn x_pixels(&self, x: u32) -> f64 {
@@ -119,17 +131,6 @@ impl Renderer {
     fn y_pixels(&self, y: u32) -> f64 {
         self.char_d.unwrap().1 * (y as f64)
     }
-}
-
-fn char_dimensions(canvas: &cairo::Context) -> (f64, f64) {
-    //save the canvas position
-    let (x_save, y_save) = canvas.get_current_point();
-    let string = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN\
-                 OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-    let cairo = canvas.to_glib_none();
-    let (w, h) = PangoLayout::new(cairo.0, CONFIG.font, string, PangoAttrList::new()).extents();
-    canvas.move_to(x_save, y_save);
-    ((w / string.len() as i32) as f64, h as f64)
 }
 
 fn color(byte: u8) -> f64 {

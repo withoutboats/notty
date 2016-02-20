@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::{self, Write};
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 mod char_grid;
 mod screen;
@@ -22,6 +23,7 @@ mod input;
 
 use Command;
 use datatypes::{InputSettings, Key};
+use cfg::Config;
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
@@ -37,10 +39,11 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
+    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W, config: Rc<Config>)
+            -> Terminal {
         Terminal {
             title: String::new(),
-            screen: Screen::new(width, height),
+            screen: Screen::new(width, height, config),
             tty: Input::new(tty),
         }
     }

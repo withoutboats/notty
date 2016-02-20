@@ -39,6 +39,10 @@ pub enum CharCell {
 
 impl CharCell {
 
+    pub fn new(style: Styles) -> CharCell {
+        Empty(style)
+    }
+
     pub fn character(ch: char, style: Styles) -> CharCell {
         Char(ch, style)
     }
@@ -118,10 +122,4 @@ impl CharCell {
         if let Extension(..) = *self { true } else { false }
     }
 
-}
-
-impl Default for CharCell {
-    fn default() -> CharCell {
-        Empty(Styles::default())
-    }
 }
