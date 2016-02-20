@@ -18,7 +18,6 @@ use gdk::glib::translate::ToGlibPtr;
 
 use itertools::Itertools;
 
-use notty::cfg::CONFIG;
 use notty::datatypes::Color;
 use notty::terminal::{CharCell, Terminal, ImageData};
 
@@ -36,7 +35,7 @@ impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
             images: HashMap::new(),
-            char_d: None 
+            char_d: None
         }
     }
 
@@ -56,7 +55,7 @@ impl Renderer {
         if self.char_d.is_none() {
             self.char_d = Some(char_dimensions(canvas));
         }
-        let Color(r,g,b) = CONFIG.bg_color;
+        let Color(r,g,b) = terminal.config.bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 
@@ -80,7 +79,7 @@ impl Renderer {
                     &CharCell::Image(ref image, ref mime, ref pos, (ref w, ref h), _) => {
                         let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + *w as usize) < col_n {
-                            text.draw(canvas);
+                            text.draw(canvas, terminal.config.font, terminal.config.bg_color);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
                         if let Some(image) = self.images.get(image) {
@@ -96,7 +95,7 @@ impl Renderer {
                     }
                 }
             }
-            text.draw(canvas);
+            text.draw(canvas, terminal.config.font, terminal.config.bg_color);
         }
     }
 

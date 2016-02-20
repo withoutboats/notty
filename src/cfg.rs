@@ -25,6 +25,12 @@ pub struct Config {
     pub colors: [Color; 256]
 }
 
+impl Default for Config {
+    fn default() -> Config {
+       CONFIG
+    }
+}
+
 pub const CONFIG: Config = Config {
     font: FONT,
     scrollback: SCROLLBACK,

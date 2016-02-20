@@ -21,6 +21,7 @@ mod char_grid;
 mod input;
 
 use datatypes::{InputSettings, Key};
+use cfg::Config;
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
@@ -30,6 +31,7 @@ use self::input::Input;
 pub struct Terminal {
     pub width: u32,
     pub height: u32,
+    pub config: Config,
     title: String,
     active: CharGrid,
     inactive: Vec<CharGrid>,
@@ -44,6 +46,7 @@ impl Terminal {
         Terminal {
             width: width,
             height: height,
+            config: Config::default(),
             title: String::new(),
             active: grid,
             inactive: Vec::new(),
