@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 use unicode_width::*;
 
-use cfg::CONFIG;
+use cfg::Config;
 use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style, move_within};
 use datatypes::Area::*;
 use datatypes::Movement::*;
@@ -42,13 +42,15 @@ pub struct CharGrid {
     tooltips: HashMap<Coords, Tooltip>,
     pub grid_width: u32,
     pub grid_height: u32,
+    config: Config,
 }
 
 impl CharGrid {
     pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool) -> CharGrid {
+        let config = Config::default();
         let grid = match (scroll_x, scroll_y) {
             (false, false)  => Grid::new(w as usize, h as usize),
-            (false, true)   => Grid::with_y_cap(w as usize, h as usize, CONFIG.scrollback as usize),
+            (false, true)   => Grid::with_y_cap(w as usize, h as usize, config.scrollback as usize),
             (true, false)   => unimplemented!(),
             (true, true)    => unimplemented!(),
         };
@@ -58,6 +60,7 @@ impl CharGrid {
             tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
+            config: config,
         }
     }
 
@@ -102,7 +105,7 @@ impl CharGrid {
                 let mut coords = self.cursor.coords;
                 for _ in 1..width {
                     let next_coords = move_within(coords, To(Right, 1, false), bounds,
-                                                  CONFIG.tab_stop);
+                                                  self.config.tab_stop);
                     if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
@@ -119,11 +122,11 @@ impl CharGrid {
             }
             CellData::Image { pos, width, height, data, mime }   => {
                 let mut end = self.cursor.coords;
-                end = move_within(end, To(Right, width, false), self.grid.bounds(), CONFIG.tab_stop);
-                end = move_within(end, To(Down, height, false), self.grid.bounds(), CONFIG.tab_stop);
+                end = move_within(end, To(Right, width, false), self.grid.bounds(), self.config.tab_stop);
+                end = move_within(end, To(Down, height, false), self.grid.bounds(), self.config.tab_stop);
                 let mut iter = CoordsIter::from_area(CursorBound(end),
                                                      self.cursor.coords, self.grid.bounds(),
-                                                     CONFIG.tab_stop);
+                                                     self.config.tab_stop);
                 if let Some(cu_coords) = iter.next() {
                     self.grid[cu_coords] = CharCell::image(data, self.cursor.coords, mime, pos,
                                                            width, height, self.cursor.text_style);
@@ -166,7 +169,7 @@ impl CharGrid {
         let mut iter = CoordsIter::from_area(CursorTo(ToEdge(Right)),
                                              self.cursor.coords,
                                              self.grid.bounds(),
-                                             CONFIG.tab_stop);
+                                             self.config.tab_stop);
         iter.next();
         for coords in iter.rev().skip(n as usize) {
             self.grid.moveover(coords, Coords {x: coords.x + n, y: coords.y});
@@ -252,7 +255,7 @@ impl CharGrid {
 
     fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {
         for coords in CoordsIter::from_area(area, self.cursor.coords, self.grid.bounds(),
-                                            CONFIG.tab_stop) {
+                                            self.config.tab_stop) {
             f(&mut self.grid, coords);
         }
     }
@@ -272,7 +275,7 @@ mod tests {
 
     use super::*;
 
-    use cfg::CONFIG;
+    use cfg::Config;
     use datatypes::{CellData, Coords, Direction, Movement};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
@@ -320,10 +323,11 @@ mod tests {
 
     #[test]
     fn move_cursor() {
+        let config = Config::default();
         run_test(|mut grid, h| {
             let movements = vec![
                 (Movement::ToEdge(Direction::Down), Coords {x:0, y:9}),
-                (Movement::Tab(Direction::Right, 1, false), Coords{x:CONFIG.tab_stop, y:9}),
+                (Movement::Tab(Direction::Right, 1, false), Coords{x:config.tab_stop, y:9}),
                 (Movement::NextLine(1), Coords{x:0, y:h-1}),
             ];
             for (mov, coords) in movements {
