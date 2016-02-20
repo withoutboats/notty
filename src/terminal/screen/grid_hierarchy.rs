@@ -127,8 +127,8 @@ impl GridHierarchy {
                              tag: u64,
                              rule: ResizeRule)
     where F1: Fn(&mut T, u64), F2: Fn(&mut T, u64, Region) {
-        let replacement_grid = if let Some(parent_grid) = self.find_parent(tag) {
-            match *parent_grid {
+        if let Some(parent_grid) = self.find_parent(tag) {
+            if let Some(replacement_grid) = match *parent_grid {
                 Grid(..) => unreachable!(),
                 Stack { ref mut stack, .. } => {
                     //TODO does this remove dead grids from the hash map?
@@ -155,10 +155,9 @@ impl GridHierarchy {
                         Some((**left).clone())
                     } else { unreachable!() }
                 }
+            } {
+                *parent_grid = replacement_grid;
             }
-        } else { None };
-        if let Some(grid) = replacement_grid {
-            *self = grid;
         }
     }
 
@@ -313,10 +312,10 @@ mod tests {
                 tag: 1,
                 area: Region::new(0, 0, 4, 8),
                 kind: SplitKind::Horizontal(4),
-                left: Box::new(Grid(3), Region::new(0, 0, 4, 4)),
-                right: Box::new(Grid(0x0beefdad), Region::new(0, 4, 4, 8)),
+                left: Box::new(Grid(3, Region::new(0, 0, 4, 4))),
+                right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8))),
             }),
-            right: Box::new(Grid(2), Region::new(4, 0, 8, 8)),
+            right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
         }
     }
 
@@ -325,38 +324,41 @@ mod tests {
     // | \
     // 3  2
     #[test]
-    fn remove_a_tag() {
+    fn remove_a_grid_beefdad() {
         let mut gh = setup_grid_hierarchy();
-        gh.remove(0x0beefdad);
+        gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 0x0beefdad, ResizeRule::Percentage);
         assert_eq!(gh, Split {
             tag: 0,
-            area: Region::new(0, 0, 8, 8)
+            area: Region::new(0, 0, 8, 8),
             kind: SplitKind::Vertical(4),
             left: Box::new(Grid(3, Region::new(0, 0, 4, 8))),
-            right: Box::new(Grid(2), Region::new(4, 0, 8, 8)),
+            right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
         })
     }
 
     // After this test:
-    // 0
-    // | \
-    // 1  2
-    // | \
-    // 3 0x0badcafe
+    // 2
     #[test]
-    fn replace_a_tag() {
+    fn remove_grid_1() {
         let mut gh = setup_grid_hierarchy();
-        gh.replace(0x0beefdad, |_| GridHierarchy::Grid(0x0badcafe));
+        gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 1, ResizeRule::Percentage);
+        assert_eq!(gh, Grid(2, Region::new(0, 0, 8, 8)));
+    }
+
+    // After this test:
+    // 1
+    // | \
+    // 3  0x0beefdad
+    #[test]
+    fn remove_grid_2() {
+        let mut gh = setup_grid_hierarchy();
+        gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 2, ResizeRule::Percentage);
         assert_eq!(gh, Split {
-            tag: 0,
-            kind: SplitKind::Horizontal(2),
-            left: Box::new(Split {
-                tag: 1,
-                kind: SplitKind::Horizontal(2),
-                left: Box::new(Grid(3)),
-                right: Box::new(Grid(0x0badcafe)),
-            }),
-            right: Box::new(Grid(2)),
+            tag: 1,
+            area: Region::new(0, 0, 8, 8),
+            kind: SplitKind::Horizontal(4),
+            left: Box::new(Grid(3, Region::new(0, 0, 8, 4))),
+            right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 8, 8))),
         })
     }
 }
