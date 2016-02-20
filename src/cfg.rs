@@ -17,28 +17,28 @@ use datatypes::Color;
 
 // FONTS
 
-pub static FONT: &'static str = "Inconsolata 10";
+pub const FONT: &'static str = "Inconsolata 10";
 
 // LOGGING
 
-pub static LOGFILE: &'static str = "~/.log/notty";
+pub const LOGFILE: &'static str = "~/.log/notty";
 
 // SCOLLBACK
 
-pub static SCROLLBACK: u32 = 512;
+pub const SCROLLBACK: u32 = 512;
 
 // TABS
 
-pub static TAB_STOP: u32 = 4;
+pub const TAB_STOP: u32 = 4;
 
 // COLORS
 
-pub static DEFAULT_FG: Color = Color(0xff,0xff,0xff);
-pub static DEFAULT_BG: Color = Color(0x00,0x00,0x00);
+pub const DEFAULT_FG: Color = Color(0xff,0xff,0xff);
+pub const DEFAULT_BG: Color = Color(0x00,0x00,0x00);
 
-pub static CURSOR_COLOR: Color = Color(0xbb,0xbb,0xbb);
+pub const CURSOR_COLOR: Color = Color(0xbb,0xbb,0xbb);
 
-pub static COLORS_256: [Color; 256] = [
+pub const COLORS_256: [Color; 256] = [
     /*  0    */ Color(0x00,0x00,0x00),
     /*  1    */ Color(0x55,0x55,0xff),
     /*  2    */ Color(0x55,0xff,0x55),
