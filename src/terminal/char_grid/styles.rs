@@ -13,7 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use cfg::CONFIG;
+use cfg::Config;
 use datatypes::{Color, Style};
 use datatypes::Style::*;
 
@@ -29,9 +29,25 @@ pub struct Styles {
     pub strikethrough: bool,
     pub inverted: bool,
     pub blink: bool,
+    config: Config,
 }
 
 impl Styles {
+    pub fn new(config: Config) -> Styles {
+        Styles {
+            fg_color:           config.fg_color,
+            bg_color:           config.bg_color,
+            opacity:            0xff,
+            bold:               false,
+            italic:             false,
+            underline:          false,
+            double_underline:   false,
+            strikethrough:      false,
+            inverted:           false,
+            blink:              false,
+            config: config,
+        }
+    }
     pub fn update(&mut self, style: Style) {
         match style {
             Underline(0)            => { self.underline = false; self.double_underline = false; }
@@ -45,28 +61,11 @@ impl Styles {
             Blink(flag)             => self.blink = flag,
             Opacity(n)              => self.opacity = n,
             FgColor(color)          => self.fg_color = color,
-            FgColorCfg(Some(n))     => self.fg_color = CONFIG.colors[n as usize],
-            FgColorCfg(None)        => self.fg_color = CONFIG.fg_color,
+            FgColorCfg(Some(n))     => self.fg_color = self.config.colors[n as usize],
+            FgColorCfg(None)        => self.fg_color = self.config.fg_color,
             BgColor(color)          => self.bg_color = color,
-            BgColorCfg(Some(n))     => self.bg_color = CONFIG.colors[n as usize],
-            BgColorCfg(None)        => self.bg_color = CONFIG.bg_color,
-        }
-    }
-}
-
-impl Default for Styles {
-    fn default() -> Styles {
-        Styles {
-            fg_color:           CONFIG.fg_color,
-            bg_color:           CONFIG.bg_color,
-            opacity:            0xff,
-            bold:               false,
-            italic:             false,
-            underline:          false,
-            double_underline:   false,
-            strikethrough:      false,
-            inverted:           false,
-            blink:              false,
+            BgColorCfg(Some(n))     => self.bg_color = self.config.colors[n as usize],
+            BgColorCfg(None)        => self.bg_color = self.config.bg_color,
         }
     }
 }
@@ -74,14 +73,15 @@ impl Default for Styles {
 #[cfg(test)]
 mod tests {
 
-    use cfg::CONFIG;
+    use cfg::Config;
     use datatypes::Color;
     use datatypes::Style::*;
     use super::*;
 
     #[test]
     fn styles_update() {
-        let mut style = Styles::default();
+        let config = Config::default();
+        let mut style = Styles::new(config);
         style.update(Bold(true));
         assert_eq!(style.bold, true);
         style.update(Italic(true));
@@ -103,9 +103,9 @@ mod tests {
         assert_eq!(style.bg_color, Color(0x10, 0x10, 0x10));
 
         style.update(FgColorCfg(None));
-        assert_eq!(style.fg_color, CONFIG.fg_color);
+        assert_eq!(style.fg_color, config.fg_color);
         style.update(BgColorCfg(None));
-        assert_eq!(style.bg_color, CONFIG.bg_color);
+        assert_eq!(style.bg_color, config.bg_color);
     }
 
 }

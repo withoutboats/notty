@@ -74,7 +74,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((h - self.grid_height) * self.grid_width) as usize;
-                self.grid.add_to_bottom(vec![CharCell::default(); n]);
+                self.grid.add_to_bottom(vec![CharCell::new(self.config); n]);
             }
         }
         self.grid_height = h;
@@ -90,7 +90,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((w - self.grid_width) * self.grid_height) as usize;
-                self.grid.add_to_right(vec![CharCell::default(); n]);
+                self.grid.add_to_right(vec![CharCell::new(self.config); n]);
             }
         }
         self.grid_width = w;
@@ -210,7 +210,7 @@ impl CharGrid {
     }
 
     pub fn reset_styles(&mut self) {
-        self.cursor.text_style = Styles::default();
+        self.cursor.text_style = Styles::new(self.config);
     }
 
     pub fn set_cursor_style(&mut self, style: Style) {
@@ -218,7 +218,7 @@ impl CharGrid {
     }
 
     pub fn reset_cursor_styles(&mut self) {
-        self.cursor.style = Styles::default();
+        self.cursor.style = Styles::new(self.config);
     }
 
     pub fn set_style_in_area(&mut self, area: Area, style: Style) {
@@ -226,7 +226,8 @@ impl CharGrid {
     }
 
     pub fn reset_styles_in_area(&mut self, area: Area) {
-        self.in_area(area, |grid, coords| *grid[coords].style_mut() = Styles::default());
+        let config = self.config.clone();
+        self.in_area(area, |grid, coords| *grid[coords].style_mut() = Styles::new(config));
     }
 
     pub fn cursor_position(&self) -> Coords {

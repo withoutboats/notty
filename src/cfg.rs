@@ -13,9 +13,11 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use std::fmt::{Debug,Formatter,Result};
+
 use datatypes::Color;
 
-#[derive(Copy)]
+#[derive(Copy, Eq)]
 pub struct Config {
     pub font: &'static str,
     pub scrollback: u32,
@@ -24,6 +26,40 @@ pub struct Config {
     pub bg_color: Color,
     pub cursor_color: Color,
     pub colors: [Color; 256]
+}
+
+impl Debug for Config {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "Config {{ }}")
+    }
+}
+impl PartialEq for Config {
+    fn eq(&self, other: &Config) -> bool {
+        if self.font != other.font {
+            return false;
+        }
+        if self.scrollback != other.scrollback {
+            return false;
+        }
+        if self.tab_stop != other.tab_stop {
+            return false;
+        }
+        if self.fg_color != other.fg_color {
+            return false;
+        }
+        if self.bg_color != other.bg_color {
+            return false;
+        }
+        if self.cursor_color != other.cursor_color {
+            return false;
+        }
+        for i in 0..255 {
+            if self.colors[i] != other.colors[i] {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 impl Clone for Config {

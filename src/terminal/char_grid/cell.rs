@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 use mime::Mime;
 
+use cfg::Config;
 use datatypes::{Coords, MediaPosition};
 use terminal::Styles;
 
@@ -38,6 +39,10 @@ pub enum CharCell {
 }
 
 impl CharCell {
+
+    pub fn new(config: Config) -> CharCell {
+        Empty(Styles::new(config))
+    }
 
     pub fn character(ch: char, style: Styles) -> CharCell {
         Char(ch, style)
@@ -127,6 +132,7 @@ impl CharCell {
 
 impl Default for CharCell {
     fn default() -> CharCell {
-        Empty(Styles::default())
+        let config = Config::default();
+        Empty(Styles::new(config))
     }
 }
