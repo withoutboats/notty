@@ -41,12 +41,13 @@ pub struct Terminal {
 impl Terminal {
 
     pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
-        let grid = CharGrid::new(width, height, false, true);
+        let config = Config::default();
+        let grid = CharGrid::new(width, height, false, true, config);
         let tty = Input::new(tty);
         Terminal {
             width: width,
             height: height,
-            config: Config::default(),
+            config: config,
             title: String::new(),
             active: grid,
             inactive: Vec::new(),
@@ -75,7 +76,7 @@ impl Terminal {
     }
 
     pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
-        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y);
+        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y, self.config);
         mem::swap(&mut grid, &mut self.active);
         self.inactive.push(grid);
     }

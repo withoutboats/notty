@@ -46,8 +46,7 @@ pub struct CharGrid {
 }
 
 impl CharGrid {
-    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool) -> CharGrid {
-        let config = Config::default();
+    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool, config: Config) -> CharGrid {
         let grid = match (scroll_x, scroll_y) {
             (false, false)  => Grid::new(w as usize, h as usize),
             (false, true)   => Grid::with_y_cap(w as usize, h as usize, config.scrollback as usize),
@@ -280,8 +279,8 @@ mod tests {
     use datatypes::{CellData, Coords, Direction, Movement};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        test(CharGrid::new(10, 10, false, false), 10);
-        test(CharGrid::new(10, 10, false, true), 11);
+        test(CharGrid::new(10, 10, false, false, Config::default()), 10);
+        test(CharGrid::new(10, 10, false, true, Config::default()), 11);
     }
 
     #[test]
