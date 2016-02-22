@@ -11,6 +11,8 @@ mod image_renderer;
 mod text_renderer;
 
 use gdk::glib::translate::ToGlibPtr;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use itertools::Itertools;
 
@@ -24,20 +26,14 @@ use self::image_renderer::ImageRenderer;
 use self::text_renderer::TextRenderer;
 
 pub struct Renderer {
-    char_w: f64,
-    char_h: f64,
-    scroll: u32,
+    images: RefCell<HashMap<Vec<u8>, ImageRenderer>>,
 }
 
 impl Renderer {
-    pub fn new(canvas: &cairo::Context, scroll: u32) -> Renderer {
-        let (char_w, char_h) = char_dimensions(canvas);
-        Renderer { char_w: char_w, char_h: char_h, scroll: scroll }
-    }
-
-    pub fn reset_dimensions(&self, terminal: &mut Terminal, x_pix: u32, y_pix: u32) {
-        terminal.set_winsize(x_pix / self.char_w as u32, y_pix / self.char_h as u32)
-                .unwrap_or_else(|e| panic!("{}", e))
+    pub fn new() -> Renderer {
+        Renderer {
+            images: RefCell::new(HashMap::new()),
+        }
     }
 
     pub fn draw(&self, terminal: &Terminal, canvas: &cairo::Context) {
@@ -46,7 +42,7 @@ impl Renderer {
         canvas.paint();
 
         let col_n = terminal.grid_width as usize;
-        let rows = terminal.into_iter().skip(self.scroll as usize * col_n).chunks_lazy(col_n);
+        let rows = terminal.into_iter().chunks_lazy(col_n);
 
         for (y_pos, row) in rows.into_iter().enumerate() {
             let y_pix = self.y_pixels(y_pos as u32);
@@ -63,9 +59,15 @@ impl Renderer {
                             text.draw(canvas);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
+                        if let Some(image) = self.images.borrow().get(data) {
+                            image.draw(canvas);
+                            continue;
+                        }
                         let w_pix = self.x_pixels(width);
                         let h_pix = self.y_pixels(height);
-                        ImageRenderer::new(&data, x_pix, y_pix, w_pix, h_pix, pos).draw(canvas);
+                        let img = ImageRenderer::new(data, x_pix, y_pix, w_pix, h_pix, pos);
+                        img.draw(canvas);
+                        self.images.borrow_mut().insert(data.to_owned(), img);
                     }
                 }
             }

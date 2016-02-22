@@ -13,6 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+extern crate cairo;
 extern crate gdk;
 extern crate gtk;
 
@@ -72,7 +73,8 @@ fn main() {
     let (scroll2, scroll3) = (scroll.clone(), scroll.clone());
 
     // Set up logical terminal and renderer.
-    let terminal        = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
+    let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
+    let renderer = Renderer::new();
 
     // Process screen logic every 125 milliseconds.
     let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());
@@ -81,10 +83,8 @@ fn main() {
     // Connect signal to draw on canvas.
     canvas.connect_draw(move |_, canvas| {
         let mut terminal = terminal.borrow_mut();
-        let skip = terminal.grid_height.saturating_sub(terminal.height + scroll.get() as u32);
-        let renderer = Renderer::new(&canvas, skip);
         if let (Some(x_pix), Some(y_pix)) = unsafe {(X_PIXELS.take(), Y_PIXELS.take())} {
-            renderer.reset_dimensions(&mut terminal, x_pix, y_pix);
+            reset_dimensions(&canvas, &mut terminal, x_pix, y_pix);
         }
         renderer.draw(&terminal, &canvas);
         gtk::signal::Inhibit(false)
@@ -126,4 +126,11 @@ fn main() {
     window.show_all();
     gtk::main();
 
+}
+
+fn reset_dimensions(canvas: &cairo::Context, terminal: &mut Terminal, x_pix: u32, y_pix: u32) {
+    let f_extents = canvas.font_extents();
+    let w = x_pix / f_extents.max_x_advance as u32;
+    let h = y_pix / (f_extents.height + f_extents.ascent + f_extents.descent) as u32;
+    terminal.set_winsize(w, h).unwrap_or_else(|e| panic!("{}", e));
 }
