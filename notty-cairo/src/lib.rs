@@ -45,7 +45,7 @@ impl Renderer {
         let rows = terminal.into_iter().skip(self.scroll as usize * col_n).chunks_lazy(col_n);
 
         for (y_pos, row) in rows.into_iter().enumerate() {
-            let y_pix = y_pix(canvas, y_pos);
+            let y_pix = y_pixels(canvas, y_pos);
             let mut text = TextRenderer::new(0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
                 match cell {
@@ -53,12 +53,16 @@ impl Renderer {
                     &CharCell::Char(ch, style)                          => text.push(ch, style),
                     &CharCell::Grapheme(ref s, style)                   => text.push_str(s, style),
                     &CharCell::Extension(..)                            => { }
-                    &CharCell::Image { ref data, width, style, ..}      => {
+                    &CharCell::Image { ref data, width, height, pos, ..} => {
                         if (x_pos + width as usize) < col_n {
                             text.draw(canvas);
-                            text = TextRenderer::new(x_pix(canvas, x_pos + width as usize), y_pix);
+                            text = TextRenderer::new(x_pixels(canvas, x_pos + width as usize),
+                                                     y_pix);
                         }
-                        ImageRenderer::new(&data, style, x_pix(canvas, x_pos), y_pix).draw(canvas);
+                        let x_pix = x_pixels(canvas, x_pos);
+                        let w_pix = x_pixels(canvas, width as usize);
+                        let h_pix = y_pixels(canvas, height as usize);
+                        ImageRenderer::new(&data, x_pix, y_pix, w_pix, h_pix, pos).draw(canvas);
                     }
                 }
             }
@@ -76,11 +80,11 @@ fn color(byte: u8) -> f64 {
     byte as f64 / 255.0
 }
 
-fn x_pix(canvas: &cairo::Context, position: usize) -> f64 {
+fn x_pixels(canvas: &cairo::Context, position: usize) -> f64 {
     position as f64 * (canvas.font_extents().max_x_advance)
 }
 
-fn y_pix(canvas: &cairo::Context, position: usize) -> f64 {
+fn y_pixels(canvas: &cairo::Context, position: usize) -> f64 {
     let f_extents = canvas.font_extents();
     position as f64 * (f_extents.height + f_extents.ascent + f_extents.descent)
 }

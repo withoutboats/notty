@@ -3,9 +3,11 @@ use std::ptr;
 
 use cairo;
 
-use gdk::Pixbuf;
+use gdk::{InterpType, Pixbuf};
 use gdk::cairo_interaction::ContextExt;
 use gdk::glib::translate::FromGlibPtr;
+use notty::datatypes::MediaPosition;
+use notty::datatypes::MediaPosition::*;
 use gio;
 use pixbuf;
 use libc;
@@ -19,7 +21,7 @@ pub struct ImageRenderer {
 }
 
 impl ImageRenderer {
-    pub fn new(data: &[u8], style: Styles, x: f64, y: f64) -> ImageRenderer {
+    pub fn new(data: &[u8], x: f64, y: f64, w: f64, h: f64, pos: MediaPosition) -> ImageRenderer {
         fn pixbuf_from_data(data: &[u8]) -> Option<Pixbuf> {
             let null = ptr::null_mut();
             unsafe {
@@ -34,8 +36,20 @@ impl ImageRenderer {
             unsafe { Pixbuf::new(0, false, 0, 1, 1).expect("Could not create empty Pixbuf.") }
         }
 
+        let image = pixbuf_from_data(data).and_then(|img| {
+            match pos {
+                Display(x_align, y_align) => unimplemented!(),
+                Fill => unimplemented!(),
+                Fit => unimplemented!(),
+                Stretch => {
+                    img.scale_simple(w as i32, h as i32, InterpType::Bilinear).ok()
+                }
+                Tile => unimplemented!(),
+            }
+        }).unwrap_or_else(empty_pixbuf);
+
         ImageRenderer {
-            pixbuf: pixbuf_from_data(data).unwrap_or_else(empty_pixbuf),
+            pixbuf: image,
             x_pos: x,
             y_pos: y,
         }
