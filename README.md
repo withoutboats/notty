@@ -1,5 +1,7 @@
 # notty - not a typewriter
 
+[![Join the chat at https://gitter.im/withoutboats/notty](https://badges.gitter.im/withoutboats/notty.svg)](https://gitter.im/withoutboats/notty?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ![](screenshot.png)
 
 __notty__ is a virtual terminal like xterm, gnome-vte, sh, or rxvt. Unlike
