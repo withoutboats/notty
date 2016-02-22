@@ -1,5 +1,7 @@
 # notty - not a typewriter
 
+![](screenshot.png)
+
 __notty__ is a virtual terminal like xterm, gnome-vte, sh, or rxvt. Unlike
 these programs, __notty__ is not intended to emulate a DEC VT-series physical
 video terminal, or any other physical device. Instead, __notty__ is an
