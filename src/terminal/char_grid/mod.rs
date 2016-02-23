@@ -48,8 +48,13 @@ pub struct CharGrid {
 impl CharGrid {
     pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool, config: Config) -> CharGrid {
         let grid = match (scroll_x, scroll_y) {
-            (false, false)  => Grid::new(w as usize, h as usize),
-            (false, true)   => Grid::with_y_cap(w as usize, h as usize, config.scrollback as usize),
+            (false, false)  => Grid::new(w as usize,
+                                         h as usize,
+                                         CharCell::Empty(Styles::new(config))),
+            (false, true)   => Grid::with_y_cap(w as usize,
+                                                h as usize,
+                                                config.scrollback as usize,
+                                                CharCell::Empty(Styles::new(config))),
             (true, false)   => unimplemented!(),
             (true, true)    => unimplemented!(),
         };

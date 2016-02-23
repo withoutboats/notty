@@ -129,10 +129,3 @@ impl CharCell {
     }
 
 }
-
-impl Default for CharCell {
-    fn default() -> CharCell {
-        let config = Config::default();
-        Empty(Styles::new(config))
-    }
-}
