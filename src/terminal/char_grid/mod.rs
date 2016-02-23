@@ -50,11 +50,11 @@ impl CharGrid {
         let grid = match (scroll_x, scroll_y) {
             (false, false)  => Grid::new(w as usize,
                                          h as usize,
-                                         CharCell::Empty(Styles::new(config))),
+                                         CharCell::Empty(Styles::new(&config))),
             (false, true)   => Grid::with_y_cap(w as usize,
                                                 h as usize,
                                                 config.scrollback as usize,
-                                                CharCell::Empty(Styles::new(config))),
+                                                CharCell::Empty(Styles::new(&config))),
             (true, false)   => unimplemented!(),
             (true, true)    => unimplemented!(),
         };
@@ -78,7 +78,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((h - self.grid_height) * self.grid_width) as usize;
-                self.grid.add_to_bottom(vec![CharCell::new(self.config); n]);
+                self.grid.add_to_bottom(vec![CharCell::new(&self.config); n]);
             }
         }
         self.grid_height = h;
@@ -94,7 +94,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((w - self.grid_width) * self.grid_height) as usize;
-                self.grid.add_to_right(vec![CharCell::new(self.config); n]);
+                self.grid.add_to_right(vec![CharCell::new(&self.config); n]);
             }
         }
         self.grid_width = w;
@@ -210,28 +210,29 @@ impl CharGrid {
     }
 
     pub fn set_style(&mut self, style: Style) {
-        self.cursor.text_style.update(style);
+        self.cursor.text_style.update(style, &self.config);
     }
 
     pub fn reset_styles(&mut self) {
-        self.cursor.text_style = Styles::new(self.config);
+        self.cursor.text_style = Styles::new(&self.config);
     }
 
     pub fn set_cursor_style(&mut self, style: Style) {
-        self.cursor.style.update(style);
+        self.cursor.style.update(style, &self.config);
     }
 
     pub fn reset_cursor_styles(&mut self) {
-        self.cursor.style = Styles::new(self.config);
+        self.cursor.style = Styles::new(&self.config);
     }
 
     pub fn set_style_in_area(&mut self, area: Area, style: Style) {
-        self.in_area(area, |grid, coords| grid[coords].style_mut().update(style));
+        let config = self.config;
+        self.in_area(area, |grid, coords| grid[coords].style_mut().update(style, &config));
     }
 
     pub fn reset_styles_in_area(&mut self, area: Area) {
         let config = self.config.clone();
-        self.in_area(area, |grid, coords| *grid[coords].style_mut() = Styles::new(config));
+        self.in_area(area, |grid, coords| *grid[coords].style_mut() = Styles::new(&config));
     }
 
     pub fn cursor_position(&self) -> Coords {

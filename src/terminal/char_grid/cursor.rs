@@ -32,8 +32,8 @@ impl Cursor {
     pub fn new(config: Config) -> Cursor {
         Cursor {
             coords: Coords::default(),
-            style: Styles::new(config),
-            text_style: Styles::new(config),
+            style: Styles::new(&config),
+            text_style: Styles::new(&config),
             config: config,
         }
     }
@@ -120,7 +120,8 @@ mod tests {
 
     #[test]
     fn navigate() {
-        let default = CharCell::Empty(Styles::new(Config::default()));
+        let config = Config::default();
+        let default = CharCell::Empty(Styles::new(&config));
         let mut grid = Grid::new(5, 5, default);
         for &(mov, coords) in MOVEMENTS {
             let mut cursor = cursor();
@@ -131,7 +132,8 @@ mod tests {
 
     #[test]
     fn navigate_and_scroll() {
-        let default = CharCell::Empty(Styles::new(Config::default()));
+        let config = Config::default();
+        let default = CharCell::Empty(Styles::new(&config));
         let mut grid = Grid::with_y_cap(5, 5, 10, default);
         for &(mov, coords) in MOVEMENTS {
             let mut cursor = cursor();
@@ -156,12 +158,12 @@ mod tests {
 
     #[test]
     fn navigate_around_extended_cells() {
-        let default = CharCell::Empty(Styles::new(Config::default()));
-        let mut grid = Grid::new(5, 5, default);
         let config = Config::default();
-        grid[Coords{x:2,y:1}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(config));
-        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(config));
-        grid[Coords{x:2,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(config));
+        let default = CharCell::Empty(Styles::new(&config));
+        let mut grid = Grid::new(5, 5, default);
+        grid[Coords{x:2,y:1}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(&config));
+        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(&config));
+        grid[Coords{x:2,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(&config));
         for &(init, mov, end) in MOVEMENTS_EXTENDED {
             let mut cursor = Cursor { coords: init, ..Cursor::new(Config::default()) };
             cursor.navigate(&mut grid, mov);
@@ -182,12 +184,12 @@ mod tests {
 
     #[test]
     fn navigate_around_extended_at_border() {
-        let default = CharCell::Empty(Styles::new(Config::default()));
-        let mut grid = Grid::new(2, 5, default);
         let config = Config::default();
-        grid[Coords{x:1,y:1}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(config));
-        grid[Coords{x:0,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(config));
-        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(config));
+        let default = CharCell::Empty(Styles::new(&config));
+        let mut grid = Grid::new(2, 5, default);
+        grid[Coords{x:1,y:1}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(&config));
+        grid[Coords{x:0,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(&config));
+        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(&config));
         for &(init, mov, end) in MOVEMENTS_EXTENDED_AT_BORDER {
             let mut cursor = Cursor { coords: init, ..Cursor::new(Config::default()) };
             cursor.navigate(&mut grid, mov);

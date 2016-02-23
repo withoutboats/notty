@@ -29,11 +29,10 @@ pub struct Styles {
     pub strikethrough: bool,
     pub inverted: bool,
     pub blink: bool,
-    config: Config,
 }
 
 impl Styles {
-    pub fn new(config: Config) -> Styles {
+    pub fn new(config: &Config) -> Styles {
         Styles {
             fg_color:           config.fg_color,
             bg_color:           config.bg_color,
@@ -45,10 +44,9 @@ impl Styles {
             strikethrough:      false,
             inverted:           false,
             blink:              false,
-            config: config,
         }
     }
-    pub fn update(&mut self, style: Style) {
+    pub fn update(&mut self, style: Style, config: &Config) {
         match style {
             Underline(0)            => { self.underline = false; self.double_underline = false; }
             Underline(1)            => { self.underline = true;  self.double_underline = false; }
@@ -61,11 +59,11 @@ impl Styles {
             Blink(flag)             => self.blink = flag,
             Opacity(n)              => self.opacity = n,
             FgColor(color)          => self.fg_color = color,
-            FgColorCfg(Some(n))     => self.fg_color = self.config.colors[n as usize],
-            FgColorCfg(None)        => self.fg_color = self.config.fg_color,
+            FgColorCfg(Some(n))     => self.fg_color = config.colors[n as usize],
+            FgColorCfg(None)        => self.fg_color = config.fg_color,
             BgColor(color)          => self.bg_color = color,
-            BgColorCfg(Some(n))     => self.bg_color = self.config.colors[n as usize],
-            BgColorCfg(None)        => self.bg_color = self.config.bg_color,
+            BgColorCfg(Some(n))     => self.bg_color = config.colors[n as usize],
+            BgColorCfg(None)        => self.bg_color = config.bg_color,
         }
     }
 }
@@ -81,30 +79,30 @@ mod tests {
     #[test]
     fn styles_update() {
         let config = Config::default();
-        let mut style = Styles::new(config);
-        style.update(Bold(true));
+        let mut style = Styles::new(&config);
+        style.update(Bold(true), &config);
         assert_eq!(style.bold, true);
-        style.update(Italic(true));
+        style.update(Italic(true), &config);
         assert_eq!(style.italic, true);
-        style.update(Underline(1));
+        style.update(Underline(1), &config);
         assert_eq!(style.underline, true);
-        style.update(Underline(2));
+        style.update(Underline(2), &config);
         assert_eq!(style.double_underline, true);
-        style.update(Strikethrough(true));
+        style.update(Strikethrough(true), &config);
         assert_eq!(style.strikethrough, true);
-        style.update(InvertColors(true));
+        style.update(InvertColors(true), &config);
         assert_eq!(style.inverted, true);
-        style.update(Blink(true));
+        style.update(Blink(true), &config);
         assert_eq!(style.blink, true);
 
-        style.update(FgColor(Color(0x10, 0x10, 0x10)));
+        style.update(FgColor(Color(0x10, 0x10, 0x10)), &config);
         assert_eq!(style.fg_color, Color(0x10, 0x10, 0x10));
-        style.update(BgColor(Color(0x10, 0x10, 0x10)));
+        style.update(BgColor(Color(0x10, 0x10, 0x10)), &config);
         assert_eq!(style.bg_color, Color(0x10, 0x10, 0x10));
 
-        style.update(FgColorCfg(None));
+        style.update(FgColorCfg(None), &config);
         assert_eq!(style.fg_color, config.fg_color);
-        style.update(BgColorCfg(None));
+        style.update(BgColorCfg(None), &config);
         assert_eq!(style.bg_color, config.bg_color);
     }
 

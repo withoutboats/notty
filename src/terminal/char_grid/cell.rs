@@ -40,8 +40,8 @@ pub enum CharCell {
 
 impl CharCell {
 
-    pub fn new(config: Config) -> CharCell {
-        Empty(Styles::new(config))
+    pub fn new(config: &Config) -> CharCell {
+        Empty(Styles::new(&config))
     }
 
     pub fn character(ch: char, style: Styles) -> CharCell {
