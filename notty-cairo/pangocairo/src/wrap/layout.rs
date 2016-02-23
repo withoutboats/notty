@@ -14,6 +14,7 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::ffi::CString;
+use std::ptr;
 
 use gobject_sys;
 use cairo::ffi as cairo;
@@ -49,6 +50,14 @@ impl PangoLayout {
         unsafe {
             pangocairo::pango_cairo_show_layout(cairo, self.raw());
         }
+    }
+
+    pub fn extents(&self) -> (i32, i32) {
+        let mut rec = pango::PangoRectangle { x: 0, y: 0, width: 0, height: 0 };
+        unsafe {
+            pango::pango_layout_get_pixel_extents(self.raw(), ptr::null_mut(), &mut rec as *mut _);
+        }
+        (rec.width, rec.height)
     }
 
     pub unsafe fn raw(&self) -> *mut pango::PangoLayout {

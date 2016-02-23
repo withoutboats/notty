@@ -10,11 +10,15 @@ extern crate pangocairo;
 mod image_renderer;
 mod text_renderer;
 
+use gdk::glib::translate::ToGlibPtr;
+
 use itertools::Itertools;
 
 use notty::cfg::CONFIG;
 use notty::datatypes::Color;
 use notty::terminal::{CharCell, Terminal};
+
+use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
 use self::image_renderer::ImageRenderer;
 use self::text_renderer::TextRenderer;
@@ -45,7 +49,7 @@ impl Renderer {
         let rows = terminal.into_iter().skip(self.scroll as usize * col_n).chunks_lazy(col_n);
 
         for (y_pos, row) in rows.into_iter().enumerate() {
-            let y_pix = y_pixels(canvas, y_pos);
+            let y_pix = self.y_pixels(y_pos as u32);
             let mut text = TextRenderer::new(0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
                 match cell {
@@ -54,14 +58,13 @@ impl Renderer {
                     &CharCell::Grapheme(ref s, style)                   => text.push_str(s, style),
                     &CharCell::Extension(..)                            => { }
                     &CharCell::Image { ref data, width, height, pos, ..} => {
+                        let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + width as usize) < col_n {
                             text.draw(canvas);
-                            text = TextRenderer::new(x_pixels(canvas, x_pos + width as usize),
-                                                     y_pix);
+                            text = TextRenderer::new(x_pix, y_pix);
                         }
-                        let x_pix = x_pixels(canvas, x_pos);
-                        let w_pix = x_pixels(canvas, width as usize);
-                        let h_pix = y_pixels(canvas, height as usize);
+                        let w_pix = self.x_pixels(width);
+                        let h_pix = self.y_pixels(height);
                         ImageRenderer::new(&data, x_pix, y_pix, w_pix, h_pix, pos).draw(canvas);
                     }
                 }
@@ -69,22 +72,27 @@ impl Renderer {
             text.draw(canvas);
         }
     }
+
+    fn x_pixels(&self, x: u32) -> f64 {
+        self.char_w * (x as f64)
+    }
+
+    fn y_pixels(&self, y: u32) -> f64 {
+        self.char_h * (y as f64)
+    }
 }
 
 fn char_dimensions(canvas: &cairo::Context) -> (f64, f64) {
-    let f_extents = canvas.font_extents();
-    (f_extents.max_x_advance, f_extents.height)
+    //save the canvas position
+    let (x_save, y_save) = canvas.get_current_point();
+    let string = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN\
+                 OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+    let cairo = canvas.to_glib_none();
+    let (w, h) = PangoLayout::new(cairo.0, CONFIG.font, string, PangoAttrList::new()).extents();
+    canvas.move_to(x_save, y_save);
+    ((w / string.len() as i32) as f64, h as f64)
 }
 
 fn color(byte: u8) -> f64 {
     byte as f64 / 255.0
-}
-
-fn x_pixels(canvas: &cairo::Context, position: usize) -> f64 {
-    position as f64 * (canvas.font_extents().max_x_advance)
-}
-
-fn y_pixels(canvas: &cairo::Context, position: usize) -> f64 {
-    let f_extents = canvas.font_extents();
-    position as f64 * (f_extents.height + f_extents.ascent + f_extents.descent)
 }
