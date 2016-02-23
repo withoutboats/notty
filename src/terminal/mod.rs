@@ -40,8 +40,10 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
-        let config = Config::default();
+    pub fn new<W: Tty + Send + 'static>(width: u32,
+                                        height: u32,
+                                        tty: W,
+                                        config: Config) -> Terminal {
         let grid = CharGrid::new(width, height, false, true, config);
         let tty = Input::new(tty);
         Terminal {
