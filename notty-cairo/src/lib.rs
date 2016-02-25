@@ -1,3 +1,4 @@
+#![feature(arc_counts)]
 extern crate cairo;
 extern crate gdk;
 extern crate gdk_pixbuf_sys as pixbuf;
@@ -10,15 +11,16 @@ extern crate pangocairo;
 mod image_renderer;
 mod text_renderer;
 
-use gdk::glib::translate::ToGlibPtr;
-use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use gdk::glib::translate::ToGlibPtr;
 
 use itertools::Itertools;
 
 use notty::cfg::CONFIG;
 use notty::datatypes::Color;
-use notty::terminal::{CharCell, Terminal};
+use notty::terminal::{CharCell, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
@@ -26,23 +28,45 @@ use self::image_renderer::ImageRenderer;
 use self::text_renderer::TextRenderer;
 
 pub struct Renderer {
-    images: RefCell<HashMap<Vec<u8>, ImageRenderer>>,
+    images: HashMap<Arc<ImageData>, ImageRenderer>,
+    char_d: Option<(f64, f64)>,
 }
 
 impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
-            images: RefCell::new(HashMap::new()),
+            images: HashMap::new(),
+            char_d: None 
         }
     }
 
-    pub fn draw(&self, terminal: &Terminal, canvas: &cairo::Context) {
+    pub fn reset_dimensions(&mut self, canvas: &cairo::Context, terminal: &mut Terminal,
+                            pix_w: u32, pix_h: u32) {
+        let (char_w, char_h) = self.char_d.unwrap_or_else(|| {
+            let char_d = char_dimensions(canvas);
+            self.char_d = Some(char_d);
+            char_d
+        });
+        let width = pix_w / (char_w as u32);
+        let height = pix_h / (char_h as u32);
+        terminal.set_winsize(width, height).unwrap_or_else(|e| panic!("{}", e));
+    }
+
+    pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
+        if self.char_d.is_none() {
+            self.char_d = Some(char_dimensions(canvas));
+        }
         let Color(r,g,b) = CONFIG.bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 
         let col_n = terminal.grid_width as usize;
         let rows = terminal.into_iter().chunks_lazy(col_n);
+
+        // Remove dead images from the cache.
+        for key in self.images.keys().filter(|k| Arc::strong_count(k) == 1).cloned().collect::<Vec<_>>() {
+            self.images.remove(&key);
+        }
 
         for (y_pos, row) in rows.into_iter().enumerate() {
             let y_pix = self.y_pixels(y_pos as u32);
@@ -53,21 +77,22 @@ impl Renderer {
                     &CharCell::Char(ch, style)                          => text.push(ch, style),
                     &CharCell::Grapheme(ref s, style)                   => text.push_str(s, style),
                     &CharCell::Extension(..)                            => { }
-                    &CharCell::Image { ref data, width, height, pos, ..} => {
+                    &CharCell::Image(ref image, _)                      => {
                         let x_pix = self.x_pixels(x_pos as u32);
-                        if (x_pos + width as usize) < col_n {
+                        if (x_pos + image.width as usize) < col_n {
                             text.draw(canvas);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
-                        if let Some(image) = self.images.borrow().get(data) {
+                        if let Some(image) = self.images.get(image) {
                             image.draw(canvas);
                             continue;
                         }
-                        let w_pix = self.x_pixels(width);
-                        let h_pix = self.y_pixels(height);
-                        let img = ImageRenderer::new(data, x_pix, y_pix, w_pix, h_pix, pos);
+                        let w_pix = self.x_pixels(image.width);
+                        let h_pix = self.y_pixels(image.height);
+                        let img = ImageRenderer::new(&image.data, x_pix, y_pix, w_pix, h_pix,
+                                                     image.pos);
                         img.draw(canvas);
-                        self.images.borrow_mut().insert(data.to_owned(), img);
+                        self.images.insert(image.clone(), img);
                     }
                 }
             }
@@ -76,11 +101,11 @@ impl Renderer {
     }
 
     fn x_pixels(&self, x: u32) -> f64 {
-        self.char_w * (x as f64)
+        self.char_d.unwrap().0 * (x as f64)
     }
 
     fn y_pixels(&self, y: u32) -> f64 {
-        self.char_h * (y as f64)
+        self.char_d.unwrap().1 * (y as f64)
     }
 }
 

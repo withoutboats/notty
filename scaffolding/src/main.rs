@@ -21,7 +21,7 @@ extern crate tty;
 extern crate notty;
 extern crate notty_cairo;
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::env;
 use std::io::BufReader;
 use std::sync::mpsc;
@@ -68,13 +68,9 @@ fn main() {
         }
     });
 
-    // Create the scroll position tracker.
-    let scroll   = Rc::new(Cell::new(0));
-    let (scroll2, scroll3) = (scroll.clone(), scroll.clone());
-
     // Set up logical terminal and renderer.
     let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
-    let renderer = Renderer::new();
+    let renderer = RefCell::new(Renderer::new());
 
     // Process screen logic every 125 milliseconds.
     let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());
@@ -86,7 +82,7 @@ fn main() {
         if let (Some(x_pix), Some(y_pix)) = unsafe {(X_PIXELS.take(), Y_PIXELS.take())} {
             reset_dimensions(&canvas, &mut terminal, x_pix, y_pix);
         }
-        renderer.draw(&terminal, &canvas);
+        renderer.borrow_mut().draw(&terminal, &canvas);
         gtk::signal::Inhibit(false)
     });
 
@@ -102,7 +98,7 @@ fn main() {
 
     // Connect signal to receive key presses.
     window.connect_key_press_event(move |window, event| {
-        if let Some(cmd) = KeyPress::from_event(event, &*scroll2) {
+        if let Some(cmd) = KeyPress::from_event(event) {
             tx_key_press.send(cmd).unwrap();
         } else { window.queue_draw(); }
         gtk::signal::Inhibit(false)
@@ -110,7 +106,7 @@ fn main() {
 
     // Connect signal to receive key releases.
     window.connect_key_release_event(move |window, event| {
-        if let Some(cmd) = KeyRelease::from_event(event, &*scroll3) {
+        if let Some(cmd) = KeyRelease::from_event(event) {
             tx_key_release.send(cmd).unwrap();
         } else { window.queue_draw(); }
         gtk::signal::Inhibit(false)
