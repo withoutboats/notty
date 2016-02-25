@@ -13,38 +13,26 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::cell::Cell;
 
 use gdk::EventKey;
 use notty::{Command, KeyPress, KeyRelease};
 use notty::datatypes::Key;
 
 pub trait FromEvent {
-    fn from_event(&EventKey, &Cell<usize>) -> Option<Box<Command>>;
+    fn from_event(&EventKey) -> Option<Box<Command>>;
 }
 
 impl FromEvent for KeyPress {
-    fn from_event(key: &EventKey, scroll: &Cell<usize>) -> Option<Box<Command>> {
-        if super_mode(key) {
-            if key.keyval == 0xff52 {
-                scroll.set(scroll.get() + 5);
-                return None;
-            } else if key.keyval == 0xff54 {
-                scroll.set(scroll.get().saturating_sub(5));
-                return None;
-            }
-        }
-        scroll.set(0);
+    fn from_event(key: &EventKey) -> Option<Box<Command>> {
         Some(Box::new(KeyPress(keyval(key.keyval))) as Box<Command>)
     }
 }
 
 impl FromEvent for KeyRelease {
-    fn from_event(key: &EventKey, scroll: &Cell<usize>) -> Option<Box<Command>> {
+    fn from_event(key: &EventKey) -> Option<Box<Command>> {
         if super_mode(key) && (key.keyval == 0xff52 || key.keyval == 0xff54) {
             return None;
         }
-        scroll.set(0);
         Some(Box::new(KeyRelease(keyval(key.keyval))) as Box<Command>)
     }
 }
