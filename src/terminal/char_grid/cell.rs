@@ -13,6 +13,8 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use std::sync::Arc;
+
 use mime::Mime;
 
 use datatypes::{Coords, MediaPosition};
@@ -20,19 +22,21 @@ use terminal::Styles;
 
 use self::CharCell::*;
 
+#[derive(Eq, PartialEq, Hash)]
+pub struct ImageData {
+    pub data: Vec<u8>,
+    pub mime: Mime,
+    pub pos: MediaPosition,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Clone)]
 pub enum CharCell {
     Empty(Styles),
     Char(char, Styles),
     Grapheme(String, Styles),
-    Image {
-        data: Vec<u8>,
-        mime: Mime,
-        pos: MediaPosition,
-        width: u32,
-        height: u32,
-        style: Styles,
-    },
+    Image(Arc<ImageData>, Styles),
     Extension(Coords, Styles),
 }
 
@@ -52,14 +56,13 @@ impl CharCell {
                  width: u32,
                  height: u32,
                  style: Styles) -> CharCell {
-        Image {
+        Image(Arc::new(ImageData {
             data: data,
             mime: mime,
             pos: pos,
             width: width,
             height: height,
-            style: style,
-        }
+        }), style)
     }
 
     pub fn extend_by(&mut self, ext: char) -> bool {
@@ -84,7 +87,7 @@ impl CharCell {
         match *self {
             Char(c, _)          => c.to_string(),
             Grapheme(ref s, _)  => s.clone(),
-            Image { .. }        => String::from("IMG"),
+            Image(..)           => String::from("IMG"),
             Empty(_)            => String::new(),
             Extension(..)       => String::from("EXT"),
         }
@@ -95,7 +98,7 @@ impl CharCell {
             Char(_, ref style)
                 | Grapheme(_, ref style)
                 | Empty(ref style)
-                | Image { ref style, .. }
+                | Image(_, ref style)
                 | Extension(_, ref style)
                 => style
         }
@@ -106,7 +109,7 @@ impl CharCell {
             Char(_, ref mut style)
                 | Grapheme(_, ref mut style)
                 | Empty(ref mut style)
-                | Image { ref mut style, .. }
+                | Image(_, ref mut style) 
                 | Extension(_, ref mut style)
                 => style
         }

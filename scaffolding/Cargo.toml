@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 gdk = "0.2.0"
+cairo-rs = "0.0.7"
 gtk = "0.0.6"
 
 [dependencies.notty]

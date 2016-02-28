@@ -22,7 +22,7 @@ mod input;
 
 use datatypes::{InputSettings, Key};
 
-pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip};
+pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
 
 use self::input::Input;

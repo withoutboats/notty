@@ -30,7 +30,7 @@ mod grid;
 mod styles;
 mod tooltip;
 
-pub use self::cell::CharCell;
+pub use self::cell::{CharCell, ImageData};
 pub use self::cursor::Cursor;
 pub use self::grid::Grid;
 pub use self::styles::Styles;
