@@ -25,10 +25,7 @@ use self::CharCell::*;
 #[derive(Eq, PartialEq, Hash)]
 pub struct ImageData {
     pub data: Vec<u8>,
-    pub mime: Mime,
-    pub pos: MediaPosition,
-    pub width: u32,
-    pub height: u32,
+    coords: Coords,
 }
 
 #[derive(Clone)]
@@ -36,7 +33,7 @@ pub enum CharCell {
     Empty(Styles),
     Char(char, Styles),
     Grapheme(String, Styles),
-    Image(Arc<ImageData>, Styles),
+    Image(Arc<ImageData>, Mime, MediaPosition, (u32, u32), Styles),
     Extension(Coords, Styles),
 }
 
@@ -51,6 +48,7 @@ impl CharCell {
     }
 
     pub fn image(data: Vec<u8>,
+                 coords: Coords,
                  mime: Mime,
                  pos: MediaPosition, 
                  width: u32,
@@ -58,11 +56,8 @@ impl CharCell {
                  style: Styles) -> CharCell {
         Image(Arc::new(ImageData {
             data: data,
-            mime: mime,
-            pos: pos,
-            width: width,
-            height: height,
-        }), style)
+            coords: coords,
+        }), mime, pos, (width, height), style)
     }
 
     pub fn extend_by(&mut self, ext: char) -> bool {
@@ -98,7 +93,7 @@ impl CharCell {
             Char(_, ref style)
                 | Grapheme(_, ref style)
                 | Empty(ref style)
-                | Image(_, ref style)
+                | Image(_, _, _, _, ref style)
                 | Extension(_, ref style)
                 => style
         }
@@ -109,7 +104,7 @@ impl CharCell {
             Char(_, ref mut style)
                 | Grapheme(_, ref mut style)
                 | Empty(ref mut style)
-                | Image(_, ref mut style) 
+                | Image(_, _, _, _, ref mut style) 
                 | Extension(_, ref mut style)
                 => style
         }

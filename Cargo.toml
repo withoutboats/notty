@@ -6,10 +6,8 @@ version = "0.1.0"
 
 [dependencies]
 base64 = "0.1.1"
+mime = "0.1.3"
 unicode-width = "0.1.3"
 
 [dependencies.notty-encoding]
 git = "https://github.com/withoutboats/notty-encoding"
-
-[dependencies.mime]
-git = "https://github.com/hyperium/mime.rs"

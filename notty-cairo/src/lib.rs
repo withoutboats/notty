@@ -77,9 +77,9 @@ impl Renderer {
                     &CharCell::Char(ch, style)                          => text.push(ch, style),
                     &CharCell::Grapheme(ref s, style)                   => text.push_str(s, style),
                     &CharCell::Extension(..)                            => { }
-                    &CharCell::Image(ref image, _)                      => {
+                    &CharCell::Image(ref image, ref mime, ref pos, (ref w, ref h), _) => {
                         let x_pix = self.x_pixels(x_pos as u32);
-                        if (x_pos + image.width as usize) < col_n {
+                        if (x_pos + *w as usize) < col_n {
                             text.draw(canvas);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
@@ -87,10 +87,10 @@ impl Renderer {
                             image.draw(canvas);
                             continue;
                         }
-                        let w_pix = self.x_pixels(image.width);
-                        let h_pix = self.y_pixels(image.height);
+                        let w_pix = self.x_pixels(*w);
+                        let h_pix = self.y_pixels(*h);
                         let img = ImageRenderer::new(&image.data, x_pix, y_pix, w_pix, h_pix,
-                                                     image.pos);
+                                                     *pos);
                         img.draw(canvas);
                         self.images.insert(image.clone(), img);
                     }

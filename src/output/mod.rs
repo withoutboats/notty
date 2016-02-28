@@ -254,7 +254,11 @@ impl<R: io::BufRead> Iterator for super::Output<R> {
                         NottyCode       => self.notty_code(ch),
                         NottyAttach     => {
                             match self.notty.attachments.append(ch) {
-                                Some(true)  => (Character, self.notty.parse()),
+                                Some(true)  => {
+                                    let ret = (Character, self.notty.parse());
+                                    self.notty.clear();
+                                    ret
+                                }
                                 Some(false) => (Character, None),
                                 None        => (NottyAttach, None),
                             }
