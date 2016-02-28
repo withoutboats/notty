@@ -47,10 +47,7 @@ impl Screen {
                  stag: Option<u64>, ltag: u64, rtag: u64) {
         let Screen { ref mut grid_hierarchy, ref mut grids } = *self;
         if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(grids.active_tag())) {
-            grid.split(grids,
-                       |grids, tag, w, h| grids.insert(tag, w, h),
-                       |grids, tag, area| grids.resize(tag, area),
-                       save, kind, rule, ltag, rtag);
+            grid.split(grids, GridMap::insert, GridMap::resize, save, kind, rule, ltag, rtag);
         }
         if stag.map_or(true, |stag| grids.is_active(stag)) {
             grids.switch(match save {
@@ -64,10 +61,7 @@ impl Screen {
     pub fn remove(&mut self, tag: u64, rule: ResizeRule) {
         if tag != 0 && !self.grids.is_active(tag) {
             let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
-            grid_hierarchy.remove(grids,
-                                  |grids, tag| grids.remove(tag),
-                                  |grids, tag, area| grids.resize(tag, area),
-                                  tag, rule);
+            grid_hierarchy.remove(grids, GridMap::remove, GridMap::resize, tag, rule);
         }
     }
 
