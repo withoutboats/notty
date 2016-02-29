@@ -80,7 +80,7 @@ impl GridHierarchy {
                             ltag: u64,
                             rtag: u64)
     where F1: Fn(&mut T, u64, u32, u32), F2: Fn(&mut T, u64, Region) {
-        let (l_region, r_region) = self.split_region(kind, rule);
+        let (kind, l_region, r_region) = self.split_region(kind, rule);
         match save {
             SaveGrid::Left  => {
                 let mut l_grid_h = self.make_new(ltag);
@@ -178,8 +178,8 @@ impl GridHierarchy {
                     grid.resize(grids, new_a, resize_grid, rule);
                 }
             }
-            Split { ref mut left, ref mut right, ref mut area, kind, .. } => {
-                let kind = match (kind, rule) {
+            Split { ref mut left, ref mut right, ref mut area, ref mut kind, .. } => {
+                *kind = match (*kind, rule) {
                     (Horizontal(mut n), Percentage) => {
                         n = (n as f32 / area.height() as f32 * new_a.height() as f32) as u32;
                         Horizontal(n)
@@ -188,10 +188,11 @@ impl GridHierarchy {
                         n = (n as f32 / area.width() as f32 * new_a.width() as f32) as u32;
                         Vertical(n)
                     }
-                    _                               => kind
+                    _                               => *kind
                 };
                 *area = new_a;
-                let (l_area, r_area) = split_region(new_a, kind, rule);
+                let (new_kind, l_area, r_area) = split_region(new_a, *kind, rule);
+                *kind = new_kind;
                 left.resize(grids, l_area, resize_grid, rule);
                 right.resize(grids, r_area, resize_grid, rule);
             }
@@ -211,7 +212,7 @@ impl GridHierarchy {
         }
     }
 
-    fn split_region(&self, kind: SplitKind, rule: ResizeRule) -> (Region, Region) {
+    fn split_region(&self, kind: SplitKind, rule: ResizeRule) -> (SplitKind, Region, Region) {
         split_region(self.area(), kind, rule)
     }
 
@@ -267,98 +268,202 @@ impl GridHierarchy {
     
 }
 
-fn split_region(region: Region, kind: SplitKind, rule: ResizeRule) -> (Region, Region) {
+fn split_region(region: Region, kind: SplitKind, rule: ResizeRule) -> (SplitKind, Region, Region) {
     match (kind, rule) {
-        (Horizontal(n), MaxLeftTop) | (Horizontal(n), Percentage)   => (
-            Region { bottom: cmp::min(region.top + n, region.bottom - 1), ..region },
-            Region { top: cmp::min(region.top + n, region.bottom - 1), ..region }
-        ),
-        (Horizontal(n), MaxRightBottom)                             => (
-            Region { bottom: cmp::max(region.bottom.saturating_sub(n), region.top + 1), ..region },
-            Region { top: cmp::max(region.bottom.saturating_sub(n), region.top + 1), ..region },
-        ),
-        (Vertical(n), MaxLeftTop) | (Vertical(n), Percentage)       => (
-            Region { right: cmp::min(region.left + n, region.right - 1), ..region },
-            Region { left: cmp::min(region.left + n, region.right - 1), ..region }
-        ),
-        (Vertical(n), MaxRightBottom)                               => (
-            Region { right: cmp::max(region.right.saturating_sub(n), region.left + 1), ..region },
-            Region { left: cmp::max(region.right.saturating_sub(n), region.left + 1), ..region },
-        ),
+        (Horizontal(n), MaxLeftTop) | (Horizontal(n), Percentage)   => {
+            let n = cmp::min(region.top + n, region.bottom - 1);
+            (Horizontal(n), Region { bottom: n, ..region }, Region { top: n, ..region })
+        }
+        (Horizontal(n), MaxRightBottom)                             => {
+            let n = cmp::max(region.bottom.saturating_sub(n), region.top + 1);
+            (Horizontal(n), Region { bottom: n, ..region }, Region { top: n, ..region })
+        }
+        (Vertical(n), MaxLeftTop) | (Vertical(n), Percentage)       => {
+            let n = cmp::min(region.left + n, region.right - 1);
+            (Vertical(n), Region { right: n, ..region }, Region { left: n, ..region })
+        }
+        (Vertical(n), MaxRightBottom)                               => {
+            let n = cmp::max(region.right.saturating_sub(n), region.left + 1);
+            (Vertical(n), Region { right: n, ..region }, Region { left: n, ..region })
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-    use super::GridHierarchy::*;
+    mod splits {
+        use super::super::*;
+        use super::super::GridHierarchy::*;
 
-    use datatypes::Region;
+        use datatypes::Region;
 
-    // The hierarchy this sets up is:
-    //  0
-    //  | \
-    //  1  2
-    //  | \
-    //  3 0x0beefdad
-    // Beef Dad is the needle for these tests.
-    fn setup_grid_hierarchy() -> GridHierarchy {
-        Split {
-            tag: 0,
-            area: Region::new(0, 0, 8, 8),
-            kind: SplitKind::Vertical(4),
-            left: Box::new(Split {
-                tag: 1,
-                area: Region::new(0, 0, 4, 8),
-                kind: SplitKind::Horizontal(4),
-                left: Box::new(Grid(3, Region::new(0, 0, 4, 4))),
-                right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8))),
-            }),
-            right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
+        // The hierarchy this sets up is:
+        //  0
+        //  | \
+        //  1  2
+        //  | \
+        //  3 0x0beefdad
+        fn setup_grid_hierarchy() -> GridHierarchy {
+            Split {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                kind: SplitKind::Vertical(4),
+                left: Box::new(Split {
+                    tag: 1,
+                    area: Region::new(0, 0, 4, 8),
+                    kind: SplitKind::Horizontal(4),
+                    left: Box::new(Grid(3, Region::new(0, 0, 4, 4))),
+                    right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8))),
+                }),
+                right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
+            }
         }
-    }
 
-    // After this test:
-    // 0
-    // | \
-    // 3  2
-    #[test]
-    fn remove_a_grid_beefdad() {
-        let mut gh = setup_grid_hierarchy();
-        gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 0x0beefdad, ResizeRule::Percentage);
-        assert_eq!(gh, Split {
-            tag: 0,
-            area: Region::new(0, 0, 8, 8),
-            kind: SplitKind::Vertical(4),
-            left: Box::new(Grid(3, Region::new(0, 0, 4, 8))),
-            right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
-        })
-    }
+        // After this test:
+        //  0
+        //  | \
+        //  1  2
+        //  | \
+        //  4 0x0badcafe
+        //  | \
+        //  3 0x0beefdad
+        #[test]
+        fn split_grid_1() {
+            let mut gh = setup_grid_hierarchy();
+            gh.find_mut(1).unwrap().split(&mut (), |_, _, _, _| {}, |_, _, _| {}, SaveGrid::Left,
+                                          SplitKind::Horizontal(4), ResizeRule::Percentage,
+                                          4, 0x0badcafe);
+            assert_eq!(gh, Split {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                kind: SplitKind::Vertical(4),
+                left: Box::new(Split {
+                    tag: 1,
+                    area: Region::new(0,0, 4, 8),
+                    kind: SplitKind::Horizontal(4),
+                    left: Box::new(Split {
+                        tag: 4,
+                        area: Region::new(0, 0, 4, 4),
+                        kind: SplitKind::Horizontal(2),
+                        left: Box::new(Grid(3, Region::new(0, 0, 4, 2))),
+                        right: Box::new(Grid(0x0beefdad, Region::new(0, 2, 4, 4))),
+                    }),
+                    right: Box::new(Grid(0x0badcafe, Region::new(0, 4, 4, 8)))
+                }),
+                right: Box::new(Grid(2, Region::new(4, 0, 8, 8)))
+            });
+        }
 
-    // After this test:
-    // 2
-    #[test]
-    fn remove_grid_1() {
-        let mut gh = setup_grid_hierarchy();
-        gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 1, ResizeRule::Percentage);
-        assert_eq!(gh, Grid(2, Region::new(0, 0, 8, 8)));
-    }
+        // After this test:
+        //       0
+        //     /    \
+        //    1      2
+        //  / |      | \
+        // 3 beefdad 4 badcafe
+        #[test]
+        fn split_grid_2() {
+            let mut gh = setup_grid_hierarchy();
+            gh.find_mut(2).unwrap().split(&mut (), |_, _, _, _| {}, |_, _, _| {}, SaveGrid::Left,
+                                          SplitKind::Horizontal(2), ResizeRule::Percentage,
+                                          4, 0x0badcafe);
+            assert_eq!(gh, Split {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                kind: SplitKind::Vertical(4),
+                left: Box::new(Split {
+                    tag: 1,
+                    area: Region::new(0, 0, 4, 8),
+                    kind: SplitKind::Horizontal(4),
+                    left: Box::new(Grid(3, Region::new(0, 0, 4, 4))),
+                    right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8))),
+                }),
+                right: Box::new(Split {
+                    tag: 2,
+                    area: Region::new(4, 0, 8, 8),
+                    kind: SplitKind::Horizontal(2),
+                    left: Box::new(Grid(4, Region::new(4, 0, 8, 2))),
+                    right: Box::new(Grid(0x0badcafe, Region::new(4, 2, 8, 8))),
+                }),
+            })
+        }
 
-    // After this test:
-    // 1
-    // | \
-    // 3  0x0beefdad
-    #[test]
-    fn remove_grid_2() {
-        let mut gh = setup_grid_hierarchy();
-        gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 2, ResizeRule::Percentage);
-        assert_eq!(gh, Split {
-            tag: 1,
-            area: Region::new(0, 0, 8, 8),
-            kind: SplitKind::Horizontal(4),
-            left: Box::new(Grid(3, Region::new(0, 0, 8, 4))),
-            right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 8, 8))),
-        })
+        // After this test:
+        //  0
+        //  | \
+        //  1  2
+        //  | \
+        //  3 0x0beefdad
+        //  | \
+        //  4 0x0badcafe
+        #[test]
+        fn split_grid_3() {
+            let mut gh = setup_grid_hierarchy();
+            gh.find_mut(3).unwrap().split(&mut (), |_, _, _, _| {}, |_, _, _| {}, SaveGrid::Right,
+                                          SplitKind::Vertical(6), ResizeRule::MaxLeftTop,
+                                          4, 0x0badcafe);
+            assert_eq!(gh, Split {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                kind: SplitKind::Vertical(4),
+                left: Box::new(Split {
+                    tag: 1,
+                    area: Region::new(0,0, 4, 8),
+                    kind: SplitKind::Horizontal(4),
+                    left: Box::new(Split {
+                        tag: 3,
+                        area: Region::new(0, 0, 4, 4),
+                        kind: SplitKind::Vertical(3),
+                        left: Box::new(Grid(4, Region::new(0, 0, 3, 4))),
+                        right: Box::new(Grid(0x0badcafe, Region::new(3, 0, 4, 4))),
+                    }),
+                    right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8)))
+                }),
+                right: Box::new(Grid(2, Region::new(4, 0, 8, 8)))
+            })
+        }
+
+        // After this test:
+        // 0
+        // | \
+        // 3  2
+        #[test]
+        fn remove_a_grid_beefdad() {
+            let mut gh = setup_grid_hierarchy();
+            gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 0x0beefdad, ResizeRule::Percentage);
+            assert_eq!(gh, Split {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                kind: SplitKind::Vertical(4),
+                left: Box::new(Grid(3, Region::new(0, 0, 4, 8))),
+                right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
+            })
+        }
+    
+        // After this test:
+        // 2
+        #[test]
+        fn remove_grid_1() {
+            let mut gh = setup_grid_hierarchy();
+            gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 1, ResizeRule::Percentage);
+            assert_eq!(gh, Grid(2, Region::new(0, 0, 8, 8)));
+        }
+    
+        // After this test:
+        // 1
+        // | \
+        // 3  0x0beefdad
+        #[test]
+        fn remove_grid_2() {
+            let mut gh = setup_grid_hierarchy();
+            gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 2, ResizeRule::Percentage);
+            assert_eq!(gh, Split {
+                tag: 1,
+                area: Region::new(0, 0, 8, 8),
+                kind: SplitKind::Horizontal(4),
+                left: Box::new(Grid(3, Region::new(0, 0, 8, 4))),
+                right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 8, 8))),
+            })
+        }
     }
 }
