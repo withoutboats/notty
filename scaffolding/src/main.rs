@@ -111,10 +111,6 @@ fn main() {
     // Connect signal to draw on canvas.
     canvas.connect_draw(move |_, canvas| {
         let mut terminal = terminal.borrow_mut();
-<<<<<<< f43267e789a2b6a0d5e70fc32bf958fa09d39202
-=======
-        let renderer = Renderer::new(&canvas);
->>>>>>> Remove incorrect scrolling code from scaffolding and cairo.
         if let (Some(x_pix), Some(y_pix)) = unsafe {(X_PIXELS.take(), Y_PIXELS.take())} {
             renderer.borrow_mut().reset_dimensions(&canvas, &mut terminal, x_pix, y_pix);
         }
