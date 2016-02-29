@@ -46,6 +46,11 @@ static mut Y_PIXELS: Option<u32> = None;
 static COLS: u32 = 80;
 static ROWS: u32 = 25;
 
+fn quit_because(e: std::io::Error) {
+    println!("Quitting because: {}", e);
+    std::process::exit(1)
+}
+
 fn main() {
 
     // Set up window and drawing canvas.
@@ -64,7 +69,11 @@ fn main() {
     thread::spawn(move || {
         let output = Output::new(BufReader::new(tty_r));
         for cmd in output {
-            tx_out.send(cmd.unwrap()).unwrap();
+            match cmd {
+                Ok(good) => tx_out.send(good).unwrap(),
+                Err(err) => quit_because(err)
+            };
+            // tx_out.send(cmd.unwrap()).unwrap();
         }
     });
 
