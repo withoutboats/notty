@@ -73,7 +73,7 @@ impl TextRenderer {
         self.add_style(&range, styles);
     }
 
-    pub fn draw(&self, canvas: &cairo::Context, font: &'static str, bg_color: Color) {
+    pub fn draw(&self, canvas: &cairo::Context, font: &str, bg_color: Color) {
         if self.is_blank(bg_color) { return; }
 
         // Line positioning

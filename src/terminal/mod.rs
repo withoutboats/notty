@@ -44,12 +44,12 @@ impl Terminal {
                                         height: u32,
                                         tty: W,
                                         config: Config) -> Terminal {
-        let grid = CharGrid::new(width, height, false, true, config);
+        let grid = CharGrid::new(width, height, false, true, config.clone());
         let tty = Input::new(tty);
         Terminal {
             width: width,
             height: height,
-            config: config,
+            config: config.clone(),
             title: String::new(),
             active: grid,
             inactive: Vec::new(),
@@ -78,7 +78,7 @@ impl Terminal {
     }
 
     pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
-        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y, self.config);
+        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y, self.config.clone());
         mem::swap(&mut grid, &mut self.active);
         self.inactive.push(grid);
     }

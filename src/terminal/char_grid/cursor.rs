@@ -19,7 +19,7 @@ use datatypes::Direction::*;
 use datatypes::Movement::*;
 use terminal::{CharCell, Grid, Styles};
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Cursor {
     pub coords: Coords,
     pub style: Styles,

@@ -17,9 +17,9 @@ use std::fmt::{Debug,Formatter,Result};
 
 use datatypes::Color;
 
-#[derive(Copy, Eq)]
+#[derive(Eq)]
 pub struct Config {
-    pub font: &'static str,
+    pub font: String,
     pub scrollback: u32,
     pub tab_stop: u32,
     pub fg_color: Color,
@@ -78,23 +78,17 @@ impl Clone for Config {
 
 impl Default for Config {
     fn default() -> Config {
-       CONFIG
+        Config {
+            font: "Inconsolata 10".to_string(),
+            scrollback: SCROLLBACK,
+            tab_stop: TAB_STOP,
+            fg_color: DEFAULT_FG,
+            bg_color: DEFAULT_BG,
+            cursor_color: CURSOR_COLOR,
+            colors: COLORS_256,
+        }
     }
 }
-
-pub const CONFIG: Config = Config {
-    font: FONT,
-    scrollback: SCROLLBACK,
-    tab_stop: TAB_STOP,
-    fg_color: DEFAULT_FG,
-    bg_color: DEFAULT_BG,
-    cursor_color: CURSOR_COLOR,
-    colors: COLORS_256,
-};
-
-// FONTS
-
-pub const FONT: &'static str = "Inconsolata 10";
 
 // SCOLLBACK
 

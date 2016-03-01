@@ -60,11 +60,11 @@ impl CharGrid {
         };
         CharGrid {
             grid: grid,
-            cursor: Cursor::new(config),
+            cursor: Cursor::new(config.clone()),
             tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
-            config: config,
+            config: config.clone(),
         }
     }
 
@@ -226,7 +226,7 @@ impl CharGrid {
     }
 
     pub fn set_style_in_area(&mut self, area: Area, style: Style) {
-        let config = self.config;
+        let config = self.config.clone();
         self.in_area(area, |grid, coords| grid[coords].style_mut().update(style, &config));
     }
 

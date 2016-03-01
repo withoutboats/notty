@@ -80,7 +80,7 @@ impl Renderer {
                     &CharCell::Image(ref image, ref mime, ref pos, (ref w, ref h), _) => {
                         let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + *w as usize) < col_n {
-                            text.draw(canvas, terminal.config.font, terminal.config.bg_color);
+                            text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
                         if let Some(image) = self.images.get(image) {
@@ -96,7 +96,7 @@ impl Renderer {
                     }
                 }
             }
-            text.draw(canvas, terminal.config.font, terminal.config.bg_color);
+            text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
         }
     }
 
@@ -106,7 +106,7 @@ impl Renderer {
         let string = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN\
                       OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         let cairo = canvas.to_glib_none();
-        let (w, h) = PangoLayout::new(cairo.0, config.font, string,
+        let (w, h) = PangoLayout::new(cairo.0, &config.font, string,
                                       PangoAttrList::new()).extents();
         canvas.move_to(x_save, y_save);
         ((w / string.len() as i32) as f64, h as f64)
