@@ -24,6 +24,7 @@ extern crate notty_cairo;
 use std::cell::RefCell;
 use std::env;
 use std::io::BufReader;
+use std::process;
 use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
@@ -46,11 +47,6 @@ static mut Y_PIXELS: Option<u32> = None;
 static COLS: u32 = 80;
 static ROWS: u32 = 25;
 
-fn quit_because(e: std::io::Error) {
-    println!("Quitting because: {}", e);
-    std::process::exit(1)
-}
-
 fn main() {
 
     // Set up window and drawing canvas.
@@ -69,11 +65,7 @@ fn main() {
     thread::spawn(move || {
         let output = Output::new(BufReader::new(tty_r));
         for cmd in output {
-            match cmd {
-                Ok(good) => tx_out.send(good).unwrap(),
-                Err(err) => quit_because(err)
-            };
-            // tx_out.send(cmd.unwrap()).unwrap();
+            tx_out.send(cmd.unwrap_or_else(exit_on_io_error)).unwrap();
         }
     });
 
@@ -131,6 +123,12 @@ fn main() {
     window.show_all();
     gtk::main();
 
+}
+
+fn exit_on_io_error<T>(e: std::io::Error) -> T {
+    println!("Exiting process due to tty error: {}", e);
+    gtk::main_quit();
+    process::exit(0);
 }
 
 fn reset_dimensions(canvas: &cairo::Context, terminal: &mut Terminal, x_pix: u32, y_pix: u32) {
