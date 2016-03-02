@@ -27,7 +27,7 @@ use notty::terminal::Tty;
 #[cfg(target_os="linux")]
 const TIOCSWINSZ: libc::c_ulong = 0x5414;
 #[cfg(target_os="macos")]
-const TIOCSWINSZ: libc::c_ulong = 1074295912;
+const TIOCSWINSZ: libc::c_ulong = 2148037735;
 
 #[link(name="util")]
 extern {

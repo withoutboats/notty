@@ -81,7 +81,7 @@ fn main() {
     canvas.connect_draw(move |_, canvas| {
         let mut terminal = terminal.borrow_mut();
         if let (Some(x_pix), Some(y_pix)) = unsafe {(X_PIXELS.take(), Y_PIXELS.take())} {
-            reset_dimensions(&canvas, &mut terminal, x_pix, y_pix);
+            renderer.borrow_mut().reset_dimensions(&canvas, &mut terminal, x_pix, y_pix);
         }
         renderer.borrow_mut().draw(&terminal, &canvas);
         gtk::signal::Inhibit(false)
@@ -129,11 +129,4 @@ fn exit_on_io_error<T>(e: std::io::Error) -> T {
     println!("Exiting process due to tty error: {}", e);
     gtk::main_quit();
     process::exit(0);
-}
-
-fn reset_dimensions(canvas: &cairo::Context, terminal: &mut Terminal, x_pix: u32, y_pix: u32) {
-    let f_extents = canvas.font_extents();
-    let w = x_pix / f_extents.max_x_advance as u32;
-    let h = y_pix / (f_extents.height + f_extents.ascent + f_extents.descent) as u32;
-    terminal.set_winsize(w, h).unwrap_or_else(|e| panic!("{}", e));
 }
