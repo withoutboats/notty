@@ -41,6 +41,7 @@ pub mod args {
         MediaAlignment,
         MediaPosition,
         Movement,
+        Palette,
         Region,
         Style,
     };
