@@ -15,13 +15,12 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern crate toml;
 
-use std::fmt::{Debug,Formatter,Result};
 use std::fs::File;
 use std::io::prelude::*;
 
 use datatypes::{Color,Palette};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Config {
     pub font: String,
     pub scrollback: u32,
@@ -41,12 +40,6 @@ fn empty_config() -> Config {
         bg_color: Color(0xbb,0xbb,0xbb),
         cursor_color: Color(0xbb,0xbb,0xbb),
         colors: Palette::new_from_slice(&[Color(0xbb,0xbb,0xbb);256]).unwrap(),
-    }
-}
-
-impl Debug for Config {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "Config {{ }}")
     }
 }
 
