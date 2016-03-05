@@ -31,52 +31,31 @@ pub struct Config {
     pub colors: Palette,
 }
 
-fn empty_config() -> Config {
-    Config {
-        font: "Inconsolata 10".to_string(),
-        scrollback: 512,
-        tab_stop: 4,
-        fg_color: Color(0x00,0x00,0x00),
-        bg_color: Color(0xbb,0xbb,0xbb),
-        cursor_color: Color(0xbb,0xbb,0xbb),
-        colors: Palette::new_from_slice(&[Color(0xbb,0xbb,0xbb);256]).unwrap(),
-    }
-}
-
 impl Default for Config {
     fn default() -> Config {
         let source = include_str!("../resources/default-config.toml");
-        parse_toml(&source.to_string(),
-                   &"../resources/default-config.toml".to_string()).unwrap()
+        let table = parse_toml(&source.to_string(),
+                               &"../resources/default-config.toml".to_string()).unwrap();
+        Config::new_from_toml(&toml::Value::Table(table))
     }
 }
 
-fn parse_toml(toml_string: &String, toml_path: &String) -> Option<Config> {
+fn parse_toml(toml_string: &String, toml_path: &String) -> Option<toml::Table> {
     let mut parser = toml::Parser::new(toml_string);
     match parser.parse() {
         Some(toml) => {
-            let mut config = empty_config();
-            config.update_from_toml(&toml);
-            Some(config.clone())
+            Some(toml)
         }
         None => {
             for err in &parser.errors {
                 let (loline, locol) = parser.to_linecol(err.lo);
                 let (hiline, hicol) = parser.to_linecol(err.hi);
-                println!("{}:{}:{}:{}:{} error: {}",
-                         toml_path, loline, locol, hiline, hicol, err.desc);
+                panic!("{}:{}:{}:{}:{} error: {}",
+                       toml_path, loline, locol, hiline, hicol, err.desc);
             }
             None
         }
     }
-}
-
-pub fn config_loader(path: &String) -> Option<Config> {
-    let source = &mut String::new();
-    File::open(path).and_then(|mut f| {
-        f.read_to_string(source)
-    }).unwrap();
-    parse_toml(&source.to_string(), path)
 }
 
 fn convert_color(value: &toml::Value) -> Color {
@@ -87,44 +66,49 @@ fn convert_color(value: &toml::Value) -> Color {
 }
 
 impl Config {
-    fn update_colors(&mut self, table: &toml::Table) {
-        for (k, v) in table {
-            match &k[..] {
-                "fg" => self.fg_color = convert_color(v),
-                "bg" => self.bg_color = convert_color(v),
-                "cursor" => self.cursor_color = convert_color(v),
-                "palette" => {
-                    let slice = v.as_slice().unwrap();
-                    let thing1 = slice.into_iter().map(convert_color);
-                    let thing2: Vec<_> = thing1.collect();
-                    self.colors = Palette::new_from_slice(&thing2).unwrap();
-                }
-                _ => {},
-            }
-        }
+    pub fn new_from_file(path: &String) -> Config {
+        let source = &mut String::new();
+        File::open(path).and_then(|mut f| {
+            f.read_to_string(source)
+        }).unwrap();
+
+        parse_toml(&source.to_string(), path).map(|table| {
+            Config::new_from_toml(&toml::Value::Table(table))
+        }).unwrap()
     }
 
-    fn update_general(&mut self, table: &toml::Table) {
-        for (k, v) in table {
-            match &k[..] {
-                "font" => self.font = v.as_str().unwrap().to_string(),
-                "scrollback" => self.scrollback = v.as_integer().unwrap() as u32,
-                "tabstop" => self.tab_stop = v.as_integer().unwrap() as u32,
-                _ => {},
-            }
-        }
-    }
-
-    fn update_from_toml(&mut self, table: &toml::Table) {
-        for (k, v) in table {
-            let value = v.clone();
-            match (&k[..], value) {
-                ("general", toml::Value::Table(t)) =>
-                    self.update_general(&t),
-                ("colors", toml::Value::Table(t)) =>
-                    self.update_colors(&t),
-                (_, _) => {},
-            }
+    pub fn new_from_toml(toml: &toml::Value) -> Config {
+        Config {
+            font: toml.lookup("general.font").
+                and_then(|v| v.as_str()).
+                map(|s| s.to_string()).
+                unwrap(),
+            tab_stop: toml.lookup("general.tabstop").
+                and_then(|v| v.as_integer()).
+                unwrap() as u32,
+            scrollback: toml.lookup("general.scrollback").
+                and_then(|v| v.as_integer()).
+                unwrap() as u32,
+            fg_color: toml.lookup("colors.fg").
+                map(convert_color).
+                unwrap(),
+            bg_color: toml.lookup("colors.bg").
+                map(convert_color).
+                unwrap(),
+            cursor_color: toml.lookup("colors.cursor").
+                map(convert_color).
+                unwrap(),
+            colors: toml.lookup("colors.palette").
+                map(|slice| {
+                    let v: Vec<Color> = slice.
+                        as_slice().
+                        unwrap().
+                        into_iter().
+                        map(convert_color).
+                        collect();
+                    Palette::new_from_slice(&v).unwrap()
+                }).
+                unwrap(),
         }
     }
 }
