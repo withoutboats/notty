@@ -17,8 +17,44 @@ extern crate toml;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::{error,fmt,io,result};
 
 use datatypes::{Color,Palette};
+
+#[derive(Debug)]
+pub enum ConfigError {
+    Io(io::Error),
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ConfigError::Io(ref err) => write!(f, "IO Error: {}", err),
+        }
+    }
+}
+
+impl error::Error for ConfigError {
+    fn description(&self) -> &str {
+        match *self {
+            ConfigError::Io(ref err) => err.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            ConfigError::Io(ref err) => err.cause(),
+        }
+    }
+}
+
+impl From<io::Error> for ConfigError {
+    fn from(err: io::Error) -> ConfigError{
+        ConfigError::Io(err)
+    }
+}
+
+pub type Result<T> = result::Result<T, ConfigError>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Config {
@@ -41,15 +77,14 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn new_from_file(path: &String) -> Config {
-        let source = &mut String::new();
-        File::open(path).and_then(|mut f| {
-            f.read_to_string(source)
-        }).unwrap();
+    pub fn new_from_file(path: &String) -> Result<Config> {
+        let mut file = try!(File::open(path));
+        let mut source = String::new();
+        try!(file.read_to_string(&mut source));
 
-        parse_toml(&source.to_string(), path).map(|table| {
+        Ok(parse_toml(&source.to_string(), path).map(|table| {
             Config::new_from_toml(&toml::Value::Table(table))
-        }).unwrap()
+        }).unwrap())
     }
 
     pub fn new_from_toml(toml: &toml::Value) -> Config {
