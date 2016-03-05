@@ -40,31 +40,6 @@ impl Default for Config {
     }
 }
 
-fn parse_toml(toml_string: &String, toml_path: &String) -> Option<toml::Table> {
-    let mut parser = toml::Parser::new(toml_string);
-    match parser.parse() {
-        Some(toml) => {
-            Some(toml)
-        }
-        None => {
-            for err in &parser.errors {
-                let (loline, locol) = parser.to_linecol(err.lo);
-                let (hiline, hicol) = parser.to_linecol(err.hi);
-                panic!("{}:{}:{}:{}:{} error: {}",
-                       toml_path, loline, locol, hiline, hicol, err.desc);
-            }
-            None
-        }
-    }
-}
-
-fn convert_color(value: &toml::Value) -> Color {
-    let slice = value.as_slice().unwrap();
-    Color(slice[0].as_integer().unwrap() as u8,
-          slice[1].as_integer().unwrap() as u8,
-          slice[2].as_integer().unwrap() as u8)
-}
-
 impl Config {
     pub fn new_from_file(path: &String) -> Config {
         let source = &mut String::new();
@@ -111,4 +86,29 @@ impl Config {
                 unwrap(),
         }
     }
+}
+
+fn parse_toml(toml_string: &String, toml_path: &String) -> Option<toml::Table> {
+    let mut parser = toml::Parser::new(toml_string);
+    match parser.parse() {
+        Some(toml) => {
+            Some(toml)
+        }
+        None => {
+            for err in &parser.errors {
+                let (loline, locol) = parser.to_linecol(err.lo);
+                let (hiline, hicol) = parser.to_linecol(err.hi);
+                panic!("{}:{}:{}:{}:{} error: {}",
+                       toml_path, loline, locol, hiline, hicol, err.desc);
+            }
+            None
+        }
+    }
+}
+
+fn convert_color(value: &toml::Value) -> Color {
+    let slice = value.as_slice().unwrap();
+    Color(slice[0].as_integer().unwrap() as u8,
+          slice[1].as_integer().unwrap() as u8,
+          slice[2].as_integer().unwrap() as u8)
 }
