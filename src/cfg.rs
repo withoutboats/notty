@@ -24,12 +24,15 @@ use datatypes::{Color,Palette};
 #[derive(Debug)]
 pub enum ConfigError {
     Io(io::Error),
+    Parse(String), // TODO: once https://github.com/alexcrichton/toml-rs/issue#69
+                   // is closed, change this to Parse(toml::ParserError)
 }
 
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ConfigError::Io(ref err) => write!(f, "IO Error: {}", err),
+            ConfigError::Parse(ref string) => write!(f, "{}", string),
         }
     }
 }
@@ -38,12 +41,14 @@ impl error::Error for ConfigError {
     fn description(&self) -> &str {
         match *self {
             ConfigError::Io(ref err) => err.description(),
+            ConfigError::Parse(ref string) => &string,
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             ConfigError::Io(ref err) => err.cause(),
+            ConfigError::Parse(_) => None,
         }
     }
 }
@@ -81,10 +86,8 @@ impl Config {
         let mut file = try!(File::open(path));
         let mut source = String::new();
         try!(file.read_to_string(&mut source));
-
-        Ok(parse_toml(&source.to_string(), path).map(|table| {
-            Config::new_from_toml(&toml::Value::Table(table))
-        }).unwrap())
+        let table = try!(parse_toml(&source.to_string(), path));
+        Ok(Config::new_from_toml(&toml::Value::Table(table)))
     }
 
     pub fn new_from_toml(toml: &toml::Value) -> Config {
@@ -123,20 +126,22 @@ impl Config {
     }
 }
 
-fn parse_toml(toml_string: &String, toml_path: &String) -> Option<toml::Table> {
+fn parse_toml(toml_string: &String, toml_path: &String) -> Result<toml::Table> {
     let mut parser = toml::Parser::new(toml_string);
     match parser.parse() {
         Some(toml) => {
-            Some(toml)
+            Ok(toml)
         }
         None => {
+            let mut error_string = String::new();
             for err in &parser.errors {
                 let (loline, locol) = parser.to_linecol(err.lo);
                 let (hiline, hicol) = parser.to_linecol(err.hi);
-                panic!("{}:{}:{}:{}:{} error: {}",
-                       toml_path, loline, locol, hiline, hicol, err.desc);
+                error_string = format!("{}\n{}:{}:{}:{}:{} error: {}",
+                        error_string, toml_path, loline,
+                        locol, hiline, hicol, err.desc);
             }
-            None
+            Err(ConfigError::Parse(error_string))
         }
     }
 }
