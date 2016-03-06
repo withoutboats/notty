@@ -152,3 +152,25 @@ fn convert_color(value: &toml::Value) -> Color {
           slice[1].as_integer().unwrap() as u8,
           slice[2].as_integer().unwrap() as u8)
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datatypes::Color;
+
+    #[test]
+    fn test_new_from_file() {
+        let path = "resources/default-config.toml".to_string();
+        let config = Config::new_from_file(&path).unwrap();
+
+        assert_eq!(config.font, "Inconsolata 10");
+        assert_eq!(config.scrollback, 512);
+        assert_eq!(config.tab_stop, 4);
+        assert_eq!(config.fg_color, Color(255,255,255));
+        assert_eq!(config.bg_color, Color(0,0,0));
+        assert_eq!(config.cursor_color, Color(187,187,187));
+        assert_eq!(config.colors[0], Color(0,0,0));
+        assert_eq!(config.colors[5], Color(255,85,255));
+    }
+}
