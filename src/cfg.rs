@@ -156,14 +156,12 @@ fn convert_color(value: &toml::Value) -> Color {
 
 #[cfg(test)]
 mod tests {
+    extern crate toml;
+
     use super::*;
     use datatypes::Color;
 
-    #[test]
-    fn test_new_from_file() {
-        let path = "resources/default-config.toml".to_string();
-        let config = Config::new_from_file(&path).unwrap();
-
+    fn test_default_config(config: &Config) {
         assert_eq!(config.font, "Inconsolata 10");
         assert_eq!(config.scrollback, 512);
         assert_eq!(config.tab_stop, 4);
@@ -172,5 +170,23 @@ mod tests {
         assert_eq!(config.cursor_color, Color(187,187,187));
         assert_eq!(config.colors[0], Color(0,0,0));
         assert_eq!(config.colors[5], Color(255,85,255));
+    }
+
+    #[test]
+    fn test_new_from_file() {
+        let path = "resources/default-config.toml".to_string();
+        let config = Config::new_from_file(&path).unwrap();
+
+        test_default_config(&config);
+    }
+
+    #[test]
+    fn test_new_from_toml() {
+        let toml_string = include_str!("../resources/default-config.toml");
+        let mut parser = toml::Parser::new(toml_string);
+        let config = Config::new_from_toml(&toml::Value::Table(parser
+                                                               .parse()
+                                                               .unwrap()));
+        test_default_config(&config);
     }
 }
