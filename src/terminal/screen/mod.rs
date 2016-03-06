@@ -33,8 +33,8 @@ impl Screen {
         let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
         let new_a = match (width, height) {
             (Some(w), Some(h))  => Region::new(0, 0, w, h),
-            (Some(w), None)     => grid_hierarchy.area().set_width(w),
-            (None,    Some(h))  => grid_hierarchy.area().set_height(h),
+            (Some(w), None)     => Region::new(0, 0, w, grid_hierarchy.area().bottom),
+            (None,    Some(h))  => Region::new(0, 0, grid_hierarchy.area().right, h),
             (None,    None)     => return
         };
         grid_hierarchy.resize(grids,

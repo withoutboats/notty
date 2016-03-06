@@ -65,7 +65,6 @@ impl CharGrid {
 
     pub fn resize(&mut self, region: Region) {
         if self.grid_width < region.width() {
-            self.grid_width = region.width();
             let n = (region.width() - self.grid_width) * self.grid_height;
             self.grid.add_to_right(vec![CharCell::default(); n as usize]);
             self.grid_width = region.width();
@@ -75,8 +74,11 @@ impl CharGrid {
             self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
             self.grid_height = region.height();
         }
-        self.window.set_width(region.width());
-        self.window.set_height(region.height());
+        self.window = Region {
+            right: self.window.left + region.width(),
+            bottom: self.window.top + region.height(),
+            ..self.window
+        };
     }
 
     pub fn write(&mut self, data: CellData) {
@@ -268,11 +270,19 @@ mod tests {
     use super::*;
 
     use cfg::CONFIG;
-    use datatypes::{CellData, Coords, Direction, Movement};
+    use datatypes::{CellData, Coords, Direction, Movement, Region};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
         test(CharGrid::new(10, 10, false, false), 10);
         test(CharGrid::new(10, 10, false, true), 11);
+    }
+
+    #[test]
+    fn window_scrolls_with_cursor() {
+        run_test(|mut grid, h| {
+            grid.move_cursor(Movement::NextLine(10));
+            assert_eq!(grid.window, Region::new(0, h - 10, 10, h));
+        })
     }
 
     #[test]
