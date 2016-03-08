@@ -82,14 +82,13 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Constructs a new Config from a toml file specifed by the input string "path".
     pub fn new_from_file(path: &String) -> Result<Config> {
-        let mut file = try!(File::open(path));
-        let mut source = String::new();
-        try!(file.read_to_string(&mut source));
-        let table = try!(parse_toml(&source.to_string(), path));
+        let table = try!(read_toml_file(path));
         Ok(Config::new_from_toml(&toml::Value::Table(table)))
     }
 
+    /// Constructs a new Config from a toml::Value object.
     pub fn new_from_toml(toml: &toml::Value) -> Config {
         Config {
             font: toml.lookup("general.font").
@@ -103,27 +102,84 @@ impl Config {
                 and_then(|v| v.as_integer()).
                 unwrap() as u32,
             fg_color: toml.lookup("colors.fg").
-                map(convert_color).
+                map(convert_tomlv_to_color).
                 unwrap(),
             bg_color: toml.lookup("colors.bg").
-                map(convert_color).
+                map(convert_tomlv_to_color).
                 unwrap(),
             cursor_color: toml.lookup("colors.cursor").
-                map(convert_color).
+                map(convert_tomlv_to_color).
                 unwrap(),
             colors: toml.lookup("colors.palette").
-                map(|slice| {
-                    let v: Vec<Color> = slice.
-                        as_slice().
-                        unwrap().
-                        into_iter().
-                        map(convert_color).
-                        collect();
-                    Palette::new_from_slice(&v).unwrap()
-                }).
+                map(convert_tomlv_to_palette).
                 unwrap(),
         }
     }
+
+    fn update_general(&mut self, table: &toml::Table) {
+        for (k, v) in table.iter() {
+            match &k[..] {
+                "font" => self.font = v.as_str().
+                    map(|s| s.to_string()).
+                    unwrap(),
+                "tabstop" => self.tab_stop = v.as_integer().
+                    unwrap() as u32,
+                "scrollback" => self.scrollback = v.as_integer().
+                    unwrap() as u32,
+                _ => {},
+            };
+        }
+    }
+
+    fn update_colors(&mut self, table: &toml::Table) {
+        for (k, v) in table.iter() {
+            match &k[..] {
+                "fg" => self.bg_color = convert_tomlv_to_color(v),
+                "bg" => self.fg_color = convert_tomlv_to_color(v),
+                "cursor" => self.cursor_color = convert_tomlv_to_color(v),
+                "palette" => self.colors = convert_tomlv_to_palette(v),
+                _ => {},
+            };
+        }
+    }
+
+    /// Update &self from toml file identified by path string.
+    pub fn update_from_file(&mut self, path: &String) -> Result<()> {
+        let table = try!(read_toml_file(path));
+
+        for (k, v) in table.iter() {
+            match &k[..] {
+                "colors" => self.update_colors(v.as_table().unwrap()),
+                "general" => self.update_general(v.as_table().unwrap()),
+                _ => {},
+            };
+        }
+        Ok(())
+    }
+}
+
+fn convert_tomlv_to_color(value: &toml::Value) -> Color {
+    let slice = value.as_slice().unwrap();
+    Color(slice[0].as_integer().unwrap() as u8,
+          slice[1].as_integer().unwrap() as u8,
+          slice[2].as_integer().unwrap() as u8)
+}
+
+fn convert_tomlv_to_palette(value: &toml::Value) -> Palette {
+    let v: Vec<Color> = value.
+        as_slice().
+        unwrap().
+        into_iter().
+        map(convert_tomlv_to_color).
+        collect();
+    Palette::new_from_slice(&v).unwrap()
+}
+
+fn read_toml_file(path: &str) -> Result<toml::Table> {
+    let mut file = try!(File::open(path));
+    let mut source = String::new();
+    try!(file.read_to_string(&mut source));
+    parse_toml(&source.to_string(), &path.to_string())
 }
 
 fn parse_toml(toml_string: &String, toml_path: &String) -> Result<toml::Table> {
@@ -145,14 +201,6 @@ fn parse_toml(toml_string: &String, toml_path: &String) -> Result<toml::Table> {
         }
     }
 }
-
-fn convert_color(value: &toml::Value) -> Color {
-    let slice = value.as_slice().unwrap();
-    Color(slice[0].as_integer().unwrap() as u8,
-          slice[1].as_integer().unwrap() as u8,
-          slice[2].as_integer().unwrap() as u8)
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -194,5 +242,15 @@ mod tests {
                                                                .parse()
                                                                .unwrap()));
         test_default_config(&config);
+    }
+
+    #[test]
+    fn test_update_from_file() {
+        let mut config = Config::default();
+        test_default_config(&config);
+
+        let update_path = "resources/update-config.toml".to_string();
+        config.update_from_file(&update_path).unwrap();
+        assert_eq!(config.font, "Liberation Mono 8");
     }
 }
