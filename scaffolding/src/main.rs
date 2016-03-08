@@ -80,10 +80,17 @@ fn main() {
     let user_config_path = env::home_dir()
         .unwrap()
         .join(".scaffolding.rc");
-    config.update_from_file(&user_config_path
-                            .to_str()
-                            .unwrap()
-                            .to_string()).unwrap();
+
+    // For now we don't care why the config failed to update, but in the
+    // reasonably near future we should figure out a more graceful way to
+    // detect and report configuration errors.
+    match config.update_from_file(&user_config_path
+                                  .to_str()
+                                  .unwrap()
+                                  .to_string()) {
+        _ => {},
+    }
+
     let terminal = Rc::new(RefCell::new(Terminal::new(COLS,
                                                       ROWS,
                                                       tty_w,
