@@ -58,7 +58,12 @@ fn main() {
 
     // Set the TERM variable and establish a TTY connection
     env::set_var("TERM", "notty");
-    let (tty_r, tty_w) = tty::pty("sh", COLS as u16, ROWS as u16);
+
+    let shell = match env::var("SHELL") {
+        Ok(v) => v,
+        Err(_) => "sh".to_string(),
+    };
+    let (tty_r, tty_w) = tty::pty(&shell, COLS as u16, ROWS as u16);
 
     // Handler program output (tty -> screen) on separate thread.
     let (tx_out, rx) = mpsc::channel();
