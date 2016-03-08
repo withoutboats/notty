@@ -76,10 +76,18 @@ fn main() {
     });
 
     // Set up logical terminal and renderer.
-    let terminal        = Rc::new(RefCell::new(Terminal::new(COLS,
-                                                             ROWS,
-                                                             tty_w,
-                                                             Config::default())));
+    let mut config = Config::default();
+    let user_config_path = env::home_dir()
+        .unwrap()
+        .join(".scaffolding.rc");
+    config.update_from_file(&user_config_path
+                            .to_str()
+                            .unwrap()
+                            .to_string()).unwrap();
+    let terminal = Rc::new(RefCell::new(Terminal::new(COLS,
+                                                      ROWS,
+                                                      tty_w,
+                                                      config)));
     let renderer = RefCell::new(Renderer::new());
 
     // Process screen logic every 125 milliseconds.
