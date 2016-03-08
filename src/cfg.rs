@@ -173,6 +173,12 @@ mod tests {
     }
 
     #[test]
+    fn test_default() {
+        let config = Config::default();
+        test_default_config(&config);
+    }
+
+    #[test]
     fn test_new_from_file() {
         let path = "resources/default-config.toml".to_string();
         let config = Config::new_from_file(&path).unwrap();
