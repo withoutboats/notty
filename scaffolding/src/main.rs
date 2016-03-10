@@ -84,10 +84,7 @@ fn main() {
     // For now we don't care why the config failed to update, but in the
     // reasonably near future we should figure out a more graceful way to
     // detect and report configuration errors.
-    match config.update_from_file(&user_config_path
-                                  .to_str()
-                                  .unwrap()
-                                  .to_string()) {
+    match config.update_from_file(&user_config_path) {
         _ => {},
     }
 

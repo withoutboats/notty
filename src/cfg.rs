@@ -17,6 +17,7 @@ extern crate toml;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
 use std::{error,fmt,io,result};
 
 use datatypes::{Color,Palette};
@@ -83,7 +84,7 @@ impl Default for Config {
 
 impl Config {
     /// Constructs a new Config from a toml file specifed by the input string "path".
-    pub fn new_from_file(path: &String) -> Result<Config> {
+    pub fn new_from_file<P: AsRef<Path>>(path: P) -> Result<Config> {
         let table = try!(read_toml_file(path));
         Ok(Config::new_from_toml(&toml::Value::Table(table)))
     }
@@ -144,7 +145,7 @@ impl Config {
     }
 
     /// Update &self from toml file identified by path string.
-    pub fn update_from_file(&mut self, path: &String) -> Result<()> {
+    pub fn update_from_file<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let table = try!(read_toml_file(path));
 
         for (k, v) in table.iter() {
@@ -175,14 +176,15 @@ fn convert_tomlv_to_palette(value: &toml::Value) -> Palette {
     Palette::new_from_slice(&v).unwrap()
 }
 
-fn read_toml_file(path: &str) -> Result<toml::Table> {
-    let mut file = try!(File::open(path));
+fn read_toml_file<P: AsRef<Path>>(path: P) -> Result<toml::Table> {
+    let mut file = try!(File::open(&path));
     let mut source = String::new();
     try!(file.read_to_string(&mut source));
-    parse_toml(&source.to_string(), &path.to_string())
+    parse_toml(&source.to_string(), path)
 }
 
-fn parse_toml(toml_string: &String, toml_path: &String) -> Result<toml::Table> {
+fn parse_toml<P: AsRef<Path>>(toml_string: &String, toml_path: P)
+                              -> Result<toml::Table> {
     let mut parser = toml::Parser::new(toml_string);
     match parser.parse() {
         Some(toml) => {
@@ -194,7 +196,7 @@ fn parse_toml(toml_string: &String, toml_path: &String) -> Result<toml::Table> {
                 let (loline, locol) = parser.to_linecol(err.lo);
                 let (hiline, hicol) = parser.to_linecol(err.hi);
                 error_string = format!("{}\n{}:{}:{}:{}:{} error: {}",
-                        error_string, toml_path, loline,
+                        error_string, toml_path.as_ref().display(), loline,
                         locol, hiline, hicol, err.desc);
             }
             Err(ConfigError::Parse(error_string))
