@@ -63,40 +63,6 @@ impl From<io::Error> for ConfigError {
 
 pub type Result<T> = result::Result<T, ConfigError>;
 
-/// Constructs a new Config from a toml file specifed by the input string "path".
-pub fn new_from_file<P: AsRef<Path>>(path: P) -> Result<Config> {
-    let table = try!(read_toml_file(path));
-    Ok(new_from_toml(&toml::Value::Table(table)))
-}
-
-/// Constructs a new Config from a toml::Value object.
-pub fn new_from_toml(toml: &toml::Value) -> Config {
-    Config {
-        font: toml.lookup("general.font").
-            and_then(|v| v.as_str()).
-            map(|s| s.to_string()).
-            unwrap(),
-        tab_stop: toml.lookup("general.tabstop").
-            and_then(|v| v.as_integer()).
-            unwrap() as u32,
-        scrollback: toml.lookup("general.scrollback").
-            and_then(|v| v.as_integer()).
-            unwrap() as u32,
-        fg_color: toml.lookup("colors.fg").
-            map(convert_tomlv_to_color).
-            unwrap(),
-        bg_color: toml.lookup("colors.bg").
-            map(convert_tomlv_to_color).
-            unwrap(),
-        cursor_color: toml.lookup("colors.cursor").
-            map(convert_tomlv_to_color).
-            unwrap(),
-        colors: toml.lookup("colors.palette").
-            map(convert_tomlv_to_palette).
-            unwrap(),
-    }
-}
-
 fn update_general(config: &mut Config, table: &toml::Table) {
     for (k, v) in table.iter() {
         match &k[..] {
