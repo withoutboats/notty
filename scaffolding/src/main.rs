@@ -31,11 +31,12 @@ use std::thread;
 
 use gtk::{WindowTrait, WidgetTrait, WidgetSignals, ContainerTrait};
 
+use notty::cfg::Config;
 use notty::{Output, Command, KeyPress, KeyRelease};
 use notty::terminal::Terminal;
-use notty::cfg::Config;
 use notty_cairo::Renderer;
 
+mod cfg;
 mod commands;
 mod key;
 
@@ -76,7 +77,7 @@ fn main() {
     });
 
     // Set up logical terminal and renderer.
-    let mut config = Config::default();
+    let config = &mut Config::default();
     let user_config_path = env::home_dir()
         .unwrap()
         .join(".scaffolding.rc");
@@ -84,14 +85,14 @@ fn main() {
     // For now we don't care why the config failed to update, but in the
     // reasonably near future we should figure out a more graceful way to
     // detect and report configuration errors.
-    match config.update_from_file(&user_config_path) {
+    match cfg::update_from_file(config, &user_config_path) {
         _ => {},
     }
 
     let terminal = Rc::new(RefCell::new(Terminal::new(COLS,
                                                       ROWS,
                                                       tty_w,
-                                                      config)));
+                                                      config.clone())));
     let renderer = RefCell::new(Renderer::new());
 
     // Process screen logic every 125 milliseconds.
