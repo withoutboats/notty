@@ -176,24 +176,6 @@ mod tests {
     }
 
     #[test]
-    fn test_new_from_file() {
-        let path = "resources/default-config.toml".to_string();
-        let config = new_from_file(&path).unwrap();
-
-        test_default_config(&config);
-    }
-
-    #[test]
-    fn test_new_from_toml() {
-        let toml_string = include_str!("../resources/default-config.toml");
-        let mut parser = toml::Parser::new(toml_string);
-        let config = new_from_toml(&toml::Value::Table(parser
-                                                       .parse()
-                                                       .unwrap()));
-        test_default_config(&config);
-    }
-
-    #[test]
     fn test_update_from_file() {
         let mut config = &mut Config::default();
         test_default_config(&config);
