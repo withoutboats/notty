@@ -89,10 +89,11 @@ fn main() {
         _ => {},
     }
 
+    let config = Rc::new(config.clone());
     let terminal = Rc::new(RefCell::new(Terminal::new(COLS,
                                                       ROWS,
                                                       tty_w,
-                                                      config.clone())));
+                                                      config)));
     let renderer = RefCell::new(Renderer::new());
 
     // Process screen logic every 125 milliseconds.

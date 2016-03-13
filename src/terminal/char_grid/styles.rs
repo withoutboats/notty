@@ -13,6 +13,8 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use std::rc::Rc;
+
 use cfg::Config;
 use datatypes::{Color, Style};
 use datatypes::Style::*;
@@ -32,7 +34,7 @@ pub struct Styles {
 }
 
 impl Styles {
-    pub fn new(config: &Config) -> Styles {
+    pub fn new(config: &Rc<Config>) -> Styles {
         Styles {
             fg_color:           config.fg_color,
             bg_color:           config.bg_color,
@@ -46,7 +48,7 @@ impl Styles {
             blink:              false,
         }
     }
-    pub fn update(&mut self, style: Style, config: &Config) {
+    pub fn update(&mut self, style: Style, config: &Rc<Config>) {
         match style {
             Underline(0)            => { self.underline = false; self.double_underline = false; }
             Underline(1)            => { self.underline = true;  self.double_underline = false; }
@@ -71,6 +73,8 @@ impl Styles {
 #[cfg(test)]
 mod tests {
 
+    use std::rc::Rc;
+
     use cfg::Config;
     use datatypes::Color;
     use datatypes::Style::*;
@@ -78,7 +82,7 @@ mod tests {
 
     #[test]
     fn styles_update() {
-        let config = Config::default();
+        let config = Rc::new(Config::default());
         let mut style = Styles::new(&config);
         style.update(Bold(true), &config);
         assert_eq!(style.bold, true);

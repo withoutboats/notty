@@ -16,6 +16,7 @@
 use std::io::{self, Write};
 use std::mem;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 mod char_grid;
 mod input;
@@ -31,7 +32,6 @@ use self::input::Input;
 pub struct Terminal {
     pub width: u32,
     pub height: u32,
-    pub config: Config,
     title: String,
     active: CharGrid,
     inactive: Vec<CharGrid>,
@@ -43,13 +43,12 @@ impl Terminal {
     pub fn new<W: Tty + Send + 'static>(width: u32,
                                         height: u32,
                                         tty: W,
-                                        config: Config) -> Terminal {
+                                        config: Rc<Config>) -> Terminal {
         let grid = CharGrid::new(width, height, false, true, config.clone());
         let tty = Input::new(tty);
         Terminal {
             width: width,
             height: height,
-            config: config.clone(),
             title: String::new(),
             active: grid,
             inactive: Vec::new(),

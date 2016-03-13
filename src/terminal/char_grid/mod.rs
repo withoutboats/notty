@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use unicode_width::*;
 
@@ -42,11 +43,11 @@ pub struct CharGrid {
     tooltips: HashMap<Coords, Tooltip>,
     pub grid_width: u32,
     pub grid_height: u32,
-    config: Config,
+    pub config: Rc<Config>,
 }
 
 impl CharGrid {
-    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool, config: Config) -> CharGrid {
+    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool, config: Rc<Config>) -> CharGrid {
         let grid = match (scroll_x, scroll_y) {
             (false, false)  => Grid::new(w as usize,
                                          h as usize,
@@ -60,11 +61,11 @@ impl CharGrid {
         };
         CharGrid {
             grid: grid,
-            cursor: Cursor::new(config.clone()),
+            cursor: Cursor::new(&config.clone()),
             tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
-            config: config.clone(),
+            config: config,
         }
     }
 
@@ -78,7 +79,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((h - self.grid_height) * self.grid_width) as usize;
-                self.grid.add_to_bottom(vec![CharCell::new(&self.config); n]);
+                self.grid.add_to_bottom(vec![CharCell::Empty(Styles::new(&self.config)); n]);
             }
         }
         self.grid_height = h;
@@ -94,7 +95,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((w - self.grid_width) * self.grid_height) as usize;
-                self.grid.add_to_right(vec![CharCell::new(&self.config); n]);
+                self.grid.add_to_right(vec![CharCell::Empty(Styles::new(&self.config)); n]);
             }
         }
         self.grid_width = w;
@@ -279,14 +280,17 @@ impl<'a> IntoIterator for &'a CharGrid {
 #[cfg(test)]
 mod tests {
 
+    use std::rc::Rc;
+
     use super::*;
 
     use cfg::Config;
     use datatypes::{CellData, Coords, Direction, Movement};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        test(CharGrid::new(10, 10, false, false, Config::default()), 10);
-        test(CharGrid::new(10, 10, false, true, Config::default()), 11);
+        let config = Rc::new(Config::default());
+        test(CharGrid::new(10, 10, false, false, config.clone()), 10);
+        test(CharGrid::new(10, 10, false, true, config.clone()), 11);
     }
 
     #[test]
