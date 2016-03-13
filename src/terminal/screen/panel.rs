@@ -2,7 +2,7 @@ use std::cmp;
 use std::mem;
 use std::ops::Index;
 
-use datatypes::{Region, Coords};
+use datatypes::{Region, Coords, CoordsIter};
 
 use terminal::{CharGrid, CharCell};
 use super::Stack;
@@ -75,6 +75,19 @@ impl Panel {
         match self.stack.top {
             Grid(ref mut grid) => grid,
             _ => panic!("Cannot call grid_mut on a split panel"),
+        }
+    }
+
+    pub fn cells(&self) -> Cells {
+        Cells {
+            iter: CoordsIter::from_region(self.area),
+            screen: self
+        }
+    }
+
+    pub fn panels(&self) -> Panels {
+        Panels {
+            stack: vec![self],
         }
     }
 
@@ -210,6 +223,48 @@ impl PanelKind {
         }
     }
 
+}
+
+pub struct Cells<'a> {
+    iter: CoordsIter,
+    screen: &'a Panel,
+}
+
+impl<'a> Cells<'a> {
+    pub fn region(&self) -> Region {
+        self.iter.region()
+    }
+}
+
+impl<'a> Iterator for Cells<'a> {
+    type Item = &'a CharCell;
+    fn next(&mut self) -> Option<&'a CharCell> {
+        self.iter.next().map(|coords| &self.screen[coords])
+    }
+}
+
+pub struct Panels<'a> {
+    stack: Vec<&'a Panel>,
+}
+
+impl<'a> Iterator for Panels<'a> {
+    type Item = Cells<'a>;
+    fn next(&mut self) -> Option<Cells<'a>> {
+        fn cells<'a>(panel: &'a Panel, stack: &mut Vec<&'a Panel>) -> Cells<'a> {
+            match panel.stack.top {
+                Grid(_) => Cells {
+                    iter: CoordsIter::from_region(panel.area),
+                    screen: panel
+                },
+                Split { ref left, ref right, .. } => {
+                    stack.push(right);
+                    cells(left, stack)
+                }
+                _ => unreachable!()
+            }
+        }
+        self.stack.pop().map(|panel| cells(panel, &mut self.stack))
+    }
 }
 
 fn split_region(region: Region, kind: SplitKind, rule: ResizeRule) -> (SplitKind, Region, Region) {

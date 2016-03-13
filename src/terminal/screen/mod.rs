@@ -1,14 +1,14 @@
 use std::ops::{Deref, DerefMut};
 
-use datatypes::{CoordsIter, Region};
-use terminal::char_grid::{CharGrid, CharCell};
+use datatypes::Region;
+use terminal::char_grid::CharGrid;
 
 mod stack;
 mod panel;
 
 use self::panel::Panel;
 
-pub use self::panel::{ResizeRule, SplitKind, SaveGrid};
+pub use self::panel::{ResizeRule, SplitKind, SaveGrid, Cells, Panels};
 pub use self::stack::Stack;
 
 pub struct Screen {
@@ -59,10 +59,11 @@ impl Screen {
     }
 
     pub fn cells(&self) -> Cells {
-        Cells {
-            iter: CoordsIter::from_region(self.screen.area),
-            screen: &self.screen
-        }
+        self.screen.cells()
+    }
+
+    pub fn panels(&self) -> Panels {
+        self.screen.panels()
     }
 
     fn find(&self, tag: Option<u64>) -> Option<&Panel> {
@@ -88,14 +89,3 @@ impl DerefMut for Screen {
     }
 }
 
-pub struct Cells<'a> {
-    iter: CoordsIter,
-    screen: &'a Panel,
-}
-
-impl<'a> Iterator for Cells<'a> {
-    type Item = &'a CharCell;
-    fn next(&mut self) -> Option<&'a CharCell> {
-        self.iter.next().map(|coords| &self.screen[coords])
-    }
-}
