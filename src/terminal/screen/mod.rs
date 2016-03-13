@@ -1,72 +1,76 @@
-use std::ops::{Deref, DerefMut, Index};
+use std::ops::{Deref, DerefMut};
 
-use datatypes::{Coords, CoordsIter, Region};
+use datatypes::{CoordsIter, Region};
 use terminal::char_grid::{CharGrid, CharCell};
 
-mod grid_hierarchy;
-mod grid_map;
+mod stack;
+mod panel;
 
-//#[cfg(test)]
-//mod tests;
+use self::panel::Panel;
 
-use self::grid_hierarchy::GridHierarchy;
-use self::grid_hierarchy::GridHierarchy::*;
-use self::grid_map::GridMap;
-
-pub use self::grid_hierarchy::{SplitKind, ResizeRule, SaveGrid};
+pub use self::panel::{ResizeRule, SplitKind, SaveGrid};
+pub use self::stack::Stack;
 
 pub struct Screen {
-    grids: GridMap,
-    grid_hierarchy: GridHierarchy,
+    active: u64,
+    screen: Panel,
 }
 
 impl Screen {
 
     pub fn new(width: u32, height: u32) -> Screen {
         Screen {
-            grids: GridMap::new(width, height),
-            grid_hierarchy: Grid(0, Region::new(0, 0, width, height)),
+            active: 0,
+            screen: Panel::new(0, Region::new(0, 0, width, height)),
         }
     }
 
     pub fn resize(&mut self, width: Option<u32>, height: Option<u32>, rule: ResizeRule) {
-        let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
         let new_a = match (width, height) {
             (Some(w), Some(h))  => Region::new(0, 0, w, h),
-            (Some(w), None)     => Region::new(0, 0, w, grid_hierarchy.area().bottom),
-            (None,    Some(h))  => Region::new(0, 0, grid_hierarchy.area().right, h),
+            (Some(w), None)     => Region::new(0, 0, w, self.screen.area.bottom),
+            (None,    Some(h))  => Region::new(0, 0, self.screen.area.right, h),
             (None,    None)     => return
         };
-        grid_hierarchy.resize(grids,
-                              new_a,
-                              &|grids, tag, area| grids.resize(tag, area),
-                              rule);
-    }
-
-    pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
-                 stag: Option<u64>, ltag: u64, rtag: u64) {
-        let Screen { ref mut grid_hierarchy, ref mut grids } = *self;
-        if let Some(grid) = grid_hierarchy.find_mut(stag.unwrap_or(grids.active_tag())) {
-            grid.split(grids, GridMap::insert, GridMap::resize, save, kind, rule, ltag, rtag);
-        }
-        if stag.map_or(true, |stag| grids.is_active(stag)) {
-            grids.switch(match save {
-                SaveGrid::Left  => ltag,
-                SaveGrid::Right => rtag,
-                SaveGrid::Dont  => ltag,
-            });
-        }
-    }
-
-    pub fn remove(&mut self, tag: u64, rule: ResizeRule) {
-        if tag != 0 && !self.grids.is_active(tag) {
-            let Screen { ref mut grid_hierarchy, ref mut grids, .. } = *self;
-            grid_hierarchy.remove(grids, GridMap::remove, GridMap::resize, tag, rule);
-        }
+        self.screen.resize(new_a, rule);
     }
 
     pub fn switch(&mut self, tag: u64) {
-        self.grids.switch(tag);
+        if self.find(Some(tag)).map_or(false, Panel::is_grid) {
+            self.active = tag;
+        }
+    }
+
+    pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
+                 split_tag: Option<u64>, l_tag: u64, r_tag: u64) {
+        self.find_mut(split_tag).map(|panel| panel.split(save, kind, rule, l_tag, r_tag));
+    }
+
+    pub fn unsplit(&mut self, save: SaveGrid, rule: ResizeRule, unsplit_tag: Option<u64>) {
+        self.find_mut(unsplit_tag).map(|panel| panel.unsplit(save, rule));
+    }
+
+    pub fn push(&mut self, tag: Option<u64>) {
+        self.find_mut(tag).map(Panel::push);
+    }
+
+    pub fn pop(&mut self, tag: Option<u64>) {
+        self.find_mut(tag).map(Panel::pop);
+    }
+
+    pub fn cells(&self) -> Cells {
+        Cells {
+            iter: CoordsIter::from_region(self.screen.area),
+            screen: &self.screen
+        }
+    }
+
+    fn find(&self, tag: Option<u64>) -> Option<&Panel> {
+        self.screen.find(tag.unwrap_or(self.active))
+    }
+
+    fn find_mut(&mut self, tag: Option<u64>) -> Option<&mut Panel> {
+        self.screen.find_mut(tag.unwrap_or(self.active))
     }
 
 }
@@ -74,53 +78,24 @@ impl Screen {
 impl Deref for Screen {
     type Target = CharGrid;
     fn deref(&self) -> &CharGrid {
-        self.grids.active()
+        self.find(None).expect("active panel must exist").grid()
     }
 }
 
 impl DerefMut for Screen {
     fn deref_mut(&mut self) -> &mut CharGrid {
-        self.grids.active_mut()
+        self.find_mut(None).expect("active panel must exist").grid_mut()
     }
 }
 
-impl Index<Coords> for Screen {
-    type Output = CharCell;
-    fn index(&self, idx: Coords) -> &CharCell {
-        fn _index(grid_h: &GridHierarchy, idx: Coords) -> (u64, Coords) {
-            match *grid_h {
-                Grid(tag, area) => (tag, area.offset(idx)),
-                Split { ref left, .. } if left.area().contains(idx) => _index(left, idx),
-                Split { ref right, .. } if right.area().contains(idx) => _index(right, idx),
-                Stack { ref stack, .. } => _index(stack.last().unwrap(), idx),
-                _ => unreachable!()
-            }
-        }
-        let (tag, idx) = _index(&self.grid_hierarchy, idx);
-        &self.grids.find(tag).unwrap()[idx]
-    }
+pub struct Cells<'a> {
+    iter: CoordsIter,
+    screen: &'a Panel,
 }
 
-impl<'a> IntoIterator for &'a Screen {
-    type Item = &'a CharCell;
-    type IntoIter = ScreenIter<'a>;
-    fn into_iter(self) -> ScreenIter<'a> {
-        ScreenIter {
-            screen: self,
-            iter: CoordsIter::from_region(self.grid_hierarchy.area()),
-        }
-    }
-}
-
-pub struct ScreenIter<'a> {
-    screen: &'a Screen,
-    iter: CoordsIter, 
-}
-
-impl<'a> Iterator for ScreenIter<'a> {
+impl<'a> Iterator for Cells<'a> {
     type Item = &'a CharCell;
     fn next(&mut self) -> Option<&'a CharCell> {
         self.iter.next().map(|coords| &self.screen[coords])
     }
 }
-

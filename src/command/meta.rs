@@ -22,7 +22,8 @@ use datatypes::InputSettings;
 
 impl Command for PushBuffer {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        unimplemented!()
+        terminal.push(Some(0));
+        Ok(())
     }
     fn repr(&self) -> String {
         match self.0 {
@@ -34,7 +35,8 @@ impl Command for PushBuffer {
 
 impl Command for PopBuffer {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        unimplemented!()
+        terminal.pop(Some(0));
+        Ok(())
     }
     fn repr(&self) -> String {
         String::from("POP BUFFER")

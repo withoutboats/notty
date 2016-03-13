@@ -62,7 +62,7 @@ impl Renderer {
         canvas.paint();
 
         let col_n = terminal.grid_width as usize;
-        let rows = terminal.into_iter().chunks_lazy(col_n);
+        let rows = terminal.cells().chunks_lazy(col_n);
 
         // Remove dead images from the cache.
         for key in self.images.keys().filter(|k| Arc::strong_count(k) == 1).cloned().collect::<Vec<_>>() {
