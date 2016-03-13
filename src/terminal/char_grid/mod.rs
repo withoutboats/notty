@@ -260,7 +260,9 @@ impl<'a> IntoIterator for &'a CharGrid {
 impl Index<Coords> for CharGrid {
     type Output = CharCell;
     fn index(&self, Coords {x, y}: Coords) -> &CharCell {
-        &self.grid[Coords { x: x + self.window.left, y: y + self.window.top }]
+        let coords = Coords { x: x + self.window.left, y: y + self.window.top };
+        assert!(self.window.contains(coords));
+        &self.grid[coords]
     }
 }
 
