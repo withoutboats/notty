@@ -53,13 +53,18 @@ pub fn pty(name: &str, width: u16, height: u16) -> (Reader, Writer) {
         ws_xpixel: 0,
         ws_ypixel: 0
     };
-    match unsafe { forkpty(&mut amaster as *mut _,
-                           ptr::null_mut(),
-                           ptr::null(),
-                           &winsize as *const _) } {
+    match unsafe {
+        forkpty(&mut amaster as *mut _,
+                ptr::null_mut(),
+                ptr::null(),
+                &winsize as *const _)
+    } {
         0           => {
             let name = CString::new(name).unwrap();
-            unsafe { libc::execvp(name.as_ptr(), ptr::null()); }
+            unsafe {
+                libc::execvp(name.as_ptr(),
+                             ptr::null());
+            }
             unreachable!();
         }
         n if n > 0  => {
@@ -81,8 +86,11 @@ impl Deref for Reader {
 
 impl io::Read for Reader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match unsafe {libc::read(**self.0, buf.as_mut_ptr() as *mut _, buf.len() as libc::size_t)}
-        {
+        match unsafe {
+            libc::read(**self.0,
+                       buf.as_mut_ptr() as *mut _,
+                       buf.len() as libc::size_t)
+        } {
             n if n >= 0 => Ok(n as usize),
             _           => Err(io::Error::last_os_error()),
         }
@@ -100,8 +108,11 @@ impl Deref for Writer {
 
 impl io::Write for Writer {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match unsafe {libc::write(**self.0, buf.as_ptr() as *const _, buf.len() as libc::size_t)}
-        {
+        match unsafe {
+            libc::write(**self.0,
+                        buf.as_ptr() as *const _,
+                        buf.len() as libc::size_t)
+        } {
             n if n >= 0 => Ok(n as usize),
             _           => Err(io::Error::last_os_error()),
         }
@@ -125,7 +136,11 @@ impl Handle {
             ws_xpixel: 0,
             ws_ypixel: 0
         };
-        match unsafe { libc::ioctl(**self, TIOCSWINSZ, &winsize as *const _) } {
+        match unsafe {
+            libc::ioctl(**self,
+                        TIOCSWINSZ,
+                        &winsize as *const _)
+        } {
             -1  => Err(io::Error::last_os_error()),
             _   => Ok(()),
         }
@@ -139,6 +154,8 @@ impl Deref for Handle {
 
 impl Drop for Handle {
     fn drop(&mut self) {
-        unsafe { libc::close(self.0); }
+        unsafe {
+            libc::close(self.0);
+        }
     }
 }
