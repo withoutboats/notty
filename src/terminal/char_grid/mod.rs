@@ -115,14 +115,22 @@ impl CharGrid {
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
-                self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                self.cursor.navigate(&mut self.grid,
+                                     To(Right, 1, true),
+                                     self.config.tab_stop);
             }
             CellData::ExtensionChar(c)  => {
-                self.cursor.navigate(&mut self.grid, To(Left, 1, true));
+                self.cursor.navigate(&mut self.grid,
+                                     To(Left, 1, true),
+                                     self.config.tab_stop);
                 if !self.grid[self.cursor.coords].extend_by(c) {
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                    self.cursor.navigate(&mut self.grid,
+                                         To(Right, 1, true),
+                                         self.config.tab_stop);
                     self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                    self.cursor.navigate(&mut self.grid,
+                                         To(Right, 1, true),
+                                         self.config.tab_stop);
                 }
             }
             CellData::Image { pos, width, height, data, mime }   => {
@@ -138,7 +146,9 @@ impl CharGrid {
                     for coords in iter {
                         self.grid[coords] = CharCell::Extension(cu_coords, self.cursor.text_style);
                     }
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                    self.cursor.navigate(&mut self.grid,
+                                         To(Right, 1, true),
+                                         self.config.tab_stop);
                 }
             }
         }
@@ -146,7 +156,9 @@ impl CharGrid {
     }
 
     pub fn move_cursor(&mut self, movement: Movement) {
-        self.cursor.navigate(&mut self.grid, movement);
+        self.cursor.navigate(&mut self.grid,
+                             movement,
+                             self.config.tab_stop);
         self.grid_height = self.grid.height as u32;
     }
 
