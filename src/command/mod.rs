@@ -22,6 +22,7 @@ mod erase;
 mod input;
 mod meta;
 mod movement;
+mod panel;
 mod put;
 mod respond;
 mod style;
