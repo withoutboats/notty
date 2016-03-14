@@ -1,16 +1,16 @@
 //  notty is a new kind of terminal emulator.
 //  Copyright (C) 2015 without boats
-//  
+//
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as published by
 //  the Free Software Foundation, either version 3 of the License, or
 //  (at your option) any later version.
-//  
+//
 //  This program is distributed in the hope that it will be useful,
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU Affero General Public License for more details.
-//  
+//
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern crate cairo;
@@ -31,10 +31,12 @@ use std::thread;
 
 use gtk::{WindowTrait, WidgetTrait, WidgetSignals, ContainerTrait};
 
+use notty::cfg::Config;
 use notty::{Output, Command, KeyPress, KeyRelease};
 use notty::terminal::Terminal;
 use notty_cairo::Renderer;
 
+mod cfg;
 mod commands;
 mod key;
 
@@ -57,7 +59,12 @@ fn main() {
 
     // Set the TERM variable and establish a TTY connection
     env::set_var("TERM", "notty");
-    let (tty_r, tty_w) = tty::pty("sh", COLS as u16, ROWS as u16);
+
+    let shell = match env::var("SHELL") {
+        Ok(v) => v,
+        Err(_) => "sh".to_string(),
+    };
+    let (tty_r, tty_w) = tty::pty(&shell, COLS as u16, ROWS as u16);
 
     // Handler program output (tty -> screen) on separate thread.
     let (tx_out, rx) = mpsc::channel();
@@ -70,7 +77,23 @@ fn main() {
     });
 
     // Set up logical terminal and renderer.
-    let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
+    let config = &mut Config::default();
+    let user_config_path = env::home_dir()
+        .unwrap()
+        .join(".scaffolding.rc");
+
+    // For now we don't care why the config failed to update, but in the
+    // reasonably near future we should figure out a more graceful way to
+    // detect and report configuration errors.
+    match cfg::update_from_file(config, &user_config_path) {
+        _ => {},
+    }
+
+    let config = Rc::new(config.clone());
+    let terminal = Rc::new(RefCell::new(Terminal::new(COLS,
+                                                      ROWS,
+                                                      tty_w,
+                                                      config)));
     let renderer = RefCell::new(Renderer::new());
 
     // Process screen logic every 125 milliseconds.

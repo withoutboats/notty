@@ -15,7 +15,6 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::ops::Range;
 
-use notty::cfg::CONFIG;
 use notty::datatypes::Color;
 use notty::terminal::Styles;
 
@@ -74,24 +73,24 @@ impl TextRenderer {
         self.add_style(&range, styles);
     }
 
-    pub fn draw(&self, canvas: &cairo::Context) {
-        if self.is_blank() { return; }
+    pub fn draw(&self, canvas: &cairo::Context, font: &str, bg_color: Color) {
+        if self.is_blank(bg_color) { return; }
 
         // Line positioning
         canvas.move_to(self.x_pos, self.y_pos);
 
         // Set text color
-        let Color(r,g,b) = CONFIG.bg_color;
+        let Color(r,g,b) = bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
 
         // Draw the text
         let cairo = canvas.to_glib_none();
-        PangoLayout::new(cairo.0, CONFIG.font, &self.text, self.pango_attrs()).show(cairo.0);
+        PangoLayout::new(cairo.0, font, &self.text, self.pango_attrs()).show(cairo.0);
     }
 
-    fn is_blank(&self) -> bool {
+    fn is_blank(&self, bg_color: Color) -> bool {
         self.text.chars().all(char::is_whitespace)
-        && self.bg_color.iter().all(|&(_, color)| color == CONFIG.bg_color)
+        && self.bg_color.iter().all(|&(_, color)| color == bg_color)
     }
 
     fn add_style(&mut self, range: &Range<usize>, style: Styles) {

@@ -8,6 +8,7 @@ version = "0.1.0"
 gdk = "0.2.0"
 cairo-rs = "0.0.7"
 gtk = "0.0.6"
+toml = "0.1"
 
 [dependencies.notty]
 path = ".."

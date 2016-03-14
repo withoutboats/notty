@@ -16,11 +16,13 @@
 use std::io::{self, Write};
 use std::mem;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 mod char_grid;
 mod input;
 
 use datatypes::{InputSettings, Key};
+use cfg::Config;
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
@@ -38,8 +40,11 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
-        let grid = CharGrid::new(width, height, false, true);
+    pub fn new<W: Tty + Send + 'static>(width: u32,
+                                        height: u32,
+                                        tty: W,
+                                        config: Rc<Config>) -> Terminal {
+        let grid = CharGrid::new(width, height, false, true, config.clone());
         let tty = Input::new(tty);
         Terminal {
             width: width,
@@ -72,7 +77,7 @@ impl Terminal {
     }
 
     pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
-        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y);
+        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y, self.config.clone());
         mem::swap(&mut grid, &mut self.active);
         self.inactive.push(grid);
     }

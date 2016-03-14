@@ -15,10 +15,11 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use unicode_width::*;
 
-use cfg::CONFIG;
+use cfg::Config;
 use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style, move_within};
 use datatypes::Area::*;
 use datatypes::Movement::*;
@@ -42,22 +43,29 @@ pub struct CharGrid {
     tooltips: HashMap<Coords, Tooltip>,
     pub grid_width: u32,
     pub grid_height: u32,
+    pub config: Rc<Config>,
 }
 
 impl CharGrid {
-    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool) -> CharGrid {
+    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool, config: Rc<Config>) -> CharGrid {
         let grid = match (scroll_x, scroll_y) {
-            (false, false)  => Grid::new(w as usize, h as usize),
-            (false, true)   => Grid::with_y_cap(w as usize, h as usize, CONFIG.scrollback as usize),
+            (false, false)  => Grid::new(w as usize,
+                                         h as usize,
+                                         CharCell::Empty(Styles::new(&config))),
+            (false, true)   => Grid::with_y_cap(w as usize,
+                                                h as usize,
+                                                config.scrollback as usize,
+                                                CharCell::Empty(Styles::new(&config))),
             (true, false)   => unimplemented!(),
             (true, true)    => unimplemented!(),
         };
         CharGrid {
             grid: grid,
-            cursor: Cursor::default(),
+            cursor: Cursor::new(&config.clone()),
             tooltips: HashMap::new(),
             grid_width: w,
             grid_height: h,
+            config: config,
         }
     }
 
@@ -71,7 +79,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((h - self.grid_height) * self.grid_width) as usize;
-                self.grid.add_to_bottom(vec![CharCell::default(); n]);
+                self.grid.add_to_bottom(vec![CharCell::Empty(Styles::new(&self.config)); n]);
             }
         }
         self.grid_height = h;
@@ -87,7 +95,7 @@ impl CharGrid {
             Ordering::Equal     => (),
             Ordering::Less      => {
                 let n = ((w - self.grid_width) * self.grid_height) as usize;
-                self.grid.add_to_right(vec![CharCell::default(); n]);
+                self.grid.add_to_right(vec![CharCell::Empty(Styles::new(&self.config)); n]);
             }
         }
         self.grid_width = w;
@@ -102,35 +110,45 @@ impl CharGrid {
                 let mut coords = self.cursor.coords;
                 for _ in 1..width {
                     let next_coords = move_within(coords, To(Right, 1, false), bounds,
-                                                  CONFIG.tab_stop);
+                                                  self.config.tab_stop);
                     if next_coords == coords { break; } else { coords = next_coords; }
                     self.grid[coords] = CharCell::Extension(self.cursor.coords,
                                                             self.cursor.text_style);
                 }
-                self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                self.cursor.navigate(&mut self.grid,
+                                     To(Right, 1, true),
+                                     self.config.tab_stop);
             }
             CellData::ExtensionChar(c)  => {
-                self.cursor.navigate(&mut self.grid, To(Left, 1, true));
+                self.cursor.navigate(&mut self.grid,
+                                     To(Left, 1, true),
+                                     self.config.tab_stop);
                 if !self.grid[self.cursor.coords].extend_by(c) {
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                    self.cursor.navigate(&mut self.grid,
+                                         To(Right, 1, true),
+                                         self.config.tab_stop);
                     self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                    self.cursor.navigate(&mut self.grid,
+                                         To(Right, 1, true),
+                                         self.config.tab_stop);
                 }
             }
             CellData::Image { pos, width, height, data, mime }   => {
                 let mut end = self.cursor.coords;
-                end = move_within(end, To(Right, width, false), self.grid.bounds(), CONFIG.tab_stop);
-                end = move_within(end, To(Down, height, false), self.grid.bounds(), CONFIG.tab_stop);
+                end = move_within(end, To(Right, width, false), self.grid.bounds(), self.config.tab_stop);
+                end = move_within(end, To(Down, height, false), self.grid.bounds(), self.config.tab_stop);
                 let mut iter = CoordsIter::from_area(CursorBound(end),
                                                      self.cursor.coords, self.grid.bounds(),
-                                                     CONFIG.tab_stop);
+                                                     self.config.tab_stop);
                 if let Some(cu_coords) = iter.next() {
                     self.grid[cu_coords] = CharCell::image(data, self.cursor.coords, mime, pos,
                                                            width, height, self.cursor.text_style);
                     for coords in iter {
                         self.grid[coords] = CharCell::Extension(cu_coords, self.cursor.text_style);
                     }
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
+                    self.cursor.navigate(&mut self.grid,
+                                         To(Right, 1, true),
+                                         self.config.tab_stop);
                 }
             }
         }
@@ -138,7 +156,9 @@ impl CharGrid {
     }
 
     pub fn move_cursor(&mut self, movement: Movement) {
-        self.cursor.navigate(&mut self.grid, movement);
+        self.cursor.navigate(&mut self.grid,
+                             movement,
+                             self.config.tab_stop);
         self.grid_height = self.grid.height as u32;
     }
 
@@ -166,7 +186,7 @@ impl CharGrid {
         let mut iter = CoordsIter::from_area(CursorTo(ToEdge(Right)),
                                              self.cursor.coords,
                                              self.grid.bounds(),
-                                             CONFIG.tab_stop);
+                                             self.config.tab_stop);
         iter.next();
         for coords in iter.rev().skip(n as usize) {
             self.grid.moveover(coords, Coords {x: coords.x + n, y: coords.y});
@@ -203,27 +223,29 @@ impl CharGrid {
     }
 
     pub fn set_style(&mut self, style: Style) {
-        self.cursor.text_style.update(style);
+        self.cursor.text_style.update(style, &self.config);
     }
 
     pub fn reset_styles(&mut self) {
-        self.cursor.text_style = Styles::default();
+        self.cursor.text_style = Styles::new(&self.config);
     }
 
     pub fn set_cursor_style(&mut self, style: Style) {
-        self.cursor.style.update(style);
+        self.cursor.style.update(style, &self.config);
     }
 
     pub fn reset_cursor_styles(&mut self) {
-        self.cursor.style = Styles::default();
+        self.cursor.style = Styles::new(&self.config);
     }
 
     pub fn set_style_in_area(&mut self, area: Area, style: Style) {
-        self.in_area(area, |grid, coords| grid[coords].style_mut().update(style));
+        let config = self.config.clone();
+        self.in_area(area, |grid, coords| grid[coords].style_mut().update(style, &config));
     }
 
     pub fn reset_styles_in_area(&mut self, area: Area) {
-        self.in_area(area, |grid, coords| *grid[coords].style_mut() = Styles::default());
+        let config = self.config.clone();
+        self.in_area(area, |grid, coords| *grid[coords].style_mut() = Styles::new(&config));
     }
 
     pub fn cursor_position(&self) -> Coords {
@@ -252,7 +274,7 @@ impl CharGrid {
 
     fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {
         for coords in CoordsIter::from_area(area, self.cursor.coords, self.grid.bounds(),
-                                            CONFIG.tab_stop) {
+                                            self.config.tab_stop) {
             f(&mut self.grid, coords);
         }
     }
@@ -270,14 +292,17 @@ impl<'a> IntoIterator for &'a CharGrid {
 #[cfg(test)]
 mod tests {
 
+    use std::rc::Rc;
+
     use super::*;
 
-    use cfg::CONFIG;
+    use cfg::Config;
     use datatypes::{CellData, Coords, Direction, Movement};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        test(CharGrid::new(10, 10, false, false), 10);
-        test(CharGrid::new(10, 10, false, true), 11);
+        let config = Rc::new(Config::default());
+        test(CharGrid::new(10, 10, false, false, config.clone()), 10);
+        test(CharGrid::new(10, 10, false, true, config.clone()), 11);
     }
 
     #[test]
@@ -320,10 +345,11 @@ mod tests {
 
     #[test]
     fn move_cursor() {
+        let config = Config::default();
         run_test(|mut grid, h| {
             let movements = vec![
                 (Movement::ToEdge(Direction::Down), Coords {x:0, y:9}),
-                (Movement::Tab(Direction::Right, 1, false), Coords{x:CONFIG.tab_stop, y:9}),
+                (Movement::Tab(Direction::Right, 1, false), Coords{x:config.tab_stop, y:9}),
                 (Movement::NextLine(1), Coords{x:0, y:h-1}),
             ];
             for (mov, coords) in movements {
