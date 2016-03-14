@@ -120,8 +120,28 @@ impl NottyData {
                 })))
             }
             Some(0x54)  => wrap(Coords::decode(args.next(), None).map(RemoveToolTip)),
-            Some(0x60)  => wrap(bool::decode(args.next(), Some(false)).map(PushBuffer)),
-            Some(0x61)  => wrap(Some(PopBuffer)),
+            Some(0x60)  => wrap(Some(PushPanel(u64::decode(args.next(), None)))),
+            Some(0x61)  => wrap(Some(PushPanel(u64::decode(args.next(), None)))),
+            Some(0x62)  => {
+                let l_tag = u64::decode(args.next(), None);
+                let r_tag = u64::decode(args.next(), None);
+                let kind = SplitKind::decode(args.next(), None);
+                let save = SaveGrid::decode(args.next(), Some(SaveGrid::Left));
+                let rule = ResizeRule::decode(args.next(), Some(ResizeRule::Percentage));
+                let split_tag = u64::decode(args.next(), None);
+                match (l_tag, r_tag, kind, save, rule) {
+                    (Some(l_t), Some(r_t), Some(k), Some(s), Some(r)) => {
+                        wrap(Some(SplitPanel::new(l_t, r_t, k, s, r, split_tag)))
+                    }
+                    _ => None
+                }
+            }
+            Some(0x63)  => {
+                SaveGrid::decode(args.next(), Some(SaveGrid::Left)).and_then(|save| {
+                    wrap(Some(UnsplitPanel::new(save, u64::decode(args.next(), None))))
+                })
+            }
+            Some(0x67)  => wrap(u64::decode(args.next(), None).map(SwitchActivePanel)),
             Some(0x80)  => wrap(InputSettings::decode(args.next(), Some(Ansi(false))).map(SetInputMode)),
             _           => None,
         }

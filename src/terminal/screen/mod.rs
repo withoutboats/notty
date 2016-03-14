@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use datatypes::Region;
+use datatypes::{Region, SaveGrid, SplitKind, ResizeRule};
 use terminal::char_grid::CharGrid;
 
 mod stack;
@@ -8,7 +8,7 @@ mod panel;
 
 use self::panel::Panel;
 
-pub use self::panel::{ResizeRule, SplitKind, SaveGrid, Cells, Panels};
+pub use self::panel::{Cells, Panels};
 pub use self::stack::Stack;
 
 pub struct Screen {
@@ -46,8 +46,8 @@ impl Screen {
         self.find_mut(split_tag).map(|panel| panel.split(save, kind, rule, l_tag, r_tag));
     }
 
-    pub fn unsplit(&mut self, save: SaveGrid, rule: ResizeRule, unsplit_tag: Option<u64>) {
-        self.find_mut(unsplit_tag).map(|panel| panel.unsplit(save, rule));
+    pub fn unsplit(&mut self, save: SaveGrid, unsplit_tag: Option<u64>) {
+        self.find_mut(unsplit_tag).map(|panel| panel.unsplit(save));
     }
 
     pub fn push(&mut self, tag: Option<u64>) {

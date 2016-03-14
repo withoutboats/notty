@@ -19,8 +19,8 @@ use gdk::glib::translate::ToGlibPtr;
 use itertools::Itertools;
 
 use notty::cfg::CONFIG;
-use notty::datatypes::Color;
-use notty::terminal::{CharCell, Terminal, ImageData, ResizeRule};
+use notty::datatypes::{Color, ResizeRule};
+use notty::terminal::{CharCell, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 

@@ -2,32 +2,14 @@ use std::cmp;
 use std::mem;
 use std::ops::Index;
 
-use datatypes::{Region, Coords, CoordsIter};
+use datatypes::{Region, Coords, CoordsIter, SaveGrid, SplitKind, ResizeRule};
+use datatypes::SplitKind::*;
+use datatypes::ResizeRule::*;
 
 use terminal::{CharGrid, CharCell};
 use super::Stack;
 
 use self::PanelKind::*;
-use self::SplitKind::*;
-use self::ResizeRule::*;
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum SplitKind {
-    Horizontal(u32),
-    Vertical(u32),
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum SaveGrid {
-    Left, Right
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ResizeRule {
-    Percentage,
-    MaxLeftTop,
-    MaxRightBottom,
-}
 
 pub struct Panel {
     pub area: Region,
@@ -123,7 +105,7 @@ impl Panel {
         }
     }
 
-    pub fn unsplit(&mut self, save: SaveGrid, rule: ResizeRule) {
+    pub fn unsplit(&mut self, save: SaveGrid) {
         let (mut saved_stack, old_a) = match (save, &mut self.stack.top) {
             (SaveGrid::Left, &mut Split { ref mut left, .. }) =>
                 (mem::replace(&mut left.stack, Stack::new(DeadGrid)), left.area),
@@ -132,7 +114,7 @@ impl Panel {
             _ => return
         };
         for panel in &mut saved_stack {
-            panel.resize(old_a, self.area, rule);
+            panel.resize(old_a, self.area, ResizeRule::Percentage);
         }
         self.stack.extend(saved_stack.into_iter().rev());
     }

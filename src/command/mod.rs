@@ -29,7 +29,8 @@ mod tooltip;
 
 pub use notty_encoding::cmds::{
     Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows,
-    PushBuffer, PopBuffer, SetInputMode,
+    PushPanel, PopPanel, SplitPanel, UnsplitPanel, SwitchActivePanel,
+    SetInputMode,
     Move, ScrollScreen,
     SetCursorStyle, DefaultCursorStyle,
     SetTextStyle, DefaultTextStyle,

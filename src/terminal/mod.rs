@@ -21,11 +21,11 @@ mod screen;
 mod input;
 
 use Command;
-use datatypes::{InputSettings, Key};
+use datatypes::{InputSettings, Key, ResizeRule};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
-pub use self::screen::{Screen, SaveGrid, SplitKind, ResizeRule};
+pub use self::screen::{Screen, Cells, Panels};
 
 use self::input::Input;
 

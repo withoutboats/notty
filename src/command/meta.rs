@@ -15,31 +15,63 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cell::RefCell;
 
-use notty_encoding::cmds::{PushBuffer, PopBuffer, SetInputMode};
+use notty_encoding::cmds::{
+    PushPanel, PopPanel,
+    SplitPanel, UnsplitPanel,
+    SwitchActivePanel,
+    SetInputMode
+};
 
 use command::prelude::*;
 use datatypes::InputSettings;
 
-impl Command for PushBuffer {
+impl Command for PushPanel {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.push(Some(0));
+        terminal.push(self.0);
         Ok(())
     }
     fn repr(&self) -> String {
-        match self.0 {
-            true    => String::from("PUSH BUFFER SCROLLING"),
-            false   => String::from("PUSH BUFFER STATIC"),
-        }
+        String::from("PUSH BUFFER")
     }
 }
 
-impl Command for PopBuffer {
+impl Command for PopPanel {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.pop(Some(0));
+        terminal.pop(self.0);
         Ok(())
     }
     fn repr(&self) -> String {
         String::from("POP BUFFER")
+    }
+}
+
+impl Command for SplitPanel {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.split(self.save, self.kind, self.rule, self.split_tag, self.l_tag, self.r_tag);
+        Ok(())
+    }
+    fn repr(&self) -> String {
+        String::from("SPLIT BUFFER")
+    }
+}
+
+impl Command for UnsplitPanel {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.unsplit(self.save, self.unsplit_tag);
+        Ok(())
+    }
+    fn repr(&self) -> String {
+        String::from("UNSPLIT BUFFER")
+    }
+}
+
+impl Command for SwitchActivePanel {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.switch(self.0);
+        Ok(())
+    }
+    fn repr(&self) -> String {
+        format!("SWITCH TO PANEL {}", self.0)
     }
 }
 
