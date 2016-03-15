@@ -7,8 +7,16 @@ use terminal::CharGrid;
 use super::section::ScreenSection;
 use self::Panel::*;
 
-pub enum Panel {
-    Grid(CharGrid),
+pub trait Resizeable {
+    fn resize(&mut self, Region);
+}
+
+impl Resizeable for CharGrid {
+    fn resize(&mut self, area: Region) { self.resize_window(area); }
+}
+
+pub enum Panel<T: Resizeable=CharGrid> {
+    Grid(T),
     Split {
         kind: SplitKind,
         left: Box<ScreenSection>,
@@ -17,7 +25,7 @@ pub enum Panel {
     DeadGrid,
 }
 
-impl Panel {
+impl<T: Resizeable> Panel<T> {
 
     pub fn is_grid(&self) -> bool {
         if let Grid(_) = *self { true } else { false }
@@ -59,6 +67,85 @@ impl Panel {
             }
             DeadGrid => unreachable!()
         }
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::fmt::Debug;
+
+    use datatypes::{Region, SplitKind, ResizeRule};
+    use datatypes::ResizeRule::*;
+    use super::super::section::ScreenSection;
+    use super::*;
+    use super::Panel::*;
+
+    impl Resizeable for Region {
+        fn resize(&mut self, area: Region) { *self = area; }
+    }
+
+    fn grid_panel() -> Panel<Region> {
+        Grid(Region::new(0, 0, 8, 8))
+    }
+
+    fn split_panel() -> Panel<Region> {
+        Split {
+            kind: SplitKind::Horizontal(4),
+            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4))),
+            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8))),
+        }
+    }
+
+    fn run_test<F, T>(f: F, res: [T; 2]) where F: Fn(Panel<Region>) -> T, T: PartialEq + Debug {
+        assert_eq!(f(grid_panel()), res[0]);
+        assert_eq!(f(split_panel()), res[1]);
+    }
+
+    fn run_resize_test(old_a: Region, new_a: Region, rule: ResizeRule,
+                       res: (Region, Region, SplitKind)) {
+        run_test(|mut panel| {
+            panel.resize(old_a, new_a, rule);
+            match panel {
+                Grid(region) => Err(region),
+                Split { left, right, kind } => Ok((left.area(), right.area(), kind)),
+                DeadGrid => unreachable!(),
+            }
+        }, [Err(new_a), Ok(res)])
+    }
+
+    #[test]
+    fn is_grid() {
+        run_test(|panel| panel.is_grid(), [true, false]);
+    }
+
+    #[test]
+    fn find() {
+        run_test(|panel| panel.find(2).is_some(), [false, true]);
+    }
+
+    #[test]
+    fn find_mut() {
+        run_test(|mut panel| panel.find_mut(2).is_some(), [false, true]);
+    }
+
+    #[test]
+    fn resize_down_max_left() {
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), MaxLeftTop,
+            (Region::new(0, 0, 4, 3), Region::new(0, 3, 4, 4), SplitKind::Horizontal(3)))
+    }
+
+    #[test]
+    fn resize_down_max_right() {
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), MaxRightBottom,
+            (Region::new(0, 0, 4, 1), Region::new(0, 1, 4, 4), SplitKind::Horizontal(1)))
+    }
+
+    #[test]
+    fn resize_down_percent() {
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), Percentage,
+            (Region::new(0, 0, 4, 2), Region::new(0, 2, 4, 4), SplitKind::Horizontal(2)))
     }
 
 }

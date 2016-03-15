@@ -63,7 +63,7 @@ impl CharGrid {
         }
     }
 
-    pub fn resize(&mut self, region: Region) {
+    pub fn resize_window(&mut self, region: Region) {
         if self.grid_width < region.width() {
             let n = (region.width() - self.grid_width) * self.grid_height;
             self.grid.add_to_right(vec![CharCell::default(); n as usize]);
