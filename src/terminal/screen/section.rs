@@ -5,28 +5,29 @@ use datatypes::{Region, Coords, CoordsIter, SaveGrid, SplitKind, ResizeRule};
 use datatypes::SplitKind::*;
 use terminal::{CharGrid, CharCell};
 
-
+use super::GridFill;
 use super::panel::Panel;
 use super::panel::Panel::*;
 use super::stack::Stack;
 
 /// A (rectangular) section of the screen, which contains a stack of panels.
-pub struct ScreenSection {
+#[derive(Debug, Eq, PartialEq)]
+pub struct ScreenSection<T=CharGrid> where T: GridFill {
     tag: u64,
     area: Region,
-    stack: Stack<Panel>,
+    stack: Stack<Panel<T>>,
 }
 
-impl ScreenSection {
+impl<T: GridFill> ScreenSection<T> {
 
     /// Construct a new ScreenSection with a given tag for this area of the screen. It will be
     /// filled with an empty grid.
-    pub fn new(tag: u64, area: Region) -> ScreenSection {
-        let grid = CharGrid::new(area.width(), area.height(), false, false);
+    pub fn new(tag: u64, area: Region) -> ScreenSection<T> {
+        let grid = T::new(area.width(), area.height(), false);
         ScreenSection::with_data(tag, area, Grid(grid))
     }
 
-    fn with_data(tag: u64, area: Region, data: Panel) -> ScreenSection {
+    fn with_data(tag: u64, area: Region, data: Panel<T>) -> ScreenSection<T> {
         ScreenSection {
             tag: tag,
             area: area,
@@ -53,24 +54,24 @@ impl ScreenSection {
         self.area
     }
 
-    pub fn top(&self) -> &Panel {
+    pub fn top(&self) -> &Panel<T> {
         &self.stack.top
     }
 
     /// Find the section with this tag.
-    pub fn find(&self, tag: u64) -> Option<&ScreenSection> {
+    pub fn find(&self, tag: u64) -> Option<&ScreenSection<T>> {
         if self.tag == tag { Some(self) }
         else { self.stack.iter().flat_map(|panel| panel.find(tag)).next() }
     }
 
     /// Find the section with this tag, returning a mutable reference.
-    pub fn find_mut(&mut self, tag: u64) -> Option<&mut ScreenSection> {
+    pub fn find_mut(&mut self, tag: u64) -> Option<&mut ScreenSection<T>> {
         if self.tag == tag { Some(self) }
         else { self.stack.iter_mut().flat_map(|panel| panel.find_mut(tag)).next() }
     }
 
     /// Get the grid associated with this section - panic if this section is split.
-    pub fn grid(&self) -> &CharGrid {
+    pub fn grid(&self) -> &T {
         match self.stack.top {
             Grid(ref grid) => grid,
             _ => panic!("Cannot call grid on a split section of the screen"),
@@ -79,25 +80,10 @@ impl ScreenSection {
 
     /// Get a mutable reference to the grid associated with this section - panic if this section
     /// is split.
-    pub fn grid_mut(&mut self) -> &mut CharGrid {
+    pub fn grid_mut(&mut self) -> &mut T {
         match self.stack.top {
             Grid(ref mut grid) => grid,
             _ => panic!("Cannot call grid_mut on a split section of the screen"),
-        }
-    }
-
-    /// Iterate over all of the cells in this section of the screen.
-    pub fn cells(&self) -> super::Cells {
-        super::Cells {
-            iter: CoordsIter::from_region(self.area),
-            screen: self,
-        }
-    }
-
-    /// Iterate over all of the visible leaf panels in this section of the screen.
-    pub fn panels(&self) -> super::Panels {
-        super::Panels {
-            stack: vec![self],
         }
     }
 
@@ -154,13 +140,32 @@ impl ScreenSection {
 
     /// Push a new empty grid panel on top of this section.
     pub fn push(&mut self) {
-        let grid = CharGrid::new(self.area.width(), self.area.height(), false, false);
+        let grid = T::new(self.area.width(), self.area.height(), false);
         self.stack.push(Grid(grid));
     }
 
     /// Remove the top panel of this section.
     pub fn pop(&mut self) {
         self.stack.pop();
+    }
+
+}
+
+impl ScreenSection {
+
+    /// Iterate over all of the cells in this section of the screen.
+    pub fn cells(&self) -> super::Cells {
+        super::Cells {
+            iter: CoordsIter::from_region(self.area),
+            screen: self,
+        }
+    }
+
+    /// Iterate over all of the visible leaf panels in this section of the screen.
+    pub fn panels(&self) -> super::Panels {
+        super::Panels {
+            stack: vec![self],
+        }
     }
 
 }
@@ -189,180 +194,125 @@ impl Index<Coords> for ScreenSection {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
 
-    mod splits {
-        use super::super::*;
-        use super::super::panel::Panel::*;
-        use super::super::ScreenSection;
+    use super::*;
+    use super::super::panel::Panel::*;
+    use super::super::stack::Stack;
 
-        use datatypes::Region;
+    use datatypes::Region;
+    use datatypes::SplitKind::*;
 
-        // The hierarchy this sets up is:
-        //  0
-        //  | \
-        //  1  2
-        //  | \
-        //  3 0x0beefdad
-        fn setup_panel() -> Panel {
-            Split {
-                tag: 0,
-                area: Region::new(0, 0, 8, 8),
-                kind: SplitKind::Vertical(4),
-                left: Box::new(Split {
-                    tag: 1,
-                    area: Region::new(0, 0, 4, 8),
-                    kind: SplitKind::Horizontal(4),
-                    left: Box::new(Grid(3, Region::new(0, 0, 4, 4))),
-                    right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8))),
-                }),
-                right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
-            }
-        }
-
-        // After this test:
-        //  0
-        //  | \
-        //  1  2
-        //  | \
-        //  4 0x0badcafe
-        //  | \
-        //  3 0x0beefdad
-        #[test]
-        fn split_grid_1() {
-            let mut gh = setup_panel();
-            gh.find_mut(1).unwrap().split(&mut (), |_, _, _, _| {}, |_, _, _| {}, SaveGrid::Left,
-                                          SplitKind::Horizontal(4), ResizeRule::Percentage,
-                                          4, 0x0badcafe);
-            assert_eq!(gh, Split {
-                tag: 0,
-                area: Region::new(0, 0, 8, 8),
-                kind: SplitKind::Vertical(4),
-                left: Box::new(Split {
-                    tag: 1,
-                    area: Region::new(0,0, 4, 8),
-                    kind: SplitKind::Horizontal(4),
-                    left: Box::new(Split {
-                        tag: 4,
-                        area: Region::new(0, 0, 4, 4),
-                        kind: SplitKind::Horizontal(2),
-                        left: Box::new(Grid(3, Region::new(0, 0, 4, 2))),
-                        right: Box::new(Grid(0x0beefdad, Region::new(0, 2, 4, 4))),
-                    }),
-                    right: Box::new(Grid(0x0badcafe, Region::new(0, 4, 4, 8)))
-                }),
-                right: Box::new(Grid(2, Region::new(4, 0, 8, 8)))
-            });
-        }
-
-        // After this test:
-        //       0
-        //     /    \
-        //    1      2
-        //  / |      | \
-        // 3 beefdad 4 badcafe
-        #[test]
-        fn split_grid_2() {
-            let mut gh = setup_panel();
-            gh.find_mut(2).unwrap().split(&mut (), |_, _, _, _| {}, |_, _, _| {}, SaveGrid::Left,
-                                          SplitKind::Horizontal(2), ResizeRule::Percentage,
-                                          4, 0x0badcafe);
-            assert_eq!(gh, Split {
-                tag: 0,
-                area: Region::new(0, 0, 8, 8),
-                kind: SplitKind::Vertical(4),
-                left: Box::new(Split {
-                    tag: 1,
-                    area: Region::new(0, 0, 4, 8),
-                    kind: SplitKind::Horizontal(4),
-                    left: Box::new(Grid(3, Region::new(0, 0, 4, 4))),
-                    right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8))),
-                }),
-                right: Box::new(Split {
-                    tag: 2,
-                    area: Region::new(4, 0, 8, 8),
-                    kind: SplitKind::Horizontal(2),
-                    left: Box::new(Grid(4, Region::new(4, 0, 8, 2))),
-                    right: Box::new(Grid(0x0badcafe, Region::new(4, 2, 8, 8))),
-                }),
-            })
-        }
-
-        // After this test:
-        //  0
-        //  | \
-        //  1  2
-        //  | \
-        //  3 0x0beefdad
-        //  | \
-        //  4 0x0badcafe
-        #[test]
-        fn split_grid_3() {
-            let mut gh = setup_panel();
-            gh.find_mut(3).unwrap().split(&mut (), |_, _, _, _| {}, |_, _, _| {}, SaveGrid::Right,
-                                          SplitKind::Vertical(6), ResizeRule::MaxLeftTop,
-                                          4, 0x0badcafe);
-            assert_eq!(gh, Split {
-                tag: 0,
-                area: Region::new(0, 0, 8, 8),
-                kind: SplitKind::Vertical(4),
-                left: Box::new(Split {
-                    tag: 1,
-                    area: Region::new(0,0, 4, 8),
-                    kind: SplitKind::Horizontal(4),
-                    left: Box::new(Split {
-                        tag: 3,
-                        area: Region::new(0, 0, 4, 4),
-                        kind: SplitKind::Vertical(3),
-                        left: Box::new(Grid(4, Region::new(0, 0, 3, 4))),
-                        right: Box::new(Grid(0x0badcafe, Region::new(3, 0, 4, 4))),
-                    }),
-                    right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 4, 8)))
-                }),
-                right: Box::new(Grid(2, Region::new(4, 0, 8, 8)))
-            })
-        }
-
-        // After this test:
-        // 0
-        // | \
-        // 3  2
-        #[test]
-        fn remove_a_grid_beefdad() {
-            let mut gh = setup_panel();
-            gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 0x0beefdad, ResizeRule::Percentage);
-            assert_eq!(gh, Split {
-                tag: 0,
-                area: Region::new(0, 0, 8, 8),
-                kind: SplitKind::Vertical(4),
-                left: Box::new(Grid(3, Region::new(0, 0, 4, 8))),
-                right: Box::new(Grid(2, Region::new(4, 0, 8, 8))),
-            })
-        }
-    
-        // After this test:
-        // 2
-        #[test]
-        fn remove_grid_1() {
-            let mut gh = setup_panel();
-            gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 1, ResizeRule::Percentage);
-            assert_eq!(gh, Grid(2, Region::new(0, 0, 8, 8)));
-        }
-    
-        // After this test:
-        // 1
-        // | \
-        // 3  0x0beefdad
-        #[test]
-        fn remove_grid_2() {
-            let mut gh = setup_panel();
-            gh.remove(&mut (), |_, _| {}, |_, _, _| {}, 2, ResizeRule::Percentage);
-            assert_eq!(gh, Split {
-                tag: 1,
-                area: Region::new(0, 0, 8, 8),
-                kind: SplitKind::Horizontal(4),
-                left: Box::new(Grid(3, Region::new(0, 0, 8, 4))),
-                right: Box::new(Grid(0x0beefdad, Region::new(0, 4, 8, 8))),
-            })
+    fn grid_section() -> ScreenSection<Region> {
+        ScreenSection {
+            tag: 0,
+            area: Region::new(0, 0, 8, 8),
+            stack: Stack::new(Grid(Region::new(0, 0, 8, 8))),
         }
     }
+
+    fn split_section() -> ScreenSection<Region> {
+        ScreenSection {
+            tag: 0,
+            area: Region::new(0, 0, 8, 8),
+            stack: Stack::new(Split {
+                kind: Vertical(4),
+                left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
+                right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8))),
+            }),
+        }
+    }
+
+    fn run_test<F, T>(f: F, res: [T; 2])
+    where F: Fn(ScreenSection<Region>) -> T, T: PartialEq + Debug {
+        assert_eq!(f(grid_section()), res[0]);
+        assert_eq!(f(split_section()), res[1]);
+    }
+
+    #[test]
+    fn new() {
+        assert_eq!(grid_section(), ScreenSection::new(0, Region::new(0, 0, 8, 8)));
+    }
+
+    #[test]
+    fn with_data() {
+        assert_eq!(split_section(), ScreenSection::with_data(0, Region::new(0, 0, 8, 8), Split {
+            kind: Vertical(4),
+            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
+            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8))),
+        }));
+    }
+
+    #[test]
+    fn is_grid() {
+        run_test(|section| section.is_grid(), [true, false]);
+    }
+
+    #[test]
+    fn count_grids() {
+        run_test(|section| section.count_grids(), [1, 2]);
+    }
+
+    #[test]
+    fn area() {
+        run_test(|section| section.area(), [Region::new(0, 0, 8, 8), Region::new(0, 0, 8, 8)]);
+    }
+
+    #[test]
+    fn find() {
+        run_test(|section| section.find(1).is_some(), [false, true]);
+    }
+
+    #[test]
+    fn find_mut() {
+        run_test(|mut section| section.find_mut(1).is_some(), [false, true]);
+    }
+
+    #[test]
+    fn grid() {
+        assert_eq!(*grid_section().grid(), Region::new(0, 0, 8, 8));
+    }
+
+    #[test]
+    #[should_panic]
+    fn grid_on_split() {
+        split_section().grid();
+    }
+
+    #[test]
+    fn grid_mut() {
+        assert_eq!(*grid_section().grid_mut(), Region::new(0, 0, 8, 8));
+    }
+
+    #[test]
+    #[should_panic]
+    fn grid_mut_on_split() {
+        split_section().grid_mut();
+    }
+
+    #[test]
+    fn resize() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn split() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn unsplit() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn push() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn pop() {
+        unimplemented!()
+    }
+
 }

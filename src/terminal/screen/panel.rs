@@ -4,40 +4,34 @@ use datatypes::ResizeRule::*;
 
 use terminal::CharGrid;
 
+use super::GridFill;
 use super::section::ScreenSection;
 use self::Panel::*;
 
-pub trait Resizeable {
-    fn resize(&mut self, Region);
-}
-
-impl Resizeable for CharGrid {
-    fn resize(&mut self, area: Region) { self.resize_window(area); }
-}
-
-pub enum Panel<T: Resizeable=CharGrid> {
+#[derive(Debug, Eq, PartialEq)]
+pub enum Panel<T=CharGrid> where T: GridFill {
     Grid(T),
     Split {
         kind: SplitKind,
-        left: Box<ScreenSection>,
-        right: Box<ScreenSection>,
+        left: Box<ScreenSection<T>>,
+        right: Box<ScreenSection<T>>,
     },
     DeadGrid,
 }
 
-impl<T: Resizeable> Panel<T> {
+impl<T: GridFill> Panel<T> {
 
     pub fn is_grid(&self) -> bool {
         if let Grid(_) = *self { true } else { false }
     }
 
-    pub fn find(&self, tag: u64) -> Option<&ScreenSection> {
+    pub fn find(&self, tag: u64) -> Option<&ScreenSection<T>> {
         if let Split { ref left, ref right, .. } = *self {
             left.find(tag).or_else(move || right.find(tag))
         } else { None }
     }
 
-    pub fn find_mut(&mut self, tag: u64) -> Option<&mut ScreenSection> {
+    pub fn find_mut(&mut self, tag: u64) -> Option<&mut ScreenSection<T>> {
         if let Split { ref mut left, ref mut right, .. } = *self {
             left.find_mut(tag).or_else(move || right.find_mut(tag))
         } else { None }
@@ -83,13 +77,10 @@ mod tests {
 
     use datatypes::{Region, SplitKind, ResizeRule};
     use datatypes::ResizeRule::*;
+    use super::super::GridFill;
     use super::super::section::ScreenSection;
     use super::*;
     use super::Panel::*;
-
-    impl Resizeable for Region {
-        fn resize(&mut self, area: Region) { *self = area; }
-    }
 
     fn grid_panel() -> Panel<Region> {
         Grid(Region::new(0, 0, 8, 8))

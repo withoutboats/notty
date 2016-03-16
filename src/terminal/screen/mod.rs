@@ -10,6 +10,25 @@ mod stack;
 use self::section::ScreenSection;
 use self::panel::Panel::*;
 
+pub trait GridFill {
+    fn new(u32, u32, bool) -> Self;
+    fn resize(&mut self, Region);
+}
+
+impl GridFill for CharGrid {
+    fn new(width: u32, height: u32, expand: bool) -> CharGrid {
+        CharGrid::new(width, height, expand, expand)
+    }
+    fn resize(&mut self, area: Region) { self.resize_window(area); }
+}
+
+impl GridFill for Region {
+    fn new(width: u32, height: u32, _: bool) -> Region {
+        Region::new(0, 0, width, height)
+    }
+    fn resize(&mut self, area: Region) { *self = area; }
+}
+
 pub struct Screen {
     active: u64,
     screen: ScreenSection,
