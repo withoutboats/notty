@@ -43,24 +43,13 @@ impl<T: Resizeable> Panel<T> {
         } else { None }
     }
 
-    pub fn resize(&mut self, old_a: Region, new_a: Region, rule: ResizeRule) {
+    pub fn resize(&mut self, old_area: Region, new_area: Region, rule: ResizeRule) {
         match *self {
             Grid(ref mut grid) => {
-                grid.resize(new_a);
+                grid.resize(new_area);
             }
             Split { ref mut left, ref mut right, ref mut kind } => {
-                *kind = match (*kind, rule) {
-                    (Horizontal(mut n), Percentage) => {
-                        n = (n as f32 / old_a.height() as f32 * new_a.height() as f32) as u32;
-                        Horizontal(n)
-                    }
-                    (Vertical(mut n), Percentage)   => {
-                        n = (n as f32 / old_a.width() as f32 * new_a.width() as f32) as u32;
-                        Vertical(n)
-                    }
-                    _                               => *kind
-                };
-                let (new_kind, l_area, r_area) = new_a.split(*kind, rule);
+                let (new_kind, l_area, r_area) = resize_split(old_area, new_area, *kind, rule);
                 *kind = new_kind;
                 left.resize(l_area, rule);
                 right.resize(r_area, rule);
@@ -69,6 +58,22 @@ impl<T: Resizeable> Panel<T> {
         }
     }
 
+}
+
+fn resize_split(old_area: Region, new_area: Region, kind: SplitKind, rule: ResizeRule)
+        -> (SplitKind, Region, Region) {
+    let kind = match (kind, rule) {
+        (Horizontal(n), Percentage) if old_area.height() != new_area.height()       =>
+            Horizontal((n as f32 / old_area.height() as f32 * new_area.height() as f32) as u32),
+        (Vertical(n), Percentage) if old_area.width() != old_area.width()           =>
+            Vertical((n as f32 / old_area.width() as f32 * new_area.width() as f32) as u32),
+        (Horizontal(n), MaxLeftTop) if new_area.height() > old_area.height()        =>
+            Horizontal(new_area.height() - old_area.height() + n),
+        (Vertical(n), MaxLeftTop) if new_area.width() > old_area.width()            =>
+            Vertical(new_area.width() - old_area.width() + n),
+        _ => kind,
+    };
+    new_area.split(kind, rule)
 }
 
 #[cfg(test)]
@@ -133,19 +138,43 @@ mod tests {
     #[test]
     fn resize_down_max_left() {
         run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), MaxLeftTop,
-            (Region::new(0, 0, 4, 3), Region::new(0, 3, 4, 4), SplitKind::Horizontal(3)))
+            (Region::new(0, 0, 4, 3), Region::new(0, 3, 4, 4), SplitKind::Horizontal(3)));
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 6, 6), MaxLeftTop,
+            (Region::new(0, 0, 6, 4), Region::new(0, 4, 6, 6), SplitKind::Horizontal(4)));
     }
 
     #[test]
     fn resize_down_max_right() {
         run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), MaxRightBottom,
-            (Region::new(0, 0, 4, 1), Region::new(0, 1, 4, 4), SplitKind::Horizontal(1)))
+            (Region::new(0, 0, 4, 1), Region::new(0, 1, 4, 4), SplitKind::Horizontal(1)));
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 6, 6), MaxRightBottom,
+            (Region::new(0, 0, 6, 2), Region::new(0, 2, 6, 6), SplitKind::Horizontal(2)));
     }
 
     #[test]
     fn resize_down_percent() {
         run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), Percentage,
-            (Region::new(0, 0, 4, 2), Region::new(0, 2, 4, 4), SplitKind::Horizontal(2)))
+            (Region::new(0, 0, 4, 2), Region::new(0, 2, 4, 4), SplitKind::Horizontal(2)));
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 6, 6), Percentage,
+            (Region::new(0, 0, 6, 3), Region::new(0, 3, 6, 6), SplitKind::Horizontal(3)));
+    }
+
+    #[test]
+    fn resize_up_max_left() {
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 16, 16), MaxLeftTop,
+            (Region::new(0, 0, 16, 12), Region::new(0, 12, 16, 16), SplitKind::Horizontal(12)));
+    }
+
+    #[test]
+    fn resize_up_max_right() {
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 16, 16), MaxRightBottom,
+            (Region::new(0, 0, 16, 4), Region::new(0, 4, 16, 16), SplitKind::Horizontal(4)));
+    }
+
+    #[test]
+    fn resize_up_percent() {
+        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 16, 16), Percentage,
+            (Region::new(0, 0, 16, 8), Region::new(0, 8, 16, 16), SplitKind::Horizontal(8)));
     }
 
 }
