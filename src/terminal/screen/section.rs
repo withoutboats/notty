@@ -89,10 +89,10 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Adjust this section of the grid to fit a new area.
     pub fn resize(&mut self, new_area: Region, rule: ResizeRule) {
-        self.area = new_area;
         for panel in &mut self.stack {
             panel.resize(self.area, new_area, rule);
         }
+        self.area = new_area;
     }
 
     /// Split the top panel this section into two sections.
@@ -197,102 +197,159 @@ mod tests {
     use std::fmt::Debug;
 
     use super::*;
+    use super::super::GridFill;
     use super::super::panel::Panel::*;
     use super::super::stack::Stack;
 
-    use datatypes::Region;
+    use datatypes::{Region, CoordsIter, SaveGrid, SplitKind, ResizeRule};
     use datatypes::SplitKind::*;
+    use terminal::CharGrid;
 
-    fn grid_section() -> ScreenSection<Region> {
+    fn grid_section<T: GridFill>() -> ScreenSection<T> {
         ScreenSection {
             tag: 0,
             area: Region::new(0, 0, 8, 8),
-            stack: Stack::new(Grid(Region::new(0, 0, 8, 8))),
+            stack: Stack::new(Grid(T::new(8, 8, false))),
         }
     }
 
-    fn split_section() -> ScreenSection<Region> {
+    fn split_section<T: GridFill>() -> ScreenSection<T> {
         ScreenSection {
             tag: 0,
             area: Region::new(0, 0, 8, 8),
             stack: Stack::new(Split {
                 kind: Vertical(4),
                 left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
-                right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8))),
+                right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
             }),
         }
     }
 
-    fn run_test<F, T>(f: F, res: [T; 2])
+    fn stack_section<T: GridFill>() -> ScreenSection<T> {
+        let mut section = split_section();
+        section.push();
+        section
+    }
+
+    fn run_test<F, T>(f: F, res: [T; 3])
     where F: Fn(ScreenSection<Region>) -> T, T: PartialEq + Debug {
         assert_eq!(f(grid_section()), res[0]);
         assert_eq!(f(split_section()), res[1]);
+        assert_eq!(f(stack_section()), res[2]);
     }
 
     #[test]
     fn new() {
-        assert_eq!(grid_section(), ScreenSection::new(0, Region::new(0, 0, 8, 8)));
+        assert_eq!(grid_section::<Region>(), ScreenSection::new(0, Region::new(0, 0, 8, 8)));
     }
 
     #[test]
     fn with_data() {
-        assert_eq!(split_section(), ScreenSection::with_data(0, Region::new(0, 0, 8, 8), Split {
+        assert_eq!(split_section::<Region>(), ScreenSection::with_data(0, Region::new(0, 0, 8, 8),
+        Split {
             kind: Vertical(4),
             left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
-            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8))),
+            right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
         }));
     }
 
     #[test]
     fn is_grid() {
-        run_test(|section| section.is_grid(), [true, false]);
+        run_test(|section| section.is_grid(), [true, false, true]);
     }
 
     #[test]
     fn count_grids() {
-        run_test(|section| section.count_grids(), [1, 2]);
+        run_test(|section| section.count_grids(), [1, 2, 1]);
     }
 
     #[test]
     fn area() {
-        run_test(|section| section.area(), [Region::new(0, 0, 8, 8), Region::new(0, 0, 8, 8)]);
+        run_test(|section| section.area(), [
+            Region::new(0, 0, 8, 8),
+            Region::new(0, 0, 8, 8),
+            Region::new(0, 0, 8, 8),
+        ]);
     }
 
     #[test]
     fn find() {
-        run_test(|section| section.find(1).is_some(), [false, true]);
+        run_test(|section| section.find(1).is_some(), [false, true, true]);
     }
 
     #[test]
     fn find_mut() {
-        run_test(|mut section| section.find_mut(1).is_some(), [false, true]);
+        run_test(|mut section| section.find_mut(1).is_some(), [false, true, true]);
     }
 
     #[test]
     fn grid() {
-        assert_eq!(*grid_section().grid(), Region::new(0, 0, 8, 8));
+        assert_eq!(*grid_section::<Region>().grid(), Region::new(0, 0, 8, 8));
     }
 
     #[test]
     #[should_panic]
     fn grid_on_split() {
-        split_section().grid();
+        split_section::<Region>().grid();
     }
 
     #[test]
     fn grid_mut() {
-        assert_eq!(*grid_section().grid_mut(), Region::new(0, 0, 8, 8));
+        assert_eq!(*grid_section::<Region>().grid_mut(), Region::new(0, 0, 8, 8));
     }
 
     #[test]
     #[should_panic]
     fn grid_mut_on_split() {
-        split_section().grid_mut();
+        split_section::<Region>().grid_mut();
     }
 
     #[test]
     fn resize() {
-        unimplemented!()
+        run_test(|mut section| {
+            section.resize(Region::new(0, 0, 6, 6), ResizeRule::Percentage);
+            section
+        }, [
+            ScreenSection::new(0, Region::new(0, 0, 6, 6)),
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 6, 6),
+                stack: Stack::new(Split {
+                    kind: Vertical(3),
+                    left: Box::new(ScreenSection {
+                        tag: 1,
+                        area: Region::new(0, 0, 3, 6),
+                        stack: Stack::new(Grid(Region::new(0, 0, 3, 6))),
+                    }),
+                    right: Box::new(ScreenSection {
+                        tag: 2,
+                        area: Region::new(3, 0, 6, 6),
+                        stack: Stack::new(Grid(Region::new(3, 0, 6, 6))),
+                    }),
+                }),
+            },
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 6, 6),
+                stack: {
+                    let mut stack = Stack::new(Split {
+                        kind: Vertical(3),
+                        left: Box::new(ScreenSection {
+                            tag: 1,
+                            area: Region::new(0, 0, 3, 6),
+                            stack: Stack::new(Grid(Region::new(0, 0, 3, 6))),
+                        }),
+                        right: Box::new(ScreenSection {
+                            tag: 2,
+                            area: Region::new(3, 0, 6, 6),
+                            stack: Stack::new(Grid(Region::new(3, 0, 6, 6))),
+                        }),
+                    });
+                    stack.push(Grid(Region::new(0, 0, 6, 6)));
+                    stack
+                }
+            }
+        ]);
     }
 
     #[test]
@@ -301,18 +358,39 @@ mod tests {
     }
 
     #[test]
-    fn unsplit() {
+    fn unsplit_save_left() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn unsplit_save_right() {
         unimplemented!()
     }
 
     #[test]
     fn push() {
-        unimplemented!()
+        run_test(|mut section| { section.push(); *section.grid() }, [
+            Region::new(0, 0, 8, 8),
+            Region::new(0, 0, 8, 8),
+            Region::new(0, 0, 8, 8),
+        ]);
     }
 
     #[test]
     fn pop() {
-        unimplemented!()
+        run_test(|mut section| { section.pop(); section }, [
+            grid_section::<Region>(),
+            split_section::<Region>(),
+            split_section::<Region>(),
+        ]);
+    }
+
+    #[test]
+    fn index() {
+        let section = split_section::<CharGrid>();
+        let cells = CoordsIter::from_region(Region::new(0, 0, 8, 8)).map(|coords| &section[coords])
+                                                                    .collect::<Vec<_>>();
+        assert_eq!(cells.len(), 64);
     }
 
 }

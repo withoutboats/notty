@@ -59,7 +59,7 @@ fn resize_split(old_area: Region, new_area: Region, kind: SplitKind, rule: Resiz
     let kind = match (kind, rule) {
         (Horizontal(n), Percentage) if old_area.height() != new_area.height()       =>
             Horizontal((n as f32 / old_area.height() as f32 * new_area.height() as f32) as u32),
-        (Vertical(n), Percentage) if old_area.width() != old_area.width()           =>
+        (Vertical(n), Percentage) if old_area.width() != new_area.width()           =>
             Vertical((n as f32 / old_area.width() as f32 * new_area.width() as f32) as u32),
         (Horizontal(n), MaxLeftTop) if new_area.height() > old_area.height()        =>
             Horizontal(new_area.height() - old_area.height() + n),
