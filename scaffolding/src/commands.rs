@@ -9,8 +9,6 @@ use gtk::{self, WidgetTrait};
 use notty::Command;
 use notty::terminal::Terminal;
 
-use exit_on_io_error;
-
 pub struct CommandApplicator {
     rx: Receiver<Command>,
     terminal: Rc<RefCell<Terminal>>,
@@ -32,7 +30,9 @@ impl CommandApplicator {
             match self.rx.try_recv() {
                 Ok(cmd)             => {
                     redraw = true;
-                    terminal.apply(&cmd).unwrap_or_else(exit_on_io_error);
+                    terminal.apply(&cmd).unwrap_or_else(|_| {
+                        gtk::main_quit();
+                    });
                 }
                 Err(Disconnected)   => {
                     gtk::main_quit();
