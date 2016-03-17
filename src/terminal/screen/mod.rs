@@ -26,7 +26,7 @@ impl GridFill for Region {
     fn new(width: u32, height: u32, _: bool) -> Region {
         Region::new(0, 0, width, height)
     }
-    fn resize(&mut self, area: Region) { *self = area; }
+    fn resize(&mut self, area: Region) { *self = Region::new(0, 0, area.width(), area.height()) }
 }
 
 pub struct Screen {

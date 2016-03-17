@@ -14,6 +14,12 @@ impl<T> Stack<T> {
             rest: None
         }
     }
+
+    pub fn len(&self) -> usize {
+        if let Some(ref rest) = self.rest {
+            rest.len() + 1
+        } else { 1 }
+    }
     
     pub fn iter(&self) -> Iter<T> {
         Iter {

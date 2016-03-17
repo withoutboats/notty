@@ -124,18 +124,21 @@ impl<T: GridFill> ScreenSection<T> {
     /// Remove the split in the top panel of this section.
     pub fn unsplit(&mut self, save: SaveGrid) {
         let (mut saved_stack, old_area) = match (save, &mut self.stack.top) {
-            (SaveGrid::Left, &mut Split { ref mut left, .. }) => {
-                (mem::replace(&mut left.stack, Stack::new(DeadGrid)), left.area)
-            }
-            (SaveGrid::Right, &mut Split { ref mut right, .. }) => {
-                (mem::replace(&mut right.stack, Stack::new(DeadGrid)), right.area)
-            }
+            (SaveGrid::Left, &mut Split { ref mut left, .. }) =>
+                (mem::replace(&mut left.stack, Stack::new(DeadGrid)), left.area),
+            (SaveGrid::Right, &mut Split { ref mut right, .. }) =>
+                (mem::replace(&mut right.stack, Stack::new(DeadGrid)), right.area),
             _ => return
         };
         for panel in &mut saved_stack {
             panel.resize(old_area, self.area, ResizeRule::Percentage);
         }
-        self.stack.extend(saved_stack.into_iter().rev());
+        if self.stack.len() == 1 {
+            self.stack = saved_stack;
+        } else {
+            self.stack.pop();
+            self.stack.extend(saved_stack.into_iter().rev());
+        }
     }
 
     /// Push a new empty grid panel on top of this section.
@@ -316,16 +319,8 @@ mod tests {
                 area: Region::new(0, 0, 6, 6),
                 stack: Stack::new(Split {
                     kind: Vertical(3),
-                    left: Box::new(ScreenSection {
-                        tag: 1,
-                        area: Region::new(0, 0, 3, 6),
-                        stack: Stack::new(Grid(Region::new(0, 0, 3, 6))),
-                    }),
-                    right: Box::new(ScreenSection {
-                        tag: 2,
-                        area: Region::new(3, 0, 6, 6),
-                        stack: Stack::new(Grid(Region::new(3, 0, 6, 6))),
-                    }),
+                    left: Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6))),
+                    right: Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6))),
                 }),
             },
             ScreenSection {
@@ -334,16 +329,8 @@ mod tests {
                 stack: {
                     let mut stack = Stack::new(Split {
                         kind: Vertical(3),
-                        left: Box::new(ScreenSection {
-                            tag: 1,
-                            area: Region::new(0, 0, 3, 6),
-                            stack: Stack::new(Grid(Region::new(0, 0, 3, 6))),
-                        }),
-                        right: Box::new(ScreenSection {
-                            tag: 2,
-                            area: Region::new(3, 0, 6, 6),
-                            stack: Stack::new(Grid(Region::new(3, 0, 6, 6))),
-                        }),
+                        left: Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6))),
+                        right: Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6))),
                     });
                     stack.push(Grid(Region::new(0, 0, 6, 6)));
                     stack
@@ -353,18 +340,125 @@ mod tests {
     }
 
     #[test]
-    fn split() {
-        unimplemented!()
+    fn split_save_left() {
+        run_test(|mut section| {
+            section.split(SaveGrid::Left, SplitKind::Horizontal(4), ResizeRule::Percentage, 3, 4);
+            section
+        }, [
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                stack: Stack::new(Split {
+                    kind: Horizontal(4),
+                    left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
+                    right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
+                })
+            },
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                stack: Stack::new(Split {
+                    kind: Horizontal(4),
+                    left: Box::new(ScreenSection {
+                        tag: 3,
+                        area: Region::new(0, 0, 8, 4),
+                        stack: Stack::new(Split {
+                            kind: Vertical(4),
+                            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 4))),
+                            right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 4))),
+                        })
+                    }),
+                    right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
+                })
+            },
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                stack: {
+                    let mut stack = Stack::new(Split {
+                        kind: Vertical(4),
+                        left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
+                        right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
+                    });
+                    stack.push(Split {
+                        kind: Horizontal(4),
+                        left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
+                        right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
+                    });
+                    stack
+                },
+            },
+        ]);
+    }
+
+    #[test]
+    fn split_save_right() {
+        run_test(|mut section| {
+            section.split(SaveGrid::Right, SplitKind::Horizontal(4), ResizeRule::Percentage, 3, 4);
+            section
+        }, [
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                stack: Stack::new(Split {
+                    kind: Horizontal(4),
+                    left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
+                    right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
+                })
+            },
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                stack: Stack::new(Split {
+                    kind: Horizontal(4),
+                    left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
+                    right: Box::new(ScreenSection {
+                        tag: 4,
+                        area: Region::new(0, 4, 8, 8),
+                        stack: Stack::new(Split {
+                            kind: Vertical(4),
+                            left: Box::new(ScreenSection::new(1, Region::new(0, 4, 4, 8))),
+                            right: Box::new(ScreenSection::new(2, Region::new(4, 4, 8, 8))),
+                        }),
+                    }),
+                })
+            },
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                stack: {
+                    let mut stack = Stack::new(Split {
+                        kind: Vertical(4),
+                        left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
+                        right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
+                    });
+                    stack.push(Split {
+                        kind: Horizontal(4),
+                        left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
+                        right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
+                    });
+                    stack
+                },
+            },
+        ]);
     }
 
     #[test]
     fn unsplit_save_left() {
-        unimplemented!()
+        run_test(|mut section| { section.unsplit(SaveGrid::Left); section }, [
+            grid_section::<Region>(),
+            grid_section::<Region>(),
+            stack_section::<Region>(),
+        ]);
     }
 
     #[test]
     fn unsplit_save_right() {
-        unimplemented!()
+        run_test(|mut section| { section.unsplit(SaveGrid::Right); section }, [
+            grid_section::<Region>(),
+            grid_section::<Region>(),
+            stack_section::<Region>(),
+        ]);
     }
 
     #[test]
@@ -387,10 +481,11 @@ mod tests {
 
     #[test]
     fn index() {
-        let section = split_section::<CharGrid>();
-        let cells = CoordsIter::from_region(Region::new(0, 0, 8, 8)).map(|coords| &section[coords])
-                                                                    .collect::<Vec<_>>();
-        assert_eq!(cells.len(), 64);
+        for section in &[grid_section::<CharGrid>(), split_section(), stack_section()] {
+            let cells = CoordsIter::from_region(Region::new(0, 0, 8, 8))
+                            .map(|coords| &section[coords]).collect::<Vec<_>>();
+            assert_eq!(cells.len(), 64);
+        }
     }
 
 }
