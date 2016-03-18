@@ -8,14 +8,14 @@ use terminal::{CharGrid, CharCell};
 use super::GridFill;
 use super::panel::Panel;
 use super::panel::Panel::*;
-use super::stack::Stack;
+use super::ring::Ring;
 
-/// A (rectangular) section of the screen, which contains a stack of panels.
+/// A (rectangular) section of the screen, which contains a ring of panels.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ScreenSection<T=CharGrid> where T: GridFill {
     tag: u64,
     area: Region,
-    stack: Stack<Panel<T>>,
+    ring: Ring<Panel<T>>,
 }
 
 impl<T: GridFill> ScreenSection<T> {
@@ -31,19 +31,19 @@ impl<T: GridFill> ScreenSection<T> {
         ScreenSection {
             tag: tag,
             area: area,
-            stack: Stack::new(data)
+            ring: Ring::new(data)
         }
     }
 
     /// Returns true if the top panel in this section is a grid, and false if it is split into
     /// multiple grids.
     pub fn is_grid(&self) -> bool {
-        self.stack.top.is_grid()
+        self.ring.top.is_grid()
     }
 
     // Count the number of visible grids in this section of the screen
     pub fn count_grids(&self) -> usize {
-        match self.stack.top {
+        match self.ring.top {
             Grid(_)                             => 1,
             Split { ref left, ref right, .. }   => left.count_grids() + right.count_grids(),
             _                                   => unreachable!(),
@@ -55,24 +55,24 @@ impl<T: GridFill> ScreenSection<T> {
     }
 
     pub fn top(&self) -> &Panel<T> {
-        &self.stack.top
+        &self.ring.top
     }
 
     /// Find the section with this tag.
     pub fn find(&self, tag: u64) -> Option<&ScreenSection<T>> {
         if self.tag == tag { Some(self) }
-        else { self.stack.iter().flat_map(|panel| panel.find(tag)).next() }
+        else { self.ring.iter().flat_map(|panel| panel.find(tag)).next() }
     }
 
     /// Find the section with this tag, returning a mutable reference.
     pub fn find_mut(&mut self, tag: u64) -> Option<&mut ScreenSection<T>> {
         if self.tag == tag { Some(self) }
-        else { self.stack.iter_mut().flat_map(|panel| panel.find_mut(tag)).next() }
+        else { self.ring.iter_mut().flat_map(|panel| panel.find_mut(tag)).next() }
     }
 
     /// Get the grid associated with this section - panic if this section is split.
     pub fn grid(&self) -> &T {
-        match self.stack.top {
+        match self.ring.top {
             Grid(ref grid) => grid,
             _ => panic!("Cannot call grid on a split section of the screen"),
         }
@@ -81,7 +81,7 @@ impl<T: GridFill> ScreenSection<T> {
     /// Get a mutable reference to the grid associated with this section - panic if this section
     /// is split.
     pub fn grid_mut(&mut self) -> &mut T {
-        match self.stack.top {
+        match self.ring.top {
             Grid(ref mut grid) => grid,
             _ => panic!("Cannot call grid_mut on a split section of the screen"),
         }
@@ -89,7 +89,7 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Adjust this section of the grid to fit a new area.
     pub fn resize(&mut self, new_area: Region, rule: ResizeRule) {
-        for panel in &mut self.stack {
+        for panel in &mut self.ring {
             panel.resize(self.area, new_area, rule);
         }
         self.area = new_area;
@@ -101,18 +101,18 @@ impl<T: GridFill> ScreenSection<T> {
         let (kind, l_area, r_area) = self.area.split(kind, rule);
         match save {
             SaveGrid::Left => {
-                let mut l_panel = mem::replace(&mut self.stack.top, DeadGrid);
+                let mut l_panel = mem::replace(&mut self.ring.top, DeadGrid);
                 l_panel.resize(self.area, l_area, rule);
-                self.stack.top = Split {
+                self.ring.top = Split {
                     kind: kind,
                     left: Box::new(ScreenSection::with_data(l_tag, l_area, l_panel)),
                     right: Box::new(ScreenSection::new(r_tag, r_area, retain_offscreen_state)),
                 }
             }
             SaveGrid::Right => {
-                let mut r_panel = mem::replace(&mut self.stack.top, DeadGrid);
+                let mut r_panel = mem::replace(&mut self.ring.top, DeadGrid);
                 r_panel.resize(self.area, r_area, rule);
-                self.stack.top = Split {
+                self.ring.top = Split {
                     kind: kind,
                     left: Box::new(ScreenSection::new(l_tag, l_area, retain_offscreen_state)),
                     right: Box::new(ScreenSection::with_data(r_tag, r_area, r_panel)),
@@ -123,33 +123,41 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Remove the split in the top panel of this section.
     pub fn unsplit(&mut self, save: SaveGrid) {
-        let (mut saved_stack, old_area) = match (save, &mut self.stack.top) {
+        let (mut saved_ring, old_area) = match (save, &mut self.ring.top) {
             (SaveGrid::Left, &mut Split { ref mut left, .. }) =>
-                (mem::replace(&mut left.stack, Stack::new(DeadGrid)), left.area),
+                (mem::replace(&mut left.ring, Ring::new(DeadGrid)), left.area),
             (SaveGrid::Right, &mut Split { ref mut right, .. }) =>
-                (mem::replace(&mut right.stack, Stack::new(DeadGrid)), right.area),
+                (mem::replace(&mut right.ring, Ring::new(DeadGrid)), right.area),
             _ => return
         };
-        for panel in &mut saved_stack {
+        for panel in &mut saved_ring {
             panel.resize(old_area, self.area, ResizeRule::Percentage);
         }
-        if self.stack.len() == 1 {
-            self.stack = saved_stack;
+        if self.ring.len() == 1 {
+            self.ring = saved_ring;
         } else {
-            self.stack.pop();
-            self.stack.extend(saved_stack.into_iter().rev());
+            self.ring.pop();
+            self.ring.extend(saved_ring.into_iter().rev());
         }
     }
 
     /// Push a new empty grid panel on top of this section.
     pub fn push(&mut self, retain_offscreen_state: bool) {
         let grid = T::new(self.area.width(), self.area.height(), retain_offscreen_state);
-        self.stack.push(Grid(grid));
+        self.ring.push(Grid(grid));
     }
 
     /// Remove the top panel of this section.
     pub fn pop(&mut self) {
-        self.stack.pop();
+        self.ring.pop();
+    }
+
+    pub fn rotate_down(&mut self) {
+        self.ring.rotate_down();
+    }
+
+    pub fn rotate_up(&mut self) {
+        self.ring.rotate_up();
     }
 
 }
@@ -176,7 +184,7 @@ impl ScreenSection {
 impl Index<Coords> for ScreenSection {
     type Output = CharCell;
     fn index(&self, Coords { x, y }: Coords) -> &CharCell {
-        match self.stack.top {
+        match self.ring.top {
             Grid(ref grid) => &grid[Coords { x: x, y: y }],
             Split { kind: Horizontal(n), ref left, .. } if y < n    => {
                 &left[Coords { x: x, y: y }]
@@ -202,7 +210,7 @@ mod tests {
     use super::*;
     use super::super::GridFill;
     use super::super::panel::Panel::*;
-    use super::super::stack::Stack;
+    use super::super::ring::Ring;
 
     use datatypes::{Region, CoordsIter, SaveGrid, SplitKind, ResizeRule};
     use datatypes::SplitKind::*;
@@ -212,7 +220,7 @@ mod tests {
         ScreenSection {
             tag: 0,
             area: Region::new(0, 0, 8, 8),
-            stack: Stack::new(Grid(T::new(8, 8, false))),
+            ring: Ring::new(Grid(T::new(8, 8, false))),
         }
     }
 
@@ -220,7 +228,7 @@ mod tests {
         ScreenSection {
             tag: 0,
             area: Region::new(0, 0, 8, 8),
-            stack: Stack::new(Split {
+            ring: Ring::new(Split {
                 kind: Vertical(4),
                 left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
                 right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
@@ -228,7 +236,7 @@ mod tests {
         }
     }
 
-    fn stack_section<T: GridFill>() -> ScreenSection<T> {
+    fn ring_section<T: GridFill>() -> ScreenSection<T> {
         let mut section = split_section();
         section.push();
         section
@@ -238,7 +246,7 @@ mod tests {
     where F: Fn(ScreenSection<Region>) -> T, T: PartialEq + Debug {
         assert_eq!(f(grid_section()), res[0]);
         assert_eq!(f(split_section()), res[1]);
-        assert_eq!(f(stack_section()), res[2]);
+        assert_eq!(f(ring_section()), res[2]);
     }
 
     #[test]
@@ -317,7 +325,7 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 6, 6),
-                stack: Stack::new(Split {
+                ring: Ring::new(Split {
                     kind: Vertical(3),
                     left: Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6))),
                     right: Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6))),
@@ -326,14 +334,14 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 6, 6),
-                stack: {
-                    let mut stack = Stack::new(Split {
+                ring: {
+                    let mut ring = Ring::new(Split {
                         kind: Vertical(3),
                         left: Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6))),
                         right: Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6))),
                     });
-                    stack.push(Grid(Region::new(0, 0, 6, 6)));
-                    stack
+                    ring.push(Grid(Region::new(0, 0, 6, 6)));
+                    ring
                 }
             }
         ]);
@@ -348,7 +356,7 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                stack: Stack::new(Split {
+                ring: Ring::new(Split {
                     kind: Horizontal(4),
                     left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
                     right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
@@ -357,12 +365,12 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                stack: Stack::new(Split {
+                ring: Ring::new(Split {
                     kind: Horizontal(4),
                     left: Box::new(ScreenSection {
                         tag: 3,
                         area: Region::new(0, 0, 8, 4),
-                        stack: Stack::new(Split {
+                        ring: Ring::new(Split {
                             kind: Vertical(4),
                             left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 4))),
                             right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 4))),
@@ -374,18 +382,18 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                stack: {
-                    let mut stack = Stack::new(Split {
+                ring: {
+                    let mut ring = Ring::new(Split {
                         kind: Vertical(4),
                         left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
                         right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
                     });
-                    stack.push(Split {
+                    ring.push(Split {
                         kind: Horizontal(4),
                         left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
                         right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
                     });
-                    stack
+                    ring
                 },
             },
         ]);
@@ -400,7 +408,7 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                stack: Stack::new(Split {
+                ring: Ring::new(Split {
                     kind: Horizontal(4),
                     left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
                     right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
@@ -409,13 +417,13 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                stack: Stack::new(Split {
+                ring: Ring::new(Split {
                     kind: Horizontal(4),
                     left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
                     right: Box::new(ScreenSection {
                         tag: 4,
                         area: Region::new(0, 4, 8, 8),
-                        stack: Stack::new(Split {
+                        ring: Ring::new(Split {
                             kind: Vertical(4),
                             left: Box::new(ScreenSection::new(1, Region::new(0, 4, 4, 8))),
                             right: Box::new(ScreenSection::new(2, Region::new(4, 4, 8, 8))),
@@ -426,18 +434,18 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                stack: {
-                    let mut stack = Stack::new(Split {
+                ring: {
+                    let mut ring = Ring::new(Split {
                         kind: Vertical(4),
                         left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8))),
                         right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8))),
                     });
-                    stack.push(Split {
+                    ring.push(Split {
                         kind: Horizontal(4),
                         left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4))),
                         right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8))),
                     });
-                    stack
+                    ring
                 },
             },
         ]);
@@ -448,7 +456,7 @@ mod tests {
         run_test(|mut section| { section.unsplit(SaveGrid::Left); section }, [
             grid_section::<Region>(),
             grid_section::<Region>(),
-            stack_section::<Region>(),
+            ring_section::<Region>(),
         ]);
     }
 
@@ -457,7 +465,7 @@ mod tests {
         run_test(|mut section| { section.unsplit(SaveGrid::Right); section }, [
             grid_section::<Region>(),
             grid_section::<Region>(),
-            stack_section::<Region>(),
+            ring_section::<Region>(),
         ]);
     }
 
@@ -481,7 +489,7 @@ mod tests {
 
     #[test]
     fn index() {
-        for section in &[grid_section::<CharGrid>(), split_section(), stack_section()] {
+        for section in &[grid_section::<CharGrid>(), split_section(), ring_section()] {
             let cells = CoordsIter::from_region(Region::new(0, 0, 8, 8))
                             .map(|coords| &section[coords]).collect::<Vec<_>>();
             assert_eq!(cells.len(), 64);

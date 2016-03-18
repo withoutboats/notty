@@ -1,15 +1,18 @@
+use std::collections::VecDeque;
 use std::mem;
 
+const E_NOT_EMPTY: &'static str = "The Ring deque can't be empty if it is not None.";
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Stack<T> {
+pub struct Ring<T> {
     pub top: T,
-    rest: Option<Vec<T>>,
+    rest: Option<VecDeque<T>>,
 }
 
-impl<T> Stack<T> {
+impl<T> Ring<T> {
 
-    pub fn new(top: T) -> Stack<T> {
-        Stack {
+    pub fn new(top: T) -> Ring<T> {
+        Ring {
             top: top,
             rest: None
         }
@@ -37,22 +40,40 @@ impl<T> Stack<T> {
 
     pub fn push(&mut self, top: T) {
         let previous_top = mem::replace(&mut self.top, top);
-        if self.rest.is_some() { self.rest.as_mut().unwrap().push(previous_top); }
-        else { self.rest = Some(vec![previous_top]); }
+        if self.rest.is_some() { self.rest.as_mut().unwrap().push_back(previous_top); }
+        else {
+            let mut ring = VecDeque::new();
+            ring.push_back(previous_top);
+            self.rest = Some(ring);
+        }
     }
 
     pub fn pop(&mut self) {
-        if let Some(mut stack) = self.rest.take() {
-            self.top = stack.pop().expect("If the stack vec exists it can't be empty.");
-            if !stack.is_empty() {
-                self.rest = Some(stack);
+        if let Some(mut ring) = self.rest.take() {
+            self.top = ring.pop_back().expect(E_NOT_EMPTY);
+            if !ring.is_empty() {
+                self.rest = Some(ring);
             }
+        }
+    }
+
+    pub fn rotate_down(&mut self) {
+        if let Ring { ref mut top, rest: Some(ref mut rest) } = *self {
+            let previous_top = mem::replace(top, rest.pop_back().expect(E_NOT_EMPTY));
+            rest.push_front(previous_top);
+        }
+    }
+
+    pub fn rotate_up(&mut self) {
+        if let Ring { ref mut top, rest: Some(ref mut rest) } = *self {
+            let previous_top = mem::replace(top, rest.pop_front().expect(E_NOT_EMPTY));
+            rest.push_back(previous_top);
         }
     }
 
 }
 
-impl<'a, T> IntoIterator for &'a Stack<T> {
+impl<'a, T> IntoIterator for &'a Ring<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
     fn into_iter(self) -> Iter<'a, T> {
@@ -60,7 +81,7 @@ impl<'a, T> IntoIterator for &'a Stack<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut Stack<T> {
+impl<'a, T> IntoIterator for &'a mut Ring<T> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
     fn into_iter(self) -> IterMut<'a, T> {
@@ -68,7 +89,7 @@ impl<'a, T> IntoIterator for &'a mut Stack<T> {
     }
 }
 
-impl<T> IntoIterator for Stack<T> {
+impl<T> IntoIterator for Ring<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
     fn into_iter(self) -> IntoIter<T> {
@@ -79,7 +100,7 @@ impl<T> IntoIterator for Stack<T> {
     }
 }
 
-impl<T> Extend<T> for Stack<T> {
+impl<T> Extend<T> for Ring<T> {
     fn extend<I>(&mut self, iterable: I) where I: IntoIterator<Item=T> {
         for elem in iterable {
             self.push(elem);
@@ -89,7 +110,7 @@ impl<T> Extend<T> for Stack<T> {
 
 pub struct Iter<'a, T: 'a> {
     top: Option<&'a T>,
-    rest: Option<<&'a Vec<T> as IntoIterator>::IntoIter>,
+    rest: Option<<&'a VecDeque<T> as IntoIterator>::IntoIter>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
@@ -107,7 +128,7 @@ impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
 
 pub struct IterMut<'a, T: 'a> {
     top: Option<&'a mut T>,
-    rest: Option<<&'a mut Vec<T> as IntoIterator>::IntoIter>,
+    rest: Option<<&'a mut VecDeque<T> as IntoIterator>::IntoIter>,
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
@@ -125,7 +146,7 @@ impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
 
 pub struct IntoIter<T> {
     top: Option<T>,
-    rest: Option<<Vec<T> as IntoIterator>::IntoIter>,
+    rest: Option<<VecDeque<T> as IntoIterator>::IntoIter>,
 }
 
 impl<T> Iterator for IntoIter<T> {
@@ -147,49 +168,49 @@ mod tests {
     use super::*;
     use std::fmt::Debug;
 
-    fn one_stack() -> Stack<i32> {
-        Stack {
+    fn one_ring() -> Ring<i32> {
+        Ring {
             top: 0,
             rest: None,
         }
     }
 
-    fn three_stack() -> Stack<i32> {
-        Stack {
+    fn three_ring() -> Ring<i32> {
+        Ring {
             top: 2,
             rest: Some(vec![0, 1]),
         }
     }
 
-    fn run_test<F, T>(f: F, res: [T; 2]) where F: Fn(Stack<i32>) -> T, T: PartialEq + Debug {
-        assert_eq!(f(one_stack()), res[0]);
-        assert_eq!(f(three_stack()), res[1]);
+    fn run_test<F, T>(f: F, res: [T; 2]) where F: Fn(Ring<i32>) -> T, T: PartialEq + Debug {
+        assert_eq!(f(one_ring()), res[0]);
+        assert_eq!(f(three_ring()), res[1]);
     }
 
     #[test]
     fn new() {
-        assert_eq!(Stack::new(0), one_stack())
+        assert_eq!(Ring::new(0), one_ring())
     }
 
     #[test]
     fn push() {
-        run_test(|mut stack| { stack.push(5); stack }, [
-            Stack { top: 5, rest: Some(vec![0]) },
-            Stack { top: 5, rest: Some(vec![0, 1, 2]) },
+        run_test(|mut ring| { ring.push(5); ring }, [
+            Ring { top: 5, rest: Some(vec![0]) },
+            Ring { top: 5, rest: Some(vec![0, 1, 2]) },
         ])
     }
 
     #[test]
     fn pop() {
-        run_test(|mut stack| { stack.pop(); stack }, [
-            Stack { top: 0, rest: None },
-            Stack { top: 1, rest: Some(vec![0]) },
+        run_test(|mut ring| { ring.pop(); ring }, [
+            Ring { top: 0, rest: None },
+            Ring { top: 1, rest: Some(vec![0]) },
         ]);
     }
 
     #[test]
     fn iter() {
-        run_test(|stack| stack.iter().cloned().collect::<Vec<i32>>(), [
+        run_test(|ring| ring.iter().cloned().collect::<Vec<i32>>(), [
             vec![0],
             vec![2, 1, 0],
         ])
@@ -197,7 +218,7 @@ mod tests {
 
     #[test]
     fn iter_rev() {
-        run_test(|stack| stack.iter().rev().cloned().collect::<Vec<i32>>(), [
+        run_test(|ring| ring.iter().rev().cloned().collect::<Vec<i32>>(), [
             vec![0],
             vec![0, 1, 2],
         ])
@@ -205,7 +226,7 @@ mod tests {
 
     #[test]
     fn iter_mut() {
-        run_test(|mut stack| stack.iter_mut().map(|&mut x| x).collect::<Vec<i32>>(), [
+        run_test(|mut ring| ring.iter_mut().map(|&mut x| x).collect::<Vec<i32>>(), [
             vec![0],
             vec![2, 1, 0],
         ])
@@ -213,7 +234,7 @@ mod tests {
 
     #[test]
     fn iter_mut_rev() {
-        run_test(|mut stack| stack.iter_mut().rev().map(|&mut x| x).collect::<Vec<i32>>(), [
+        run_test(|mut ring| ring.iter_mut().rev().map(|&mut x| x).collect::<Vec<i32>>(), [
             vec![0],
             vec![0, 1, 2],
         ])
@@ -221,7 +242,7 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        run_test(|stack| stack.into_iter().collect::<Vec<i32>>(), [
+        run_test(|ring| ring.into_iter().collect::<Vec<i32>>(), [
             vec![0],
             vec![2, 1, 0],
         ])
@@ -229,7 +250,7 @@ mod tests {
 
     #[test]
     fn into_iter_rev() {
-        run_test(|stack| stack.into_iter().rev().collect::<Vec<i32>>(), [
+        run_test(|ring| ring.into_iter().rev().collect::<Vec<i32>>(), [
             vec![0],
             vec![0, 1, 2],
         ])

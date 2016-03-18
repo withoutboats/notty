@@ -5,7 +5,7 @@ use terminal::char_grid::{CharGrid, CharCell};
 
 mod panel;
 mod section;
-mod stack;
+mod ring;
 
 use self::section::ScreenSection;
 use self::panel::Panel::*;
@@ -73,6 +73,14 @@ impl Screen {
 
     pub fn pop(&mut self, tag: Option<u64>) {
         self.find_mut(tag).map(ScreenSection::pop);
+    }
+
+    pub fn rotate_down(&mut self, tag: Option<u64>) {
+        self.find_mut(tag).map(ScreenSection::rotate_down);
+    }
+
+    pub fn rotate_up(&mut self, tag: Option<u64>) {
+        self.find_mut(tag).map(ScreenSection::rotate_up);
     }
 
     pub fn cells(&self) -> Cells {
