@@ -146,6 +146,13 @@ impl NottyData {
                     wrap(Some(UnsplitPanel::new(save, u64::decode(args.next(), None))))
                 })
             }
+            Some(0x64)  => {
+                SplitKind::decode(args.next(), None).and_then(|k| {
+                    ResizeRule::decode(args.next(), Some(ResizeRule::Percentage)).map(|r| (k, r))
+                }).and_then(|(kind, rule)| {
+                    wrap(Some(AdjustPanelSplit::new(kind, rule, u64::decode(args.next(), None))))
+                })
+            }
             Some(0x65)  => wrap(Some(RotateSectionDown(u64::decode(args.next(), None)))),
             Some(0x66)  => wrap(Some(RotateSectionUp(u64::decode(args.next(), None)))),
             Some(0x67)  => wrap(u64::decode(args.next(), None).map(SwitchActiveSection)),

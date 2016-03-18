@@ -2,7 +2,7 @@ use command::prelude::*;
 
 use notty_encoding::cmds::{
     PushPanel, PopPanel,
-    SplitPanel, UnsplitPanel,
+    SplitPanel, UnsplitPanel, AdjustPanelSplit,
     RotateSectionDown, RotateSectionUp,
     SwitchActiveSection,
 };
@@ -45,6 +45,16 @@ impl Command for UnsplitPanel {
     }
     fn repr(&self) -> String {
         String::from("UNSPLIT BUFFER")
+    }
+}
+
+impl Command for AdjustPanelSplit {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.adjust_split(self.adjust_tag, self.kind, self.rule);
+        Ok(())
+    }
+    fn repr(&self) -> String {
+        String::from("ADJUST PANEL SPLIT")
     }
 }
 
