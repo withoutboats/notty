@@ -141,6 +141,15 @@ impl<T: GridFill> ScreenSection<T> {
         }
     }
 
+    pub fn adjust_split(&mut self, new_kind: SplitKind, rule: ResizeRule) {
+        if let Split { ref mut left, ref mut right, ref mut kind, .. } = self.ring.top {
+            let (new_kind, l_area, r_area) = self.area.split(new_kind, rule);
+            *kind = new_kind;
+            left.resize(l_area, rule);
+            right.resize(r_area, rule);
+        }
+    }
+
     /// Push a new empty grid panel on top of this section.
     pub fn push(&mut self, retain_offscreen_state: bool) {
         let grid = T::new(self.area.width(), self.area.height(), retain_offscreen_state);
@@ -467,6 +476,26 @@ mod tests {
         run_test(|mut section| { section.unsplit(SaveGrid::Right); section }, [
             grid_section::<Region>(),
             grid_section::<Region>(),
+            ring_section::<Region>(),
+        ]);
+    }
+
+    #[test]
+    fn adjust_split() {
+        run_test(|mut section| {
+            section.adjust_split(Horizontal(4), ResizeRule::Percentage);
+            section
+        }, [
+            grid_section::<Region>(),
+            ScreenSection {
+                tag: 0,
+                area: Region::new(0, 0, 8, 8),
+                ring: Ring::new(Split {
+                    kind: Horizontal(4),
+                    left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false)),
+                    right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false)),
+                }),
+            },
             ring_section::<Region>(),
         ]);
     }

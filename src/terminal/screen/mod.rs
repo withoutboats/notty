@@ -67,6 +67,10 @@ impl Screen {
         self.find_mut(unsplit_tag).map(|section| section.unsplit(save));
     }
 
+    pub fn adjust_split(&mut self, adjust_tag: Option<u64>, kind: SplitKind, rule: ResizeRule) {
+        self.find_mut(adjust_tag).map(|section| section.adjust_split(kind, rule));
+    }
+
     pub fn push(&mut self, tag: Option<u64>, retain_offscreen_state: bool) {
         self.find_mut(tag).map(|section| section.push(retain_offscreen_state));
     }
