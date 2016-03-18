@@ -146,6 +146,8 @@ impl NottyData {
                     wrap(Some(UnsplitPanel::new(save, u64::decode(args.next(), None))))
                 })
             }
+            Some(0x65)  => wrap(Some(RotateSectionDown(u64::decode(args.next(), None)))),
+            Some(0x66)  => wrap(Some(RotateSectionUp(u64::decode(args.next(), None)))),
             Some(0x67)  => wrap(u64::decode(args.next(), None).map(SwitchActiveSection)),
             Some(0x80)  => wrap(InputSettings::decode(args.next(), Some(Ansi(false))).map(SetInputMode)),
             _           => None,

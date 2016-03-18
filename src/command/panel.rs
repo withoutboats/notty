@@ -3,6 +3,7 @@ use command::prelude::*;
 use notty_encoding::cmds::{
     PushPanel, PopPanel,
     SplitPanel, UnsplitPanel,
+    RotateSectionDown, RotateSectionUp,
     SwitchActiveSection,
 };
 
@@ -44,6 +45,26 @@ impl Command for UnsplitPanel {
     }
     fn repr(&self) -> String {
         String::from("UNSPLIT BUFFER")
+    }
+}
+
+impl Command for RotateSectionDown {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.rotate_down(self.0);
+        Ok(())
+    }
+    fn repr(&self) -> String {
+        String::from("ROTATE DOWN")
+    }
+}
+
+impl Command for RotateSectionUp {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.rotate_up(self.0);
+        Ok(())
+    }
+    fn repr(&self) -> String {
+        String::from("ROTATE UP")
     }
 }
 
