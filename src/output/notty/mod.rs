@@ -18,6 +18,7 @@ use std::str::FromStr;
 
 use mime::{Mime, SubLevel};
 
+use Command;
 use command::*;
 use datatypes::args::*;
 
@@ -33,7 +34,7 @@ pub struct NottyData {
 
 impl NottyData {
 
-    pub fn parse(&self) -> Option<Box<Command>> {
+    pub fn parse(&self) -> Option<Command> {
         let mut args = self.args.split(';');
         match u32::decode(args.next(), None) {
             Some(0x14)  => {
@@ -146,6 +147,6 @@ fn image<I: Iterator<Item=Vec<u8>>>(mut attachments: I) -> Option<(Mime, Vec<u8>
     })
 }
 
-fn wrap<T: Command>(cmd: Option<T>) -> Option<Box<Command>> {
-    cmd.map(|cmd| Box::new(cmd) as Box<Command>)
+fn wrap<T: CommandTrait>(cmd: Option<T>) -> Option<Command> {
+    cmd.map(|cmd| Command { inner: Box::new(cmd) as Box<CommandTrait> })
 }

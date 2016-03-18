@@ -20,6 +20,7 @@ use std::ops::{Deref, DerefMut};
 mod char_grid;
 mod input;
 
+use Command;
 use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
@@ -28,8 +29,8 @@ pub use self::input::Tty;
 use self::input::Input;
 
 pub struct Terminal {
-    pub width: u32,
-    pub height: u32,
+    width: u32,
+    height: u32,
     title: String,
     active: CharGrid,
     inactive: Vec<CharGrid>,
@@ -51,6 +52,10 @@ impl Terminal {
         }
     }
 
+    pub fn apply(&mut self, cmd: &Command) -> io::Result<()> {
+        cmd.inner.apply(self)
+    }
+
     pub fn send_input(&mut self, key: Key, press: bool) -> io::Result<()> {
         if let Some(cmd) = try!(match key {
             Key::DownArrow | Key::UpArrow | Key::Enter if press => {
@@ -66,7 +71,7 @@ impl Terminal {
             }
             _           => self.tty.write(key, press),
         }) {
-            try!(cmd.apply(self));
+            try!(cmd.inner.apply(self));
         }
         Ok(())
     }

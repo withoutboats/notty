@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use unicode_width::*;
 
+use Command;
 use command::*;
 use datatypes::{EchoSettings, Key};
 use datatypes::Key::*;
@@ -31,12 +32,12 @@ impl ScreenEcho {
         ScreenEcho { settings: settings }
     }
 
-    pub fn echo(&self, key: Key) -> Option<Box<Command>> {
+    pub fn echo(&self, key: Key) -> Option<Command> {
         match key {
             Char(c) if c == self.settings.lerase as char  => {
                 wrap(CommandSeries(vec![
-                    Box::new(Move::new(ToEdge(Left))) as Box<Command>,
-                    Box::new(Erase::new(CursorRow)) as Box<Command>,
+                    Command { inner: Box::new(Move::new(ToEdge(Left))) as Box<CommandTrait> },
+                    Command { inner: Box::new(Erase::new(CursorRow)) as Box<CommandTrait> },
                 ]))
             }
             Char(c) if c == self.settings.lnext as char   => unimplemented!(),
@@ -49,8 +50,12 @@ impl ScreenEcho {
             Enter       => wrap(Move::new(NextLine(1))),
             Backspace   => {
                 wrap(CommandSeries(vec![
-                    Box::new(Move::new(To(Left, 1, false))) as Box<Command>,
-                    Box::new(RemoveChars::new(1)) as Box<Command>,
+                    Command {
+                        inner: Box::new(Move::new(To(Left, 1, false))) as Box<CommandTrait>
+                    },
+                    Command {
+                        inner: Box::new(RemoveChars::new(1)) as Box<CommandTrait>
+                    }
                 ]))
             }
             PageUp      => wrap(Move::new(PreviousLine(25))),
@@ -63,6 +68,6 @@ impl ScreenEcho {
     }
 }
 
-fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
-    Some(Box::new(cmd) as Box<Command>)
+fn wrap<T: CommandTrait>(cmd: T) -> Option<Command> {
+    Some(Command { inner: Box::new(cmd) as Box<CommandTrait> })
 }

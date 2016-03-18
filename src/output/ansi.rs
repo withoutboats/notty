@@ -16,6 +16,7 @@
 use std::cell::RefCell;
 use std::mem;
 
+use Command;
 use command::*;
 use datatypes::Code;
 use datatypes::args::*;
@@ -47,7 +48,7 @@ impl AnsiData {
         self.args.clear();
     }
 
-    pub fn csi(&self, terminal: char) -> Option<Box<Command>> {
+    pub fn csi(&self, terminal: char) -> Option<Command> {
         macro_rules! command_series {
             ($cmds:expr) => (wrap(CommandSeries(self.args.iter().filter_map($cmds).collect())))
         }
@@ -309,7 +310,7 @@ impl AnsiData {
     }
 
     #[allow(unused, dead_code)]
-    pub fn dcs(&self, strarg: &str) -> Option<Box<Command>> {
+    pub fn dcs(&self, strarg: &str) -> Option<Command> {
         match (self.private_mode, self.preterminal) {
             ('|', '\0')   => unimplemented!(),
             ('$', 'q')    => unimplemented!(),
@@ -319,7 +320,7 @@ impl AnsiData {
         }
     }
 
-    pub fn osc(&mut self) -> Option<Box<Command>> {
+    pub fn osc(&mut self) -> Option<Command> {
         match self.arg(0, 0) {
             0...2   =>  {
                 let title = mem::replace(&mut self.arg_buf, String::new());
@@ -351,6 +352,6 @@ impl AnsiData {
 
 }
 
-fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
-    Some(Box::new(cmd) as Box<Command>)
+fn wrap<T: CommandTrait>(cmd: T) -> Option<Command> {
+    Some(Command { inner: Box::new(cmd) as Box<CommandTrait> })
 }

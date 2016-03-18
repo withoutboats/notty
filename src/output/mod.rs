@@ -18,6 +18,7 @@ use std::io;
 use command::*;
 use datatypes::args::*;
 use grapheme_tables as gr;
+use super::Command;
 
 mod ansi;
 mod notty;
@@ -47,7 +48,7 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    fn character(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn character(&mut self, ch: char) -> (State, Option<Command>) {
         use grapheme_tables::GraphemeCat::*;
         match gr::grapheme_category(ch) {
             GC_Any                      => (Character, wrap(Put::new_char(ch))),
@@ -71,7 +72,7 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    fn esc_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn esc_code(&mut self, ch: char) -> (State, Option<Command>) {
         match ch {
             ' ' => {
                 static IGNORE: &'static [char] = &['F', 'G', 'L', 'N'];
@@ -102,7 +103,7 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    fn csi_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn csi_code(&mut self, ch: char) -> (State, Option<Command>) {
         static CSI_PRIVATE_MODES:   &'static [char] = &['>', '?'];
         static CSI_PRETERMINALS:    &'static [char] = &[' ', '!', '"', '$', '\'', '*'];
         static CSI_TERMINALS:       &'static [char] = &[
@@ -158,11 +159,11 @@ impl<R: io::BufRead> Output<R> {
     }
 
     #[allow(unused)]
-    fn dcs_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn dcs_code(&mut self, ch: char) -> (State, Option<Command>) {
         unimplemented!()
     }
 
-    fn osc_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn osc_code(&mut self, ch: char) -> (State, Option<Command>) {
         if ch.is_digit(10) && self.ansi.private_mode == '\0' {
             self.ansi.arg_buf.push(ch);
             (OscCode, None)
@@ -197,14 +198,14 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    fn apc_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn apc_code(&mut self, ch: char) -> (State, Option<Command>) {
         match ch {
             '[' => (NottyCode, None),
             _   => self.privacy_message(ch),
         }
     }
 
-    fn privacy_message(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn privacy_message(&mut self, ch: char) -> (State, Option<Command>) {
         match (self.ansi.preterminal, ch) {
             ('\0', '\x1b')                                  => {
                 self.ansi.preterminal = ch;
@@ -216,7 +217,7 @@ impl<R: io::BufRead> Output<R> {
         }
     }
 
-    fn notty_code(&mut self, ch: char) -> (State, Option<Box<Command>>) {
+    fn notty_code(&mut self, ch: char) -> (State, Option<Command>) {
         if ch.is_digit(16) || ch == ';' || ch == '.' {
             self.notty.args.push(ch);
             (NottyCode, None)
@@ -238,8 +239,8 @@ impl<R: io::BufRead> Output<R> {
 }
 
 impl<R: io::BufRead> Iterator for super::Output<R> {
-    type Item = io::Result<Box<Command>>;
-    fn next(&mut self) -> Option<io::Result<Box<Command>>> {
+    type Item = io::Result<Command>;
+    fn next(&mut self) -> Option<io::Result<Command>> {
         loop {
             match self.tty.next() {
                 Some(Ok(ch))                            => {
@@ -296,8 +297,8 @@ enum State {
     Ignore(&'static [char]),
 }
 
-fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
-    Some(Box::new(cmd) as Box<Command>)
+fn wrap<T: CommandTrait>(cmd: T) -> Option<Command> {
+    Some(Command { inner: Box::new(cmd) as Box<CommandTrait>})
 }
 
 #[cfg(test)]
@@ -315,48 +316,48 @@ mod tests {
     #[test]
     fn graphemes() {
         let mut output = setup("E\u{301}\u{1f4a9}E".as_bytes());
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "E");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "\u{301}");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "\u{1f4a9}");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "E");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "E");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "\u{301}");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "\u{1f4a9}");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "E");
     }
 
     #[test]
     fn ctrl_codes() {
         let mut output = setup(b"AB\x07C\n");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "BELL");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "C");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "MOVE NEXT LINE 1");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "A");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "B");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "BELL");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "C");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "MOVE NEXT LINE 1");
     }
 
     #[test]
     fn csi_code() {
         let mut output = setup(b"\x1b[7;7HB\x1b[7A\x1b[$rA\x1b[?12h");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "MOVE TO 6,6");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "MOVE UP 7");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "DEFAULT STYLE IN AREA");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "SERIES: SET CURSOR STYLE");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "MOVE TO 6,6");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "B");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "MOVE UP 7");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "DEFAULT STYLE IN AREA");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "A");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "SERIES: SET CURSOR STYLE");
     }
 
     #[test]
     fn osc_code() {
         let mut output = setup(b"A\x1b]0;Hello, world!\x07B");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TITLE");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "A");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "SET TITLE");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "B");
     }
 
     #[test]
     fn notty_code() {
         let mut output = setup("A\x1b_[30;8.ff.ff.ff\u{9c}\x1b_[19;1;2\u{9c}B".as_bytes());
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "A");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "SET TEXT STYLE");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "SCROLL SCREEN");
-        assert_eq!(&output.next().unwrap().unwrap().repr(), "B");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "A");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "SET TEXT STYLE");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "SCROLL SCREEN");
+        assert_eq!(&output.next().unwrap().unwrap().inner.repr(), "B");
     }
 
 }

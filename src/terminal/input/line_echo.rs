@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use unicode_width::*;
 
+use Command;
 use command::*;
 use datatypes::{EchoSettings, Key};
 use datatypes::Key::*;
@@ -37,13 +38,19 @@ impl LineEcho {
         }
     }
 
-    pub fn echo(&mut self, key: Key) -> Option<Box<Command>> {
+    pub fn echo(&mut self, key: Key) -> Option<Command> {
         match key {
             Char(c) if c == self.settings.lerase as char  => {
                 self.len = 0;
                 wrap(CommandSeries(vec![
-                    Box::new(Move::new(To(Left, self.position, true))) as Box<Command>,
-                    Box::new(Erase::new(CursorTo(To(Right, self.len, true)))) as Box<Command>,
+                    Command {
+                        inner: Box::new(Move::new(To(Left, self.position, true)))
+                               as Box<CommandTrait>
+                    },
+                    Command {
+                        inner: Box::new(Erase::new(CursorTo(To(Right, self.len, true))))
+                               as Box<CommandTrait>
+                    },
                 ]))
             }
             Char(c) if c == self.settings.lnext as char   => unimplemented!(),
@@ -70,8 +77,10 @@ impl LineEcho {
                 self.position -= 1;
                 self.len -= 1;
                 wrap(CommandSeries(vec![
-                    Box::new(Move::new(To(Left, 1, false))) as Box<Command>,
-                    Box::new(RemoveChars::new(1)) as Box<Command>,
+                    Command {
+                        inner: Box::new(Move::new(To(Left, 1, false))) as Box<CommandTrait>
+                    },
+                    Command { inner: Box::new(RemoveChars::new(1)) as Box<CommandTrait> },
                 ]))
             }
             Delete if self.position != self.len => {
@@ -92,8 +101,8 @@ impl LineEcho {
     }
 }
 
-fn wrap<T: Command>(cmd: T) -> Option<Box<Command>> {
-    Some(Box::new(cmd) as Box<Command>)
+fn wrap<T: CommandTrait>(cmd: T) -> Option<Command> {
+    Some(Command { inner: Box::new(cmd) as Box<CommandTrait> })
 }
 
 #[cfg(test)]
@@ -113,7 +122,7 @@ mod tests {
     #[test]
     fn chars() {
         let mut echo = LineEcho::new(SETTINGS);
-        assert_eq!(echo.echo(Char('A')).unwrap().repr(), Put::new_char('A').repr());
+        assert_eq!(echo.echo(Char('A')).unwrap().inner.repr(), Put::new_char('A').repr());
         assert_eq!(echo.len, 1);
         assert_eq!(echo.position, 1);
         assert!(echo.echo(Char('\x1b')).is_none());
@@ -128,7 +137,7 @@ mod tests {
         assert_eq!(echo.len, 0);
         assert_eq!(echo.position, 0);
         let mut echo = LineEcho { settings: SETTINGS, position: 1, len: 1 };
-        assert_eq!(echo.echo(LeftArrow).unwrap().repr(), Move::new(To(Left, 1, true)).repr());
+        assert_eq!(echo.echo(LeftArrow).unwrap().inner.repr(), Move::new(To(Left, 1, true)).repr());
         assert_eq!(echo.len, 1);
         assert_eq!(echo.position, 0);
     }
@@ -140,7 +149,7 @@ mod tests {
         assert_eq!(echo.len, 0);
         assert_eq!(echo.position, 0);
         let mut echo = LineEcho { settings: SETTINGS, position: 0, len: 1 };
-        assert_eq!(echo.echo(RightArrow).unwrap().repr(), Move::new(To(Right, 1, true)).repr());
+        assert_eq!(echo.echo(RightArrow).unwrap().inner.repr(), Move::new(To(Right, 1, true)).repr());
         assert_eq!(echo.len, 1);
         assert_eq!(echo.position, 1);
     }
@@ -148,7 +157,7 @@ mod tests {
     #[test]
     fn enter() {
         let mut echo = LineEcho { settings: SETTINGS, position: 3, len: 3 };
-        assert_eq!(echo.echo(Enter).unwrap().repr(), Move::new(NextLine(1)).repr());
+        assert_eq!(echo.echo(Enter).unwrap().inner.repr(), Move::new(NextLine(1)).repr());
         assert_eq!(echo.len, 0);
         assert_eq!(echo.position, 0);
     }

@@ -27,5 +27,35 @@ mod grapheme_tables;
 mod output;
 pub mod terminal;
 
-pub use command::{Command, KeyPress, KeyRelease};
 pub use output::Output;
+
+use command::{KeyPress, KeyRelease, CommandTrait};
+use datatypes::Key;
+
+/// A command to be applied to the terminal.
+///
+/// `Command` is an opaque wrapper type around the various commands, which does not allow for
+/// introspection or reflection. The `Output` iterator generates `Command` objects transmitted from
+/// the output of the controlling process. User input is also represented as a command, and
+/// constructors exist for creating `Command` objects with the correct internal representation for
+/// different kinds of user input.
+///
+/// Commands are passed to the `Terminal` with the `apply` method.
+pub struct Command {
+    inner: Box<CommandTrait>,
+}
+
+impl Command {
+    /// Create a command representing a key press event.
+    pub fn key_press(key: Key) -> Command {
+        Command {
+            inner: Box::new(KeyPress(key)) as Box<CommandTrait>,
+        }
+    }
+    /// Create a command representing a key release event.
+    pub fn key_release(key: Key) -> Command {
+        Command {
+            inner: Box::new(KeyRelease(key)) as Box<CommandTrait>,
+        }
+    }
+}

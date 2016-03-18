@@ -15,30 +15,22 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use gdk::EventKey;
-use notty::{Command, KeyPress, KeyRelease};
 use notty::datatypes::Key;
 
-pub trait FromEvent {
-    fn from_event(&EventKey) -> Option<Box<Command>>;
-}
-
-impl FromEvent for KeyPress {
-    fn from_event(key: &EventKey) -> Option<Box<Command>> {
-        Some(Box::new(KeyPress(keyval(key.keyval))) as Box<Command>)
-    }
-}
-
-impl FromEvent for KeyRelease {
-    fn from_event(key: &EventKey) -> Option<Box<Command>> {
-        if super_mode(key) && (key.keyval == 0xff52 || key.keyval == 0xff54) {
-            return None;
-        }
-        Some(Box::new(KeyRelease(keyval(key.keyval))) as Box<Command>)
+pub fn key_from_event(event: &EventKey) -> Option<Key> {
+    if super_mode(event) && (event.keyval == 0xff52 || event.keyval == 0xff54) && release(event) {
+        None
+    } else {
+        Some(keyval(event.keyval))
     }
 }
 
 fn super_mode(key: &EventKey) -> bool {
     key.state.bits() & 0o100 == 0o100
+}
+
+fn release(key: &EventKey) -> bool {
+    key._type == ::gdk::EventType::KeyRelease
 }
 
 fn keyval(n: u32) -> Key {

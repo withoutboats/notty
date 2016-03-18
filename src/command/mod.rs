@@ -13,7 +13,10 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use command::prelude::*;
+use std::io;
+
+use terminal::Terminal;
+use Command;
 
 mod erase;
 mod input;
@@ -42,39 +45,32 @@ pub use self::tooltip::{AddToolTip, RemoveToolTip, AddDropDown};
 mod prelude {
     pub use std::io;
     pub use terminal::Terminal;
-    pub use super::Command;
+    pub use super::CommandTrait as Command;
 }
 
-/// A command to be applied to the terminal.
-///
-/// Dynamically dispatched `Command` objects are generated from the `Output` iterator, which
-/// parses the output of the controlling process into applicable `Command` events. Most of the
-/// implementers of `Command` are private types within this library, so that the process of
-/// application remains opaque to downstream users. The only exported types are those dealing with
-/// direc user input.
-pub trait Command: Send + 'static {
-    /// Apply this command to the terminal.
+pub trait CommandTrait: Send + 'static {
     fn apply(&self, &mut Terminal) -> io::Result<()>;
     fn repr(&self) -> String;
 }
 
-pub struct CommandSeries(pub Vec<Box<Command>>);
+pub struct CommandSeries(pub Vec<Command>);
 
-impl Command for CommandSeries {
+impl CommandTrait for CommandSeries {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         for cmd in &self.0 {
-            try!(cmd.apply(terminal));
+            try!(terminal.apply(cmd));
         }
         Ok(())
     }
     fn repr(&self) -> String {
-        String::from("SERIES: ") + &self.0.iter().map(|c| c.repr()).collect::<Vec<_>>().join("; ")
+        String::from("SERIES: ") + &self.0.iter().map(|c| c.inner.repr())
+                                          .collect::<Vec<_>>().join("; ")
     }
 }
 
 pub struct NoFeature(pub String);
 
-impl Command for NoFeature {
+impl CommandTrait for NoFeature {
     fn apply(&self, _: &mut Terminal) -> io::Result<()> {
         Ok(())
     }

@@ -15,7 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::{self, Write};
 
-use command::Command;
+use Command;
 use datatypes::{InputSettings, Key};
 
 mod buffer;
@@ -69,7 +69,7 @@ impl Input {
         self.tty.set_winsize(width as u16, height as u16)
     }
 
-    pub fn write(&mut self, key: Key, press: bool) -> io::Result<Option<Box<Command>>> {
+    pub fn write(&mut self, key: Key, press: bool) -> io::Result<Option<Command>> {
         if key.is_modifier() { self.modifiers.apply(&key, press); }
         let key = if self.modifiers.ctrl() { key.ctrl_modify() } else { key };
         self.mode.write(key, press, &mut self.tty, self.modifiers)
@@ -87,7 +87,7 @@ pub enum InputMode {
 impl InputMode {
 
     pub fn write(&mut self, key: Key, press: bool, tty: &mut Write, modifiers: Modifiers)
-            -> io::Result<Option<Box<Command>>> {
+            -> io::Result<Option<Command>> {
         match *self {
             Ansi(app_mode) if press && !key.is_modifier() => {
                 if let Some(data) = ansi::encode(&key, app_mode, modifiers) {

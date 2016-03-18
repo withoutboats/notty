@@ -12,14 +12,14 @@ use notty::terminal::Terminal;
 use exit_on_io_error;
 
 pub struct CommandApplicator {
-    rx: Receiver<Box<Command>>,
+    rx: Receiver<Command>,
     terminal: Rc<RefCell<Terminal>>,
     canvas: Rc<gtk::DrawingArea>,
 }
 
 impl CommandApplicator {
 
-    pub fn new(rx: Receiver<Box<Command>>,
+    pub fn new(rx: Receiver<Command>,
                terminal: Rc<RefCell<Terminal>>,
                canvas: Rc<gtk::DrawingArea>) -> CommandApplicator {
         CommandApplicator { rx: rx, terminal: terminal, canvas: canvas }
@@ -32,7 +32,7 @@ impl CommandApplicator {
             match self.rx.try_recv() {
                 Ok(cmd)             => {
                     redraw = true;
-                    cmd.apply(&mut terminal).unwrap_or_else(exit_on_io_error);
+                    terminal.apply(&cmd).unwrap_or_else(exit_on_io_error);
                 }
                 Err(Disconnected)   => {
                     gtk::main_quit();
