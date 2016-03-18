@@ -43,14 +43,12 @@ impl Screen {
         }
     }
 
-    pub fn resize(&mut self, width: Option<u32>, height: Option<u32>, rule: ResizeRule) {
-        let new_a = match (width, height) {
-            (Some(w), Some(h))  => Region::new(0, 0, w, h),
-            (Some(w), None)     => Region::new(0, 0, w, self.screen.area().bottom),
-            (None,    Some(h))  => Region::new(0, 0, self.screen.area().right, h),
-            (None,    None)     => return
-        };
-        self.screen.resize(new_a, rule);
+    pub fn area(&self) -> Region {
+        self.screen.area()
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.screen.resize(Region::new(0, 0, width, height), ResizeRule::Percentage);
     }
 
     pub fn switch(&mut self, tag: u64) {

@@ -81,8 +81,14 @@ impl Terminal {
         println!("BELL");
     }
 
-    pub fn set_winsize(&mut self, cols: u32, rows: u32, rule: ResizeRule) -> io::Result<()> {
-        self.resize(Some(cols), Some(rows), rule);
+    pub fn set_winsize(&mut self, cols: Option<u32>, rows: Option<u32>) -> io::Result<()> {
+        let (cols, rows) = match (cols, rows) {
+            (Some(w), Some(h)) if w > 0 && h > 0    => (w, h),
+            (Some(w), _) if w > 0                   => (w, self.area().bottom),
+            (_, Some(h)) if h > 0                   => (self.area().right, h),
+            (_, _)                                  => (self.area().right, self.area().bottom),
+        };
+        self.resize(cols, rows);
         self.tty.set_winsize(cols, rows)
     }
 
