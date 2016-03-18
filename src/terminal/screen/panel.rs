@@ -89,8 +89,8 @@ mod tests {
     fn split_panel() -> Panel<Region> {
         Split {
             kind: SplitKind::Horizontal(4),
-            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4))),
-            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8))),
+            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false)),
+            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false)),
         }
     }
 

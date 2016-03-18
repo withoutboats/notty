@@ -168,6 +168,16 @@ mod tests {
     use super::*;
     use std::fmt::Debug;
 
+    macro_rules! deque {
+        [$($arg:expr),*] => {
+            {
+                let mut deque = ::std::collections::VecDeque::new();
+                $( deque.push_back($arg); )*
+                deque
+            }
+        }
+    }
+
     fn one_ring() -> Ring<i32> {
         Ring {
             top: 0,
@@ -178,7 +188,7 @@ mod tests {
     fn three_ring() -> Ring<i32> {
         Ring {
             top: 2,
-            rest: Some(vec![0, 1]),
+            rest: Some(deque![0, 1]),
         }
     }
 
@@ -195,8 +205,8 @@ mod tests {
     #[test]
     fn push() {
         run_test(|mut ring| { ring.push(5); ring }, [
-            Ring { top: 5, rest: Some(vec![0]) },
-            Ring { top: 5, rest: Some(vec![0, 1, 2]) },
+            Ring { top: 5, rest: Some(deque![0]) },
+            Ring { top: 5, rest: Some(deque![0, 1, 2]) },
         ])
     }
 
@@ -204,7 +214,23 @@ mod tests {
     fn pop() {
         run_test(|mut ring| { ring.pop(); ring }, [
             Ring { top: 0, rest: None },
-            Ring { top: 1, rest: Some(vec![0]) },
+            Ring { top: 1, rest: Some(deque![0]) },
+        ]);
+    }
+
+    #[test]
+    fn rotate_down() {
+        run_test(|mut ring| { ring.rotate_down(); ring }, [
+            Ring { top: 0, rest: None },
+            Ring { top: 1, rest: Some(deque![2, 0]) },
+        ]);
+    }
+
+    #[test]
+    fn rotate_up() {
+        run_test(|mut ring| { ring.rotate_up(); ring }, [
+            Ring { top: 0, rest: None },
+            Ring { top: 0, rest: Some(deque![1, 2]) },
         ]);
     }
 

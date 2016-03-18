@@ -266,8 +266,8 @@ mod tests {
     use datatypes::{CellData, Coords, Direction, Movement, Region};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        test(CharGrid::new(10, 10, false, false), 10);
-        test(CharGrid::new(10, 10, false, true), 11);
+        test(CharGrid::new(10, 10, false), 10);
+        test(CharGrid::new(10, 10, true), 11);
     }
 
     #[test]
