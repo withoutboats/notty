@@ -22,8 +22,8 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Construct a new ScreenSection with a given tag for this area of the screen. It will be
     /// filled with an empty grid.
-    pub fn new(tag: u64, area: Region) -> ScreenSection<T> {
-        let grid = T::new(area.width(), area.height(), false);
+    pub fn new(tag: u64, area: Region, retain_offscreen_state: bool) -> ScreenSection<T> {
+        let grid = T::new(area.width(), area.height(), retain_offscreen_state);
         ScreenSection::with_data(tag, area, Grid(grid))
     }
 
@@ -97,7 +97,7 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Split the top panel this section into two sections.
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
-                 l_tag: u64, r_tag: u64) {
+                 l_tag: u64, r_tag: u64, retain_offscreen_state: bool) {
         let (kind, l_area, r_area) = self.area.split(kind, rule);
         match save {
             SaveGrid::Left => {
@@ -106,7 +106,7 @@ impl<T: GridFill> ScreenSection<T> {
                 self.stack.top = Split {
                     kind: kind,
                     left: Box::new(ScreenSection::with_data(l_tag, l_area, l_panel)),
-                    right: Box::new(ScreenSection::new(r_tag, r_area)),
+                    right: Box::new(ScreenSection::new(r_tag, r_area, retain_offscreen_state)),
                 }
             }
             SaveGrid::Right => {
@@ -114,7 +114,7 @@ impl<T: GridFill> ScreenSection<T> {
                 r_panel.resize(self.area, r_area, rule);
                 self.stack.top = Split {
                     kind: kind,
-                    left: Box::new(ScreenSection::new(l_tag, l_area)),
+                    left: Box::new(ScreenSection::new(l_tag, l_area, retain_offscreen_state)),
                     right: Box::new(ScreenSection::with_data(r_tag, r_area, r_panel)),
                 }
             }
@@ -142,8 +142,8 @@ impl<T: GridFill> ScreenSection<T> {
     }
 
     /// Push a new empty grid panel on top of this section.
-    pub fn push(&mut self) {
-        let grid = T::new(self.area.width(), self.area.height(), false);
+    pub fn push(&mut self, retain_offscreen_state: bool) {
+        let grid = T::new(self.area.width(), self.area.height(), retain_offscreen_state);
         self.stack.push(Grid(grid));
     }
 

@@ -17,7 +17,7 @@ pub trait GridFill {
 
 impl GridFill for CharGrid {
     fn new(width: u32, height: u32, expand: bool) -> CharGrid {
-        CharGrid::new(width, height, expand, expand)
+        CharGrid::new(width, height, expand)
     }
     fn resize(&mut self, area: Region) { self.resize_window(area); }
 }
@@ -39,7 +39,7 @@ impl Screen {
     pub fn new(width: u32, height: u32) -> Screen {
         Screen {
             active: 0,
-            screen: ScreenSection::new(0, Region::new(0, 0, width, height)),
+            screen: ScreenSection::new(0, Region::new(0, 0, width, height), true),
         }
     }
 
@@ -58,16 +58,17 @@ impl Screen {
     }
 
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
-                 split_tag: Option<u64>, l_tag: u64, r_tag: u64) {
-        self.find_mut(split_tag).map(|section| section.split(save, kind, rule, l_tag, r_tag));
+                 split_tag: Option<u64>, l_tag: u64, r_tag: u64, retain_offscreen_state: bool) {
+        self.find_mut(split_tag).map(|section| section.split(save, kind, rule, l_tag, r_tag,
+                                                             retain_offscreen_state));
     }
 
     pub fn unsplit(&mut self, save: SaveGrid, unsplit_tag: Option<u64>) {
         self.find_mut(unsplit_tag).map(|section| section.unsplit(save));
     }
 
-    pub fn push(&mut self, tag: Option<u64>) {
-        self.find_mut(tag).map(ScreenSection::push);
+    pub fn push(&mut self, tag: Option<u64>, retain_offscreen_state: bool) {
+        self.find_mut(tag).map(|section| section.push(retain_offscreen_state));
     }
 
     pub fn pop(&mut self, tag: Option<u64>) {

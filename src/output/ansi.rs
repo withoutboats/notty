@@ -137,7 +137,7 @@ impl AnsiData {
                 1043    => wrap(NoFeature(self.csi_code(terminal))),
                 1047    => wrap(NoFeature(self.csi_code(terminal))),
                 1048    => wrap(NoFeature(self.csi_code(terminal))),
-                1049    => wrap(PushPanel(None)),
+                1049    => wrap(PushPanel(None, Some(false))),
                 1050    => wrap(NoFeature(self.csi_code(terminal))),
                 2004    => wrap(NoFeature(self.csi_code(terminal))),
                 _       => None

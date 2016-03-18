@@ -3,12 +3,12 @@ use command::prelude::*;
 use notty_encoding::cmds::{
     PushPanel, PopPanel,
     SplitPanel, UnsplitPanel,
-    SwitchActivePanel,
+    SwitchActiveSection,
 };
 
 impl Command for PushPanel {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.push(self.0);
+        terminal.push(self.0, self.1.unwrap_or(true));
         Ok(())
     }
     fn repr(&self) -> String {
@@ -28,7 +28,8 @@ impl Command for PopPanel {
 
 impl Command for SplitPanel {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.split(self.save, self.kind, self.rule, self.split_tag, self.l_tag, self.r_tag);
+        terminal.split(self.save, self.kind, self.rule, self.split_tag, self.l_tag, self.r_tag,
+                       self.retain_offscreen_state.unwrap_or(true));
         Ok(())
     }
     fn repr(&self) -> String {
@@ -46,7 +47,7 @@ impl Command for UnsplitPanel {
     }
 }
 
-impl Command for SwitchActivePanel {
+impl Command for SwitchActiveSection {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.switch(self.0);
         Ok(())

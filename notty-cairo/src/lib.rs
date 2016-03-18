@@ -60,7 +60,7 @@ impl Renderer {
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 
-        let col_n = terminal.grid_width as usize;
+        let col_n = terminal.area().width() as usize;
         let rows = terminal.cells().chunks_lazy(col_n);
 
         // Remove dead images from the cache.

@@ -120,8 +120,12 @@ impl NottyData {
                 })))
             }
             Some(0x54)  => wrap(Coords::decode(args.next(), None).map(RemoveToolTip)),
-            Some(0x60)  => wrap(Some(PushPanel(u64::decode(args.next(), None)))),
-            Some(0x61)  => wrap(Some(PushPanel(u64::decode(args.next(), None)))),
+            Some(0x60)  => {
+                let tag = u64::decode(args.next(), None);
+                let offscreen_state = bool::decode(args.next(), None);
+                wrap(Some(PushPanel(tag, offscreen_state)))
+            }
+            Some(0x61)  => wrap(Some(PopPanel(u64::decode(args.next(), None)))),
             Some(0x62)  => {
                 let l_tag = u64::decode(args.next(), None);
                 let r_tag = u64::decode(args.next(), None);
@@ -129,9 +133,10 @@ impl NottyData {
                 let save = SaveGrid::decode(args.next(), Some(SaveGrid::Left));
                 let rule = ResizeRule::decode(args.next(), Some(ResizeRule::Percentage));
                 let split_tag = u64::decode(args.next(), None);
+                let offscreen_state = bool::decode(args.next(), Some(true));
                 match (l_tag, r_tag, kind, save, rule) {
                     (Some(l_t), Some(r_t), Some(k), Some(s), Some(r)) => {
-                        wrap(Some(SplitPanel::new(l_t, r_t, k, s, r, split_tag)))
+                        wrap(Some(SplitPanel::new(l_t, r_t, k, s, r, split_tag, offscreen_state)))
                     }
                     _ => None
                 }
@@ -141,7 +146,7 @@ impl NottyData {
                     wrap(Some(UnsplitPanel::new(save, u64::decode(args.next(), None))))
                 })
             }
-            Some(0x67)  => wrap(u64::decode(args.next(), None).map(SwitchActivePanel)),
+            Some(0x67)  => wrap(u64::decode(args.next(), None).map(SwitchActiveSection)),
             Some(0x80)  => wrap(InputSettings::decode(args.next(), Some(Ansi(false))).map(SetInputMode)),
             _           => None,
         }

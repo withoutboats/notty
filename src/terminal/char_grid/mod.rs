@@ -40,39 +40,33 @@ pub struct CharGrid {
     grid: Grid<CharCell>,
     cursor: Cursor,
     tooltips: HashMap<Coords, Tooltip>,
-    pub grid_width: u32,
-    pub grid_height: u32,
     window: Region,
 }
 
 impl CharGrid {
-    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool) -> CharGrid {
-        let grid = match (scroll_x, scroll_y) {
-            (false, false)  => Grid::new(w as usize, h as usize),
-            (false, true)   => Grid::with_y_cap(w as usize, h as usize, CONFIG.scrollback as usize),
-            (true, false)   => unimplemented!(),
-            (true, true)    => unimplemented!(),
+    pub fn new(width: u32, height: u32, retain_offscreen_state: bool) -> CharGrid {
+        let grid = if retain_offscreen_state {
+            Grid::with_x_y_caps(width as usize, height as usize,
+                                CONFIG.scrollback as usize, CONFIG.scrollback as usize)
+        } else {
+            Grid::new(width as usize, height as usize)
         };
         CharGrid {
             grid: grid,
             cursor: Cursor::default(),
             tooltips: HashMap::new(),
-            grid_width: w,
-            grid_height: h,
-            window: Region::new(0, 0, w, h),
+            window: Region::new(0, 0, width, height),
         }
     }
 
     pub fn resize_window(&mut self, region: Region) {
-        if self.grid_width < region.width() {
-            let n = (region.width() - self.grid_width) * self.grid_height;
+        if self.grid_width() < region.width() {
+            let n = (region.width() - self.grid_width()) * self.grid_height();
             self.grid.add_to_right(vec![CharCell::default(); n as usize]);
-            self.grid_width = region.width();
         }
-        if self.grid_height < region.height() {
-            let n = (region.height() - self.grid_height) * self.grid_width;
+        if self.grid_height() < region.height() {
+            let n = (region.height() - self.grid_height()) * self.grid_width();
             self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
-            self.grid_height = region.height();
         }
         self.window = Region {
             right: self.window.left + region.width(),
@@ -122,13 +116,10 @@ impl CharGrid {
                 }
             }
         }
-        self.grid_height = self.grid.height as u32;
     }
 
     pub fn move_cursor(&mut self, movement: Movement) {
         self.cursor.navigate(&mut self.grid, movement);
-        self.grid_height = self.grid.height as u32;
-        self.grid_width = self.grid.width as u32;
         self.window = self.window.move_to_contain(self.cursor.coords);
     }
 
