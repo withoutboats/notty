@@ -1,9 +1,10 @@
 use std::cell::RefCell;
+use std::io;
 use std::rc::Rc;
+use std::result;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::TryRecvError::*;
 
-use gdk;
 use gtk::{self, WidgetTrait};
 
 use notty::Command;
@@ -15,6 +16,13 @@ pub struct CommandApplicator {
     canvas: Rc<gtk::DrawingArea>,
 }
 
+pub enum CommandError {
+    Io(io::Error),
+    Disconnected,
+}
+
+pub type Result<T> = result::Result<T, CommandError>;
+
 impl CommandApplicator {
 
     pub fn new(rx: Receiver<Command>,
@@ -23,25 +31,26 @@ impl CommandApplicator {
         CommandApplicator { rx: rx, terminal: terminal, canvas: canvas }
     }
 
-    pub fn apply(&self) -> gdk::glib::Continue {
+    pub fn apply(&self) -> Result<()> {
         let mut terminal = self.terminal.borrow_mut();
         let mut redraw = false;
         loop {
             match self.rx.try_recv() {
                 Ok(cmd)             => {
+                    match terminal.apply(&cmd) {
+                        Err(e) => return Err(CommandError::Io(e)),
+                        _ => {},
+                    }
                     redraw = true;
-                    terminal.apply(&cmd).unwrap_or_else(|_| {
-                        gtk::main_quit();
-                    });
-                }
+                },
                 Err(Disconnected)   => {
-                    gtk::main_quit();
-                }
+                    return Err(CommandError::Disconnected);
+                },
                 Err(Empty)          => break,
             }
         }
         if redraw { self.canvas.queue_draw(); }
-        gdk::glib::Continue(true)
+        Ok(())
     }
 
 }

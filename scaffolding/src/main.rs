@@ -73,11 +73,11 @@ fn main() {
                     tx_out.send(cmd).unwrap();
                 },
                 Err(_) => {
-                    pty_open.store(false, Ordering::SeqCst);
                     break;
                 },
             }
         }
+        pty_open.store(false, Ordering::SeqCst);
     });
 
     // Quit GTK main loop if the (tty -> screen) output handler thread indicates
@@ -98,7 +98,15 @@ fn main() {
 
     // Process screen logic every 25 milliseconds.
     let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());
-    gdk::glib::timeout_add(25, move || cmd.apply());
+    gdk::glib::timeout_add(25, move || {
+        match cmd.apply() {
+            Ok(_) => gdk::glib::Continue(true),
+            Err(_) => {
+                gtk::main_quit();
+                gdk::glib::Continue(false)
+            }
+        }
+    });
 
     // Connect signal to draw on canvas.
     canvas.connect_draw(move |_, canvas| {
