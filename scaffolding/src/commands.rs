@@ -36,7 +36,6 @@ impl CommandApplicator {
                 }
                 Err(Disconnected)   => {
                     gtk::main_quit();
-                    panic!();
                 }
                 Err(Empty)          => break,
             }
