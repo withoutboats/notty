@@ -24,6 +24,7 @@ extern crate notty_cairo;
 use std::cell::RefCell;
 use std::env;
 use std::io::BufReader;
+use std::process;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -67,30 +68,18 @@ fn main() {
     let pty_open = Arc::new(AtomicBool::new(true));
     let pty_open_checker = pty_open.clone();
     thread::spawn(move || {
-        let output = Output::new(BufReader::new(tty_r));
-        for result in output {
-            match result {
-                Ok(cmd) => {
-                    tx_out.send(cmd).unwrap();
-                },
-                Err(_) => {
-                    pty_open.store(false, Ordering::SeqCst);
-                    break;
-                },
-            }
+        let mut output = Output::new(BufReader::new(tty_r));
+        while let Some(Ok(cmd)) = output.next() {
+            tx_out.send(cmd).unwrap();
         }
+        pty_open.store(false, Ordering::SeqCst);
     });
 
     // Quit GTK main loop if the (tty -> screen) output handler thread indicates
     // pty is no longer open.
     gdk::glib::timeout_add(50, move || {
-        match pty_open_checker.load(Ordering::SeqCst) {
-            true => gdk::glib::Continue(true),
-            false => {
-                gtk::main_quit();
-                gdk::glib::Continue(false)
-            }
-        }
+        if pty_open_checker.load(Ordering::SeqCst) { gdk::glib::Continue(true) }
+        else { exit() }
     });
 
     // Set up logical terminal and renderer.
@@ -146,4 +135,9 @@ fn main() {
     window.set_default_size(800, 800);
     window.show_all();
     gtk::main();
+}
+
+pub fn exit<T>() -> T {
+    gtk::main_quit();
+    process::exit(0)
 }
