@@ -5,6 +5,6 @@ authors = ["Without Boats <woboats@gmail.com>"]
 license = "AGPL-3.0+"
 
 [dependencies]
-cairo-rs = "*"
-pango = "*"
-gobject-sys = "*"
+cairo-rs = "0.0.7"
+pango = "0.0.6"
+gobject-sys = "0.2.1"
