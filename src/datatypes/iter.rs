@@ -13,6 +13,7 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use std::cmp;
 use std::mem;
 
 use datatypes::{Area, Coords, Direction, Region, move_within};
@@ -65,7 +66,9 @@ impl CoordsIter {
                 CoordsIter::from_area(CursorCell, cursor, screen, tab)
             }
             CursorBound(coords)     => {
-                CoordsIter::from_region(Region::new(cursor.x, cursor.y, coords.x, coords.y))
+                let (l, r) = (cmp::min(coords.x, cursor.x), cmp::max(coords.x, cursor.x) + 1);
+                let (t, b) = (cmp::min(coords.y, cursor.y), cmp::max(coords.y, cursor.y) + 1);
+                CoordsIter::from_region(Region::new(l, t, r, b))
             }
             WholeScreen             => CoordsIter::from_region(screen),
             Bound(region)           => CoordsIter::from_region(region),
