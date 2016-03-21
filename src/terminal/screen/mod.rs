@@ -10,6 +10,8 @@ mod ring;
 use self::section::ScreenSection;
 use self::panel::Panel::*;
 
+const E_ACTIVE: &'static str = "Active screen section must exist.";
+
 pub trait GridFill {
     fn new(u32, u32, bool) -> Self;
     fn resize(&mut self, Region);
@@ -61,9 +63,21 @@ impl Screen {
                  split_tag: Option<u64>, l_tag: u64, r_tag: u64, retain_offscreen_state: bool) {
         self.find_mut(split_tag).map(|section| section.split(save, kind, rule, l_tag, r_tag,
                                                              retain_offscreen_state));
+        if split_tag.map_or(true, |tag| tag == self.active) {
+            self.active = match save {
+                SaveGrid::Left  => l_tag,
+                SaveGrid::Right => r_tag,
+            };
+        }
     }
 
     pub fn unsplit(&mut self, save: SaveGrid, unsplit_tag: Option<u64>) {
+        self.active = if let Some((left, right)) = self.find(unsplit_tag)
+                                                       .and_then(ScreenSection::children) {
+            if self.active == left.tag() || self.active == right.tag() {
+                unsplit_tag.expect("Child and parent tags must be different.")
+            } else { self.active }
+        } else { self.active };
         self.find_mut(unsplit_tag).map(|section| section.unsplit(save));
     }
 
@@ -108,13 +122,13 @@ impl Screen {
 impl Deref for Screen {
     type Target = CharGrid;
     fn deref(&self) -> &CharGrid {
-        self.find(None).expect("active panel must exist").grid()
+        self.find(None).expect(E_ACTIVE).grid()
     }
 }
 
 impl DerefMut for Screen {
     fn deref_mut(&mut self) -> &mut CharGrid {
-        self.find_mut(None).expect("active panel must exist").grid_mut()
+        self.find_mut(None).expect(E_ACTIVE).grid_mut()
     }
 }
 

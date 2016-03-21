@@ -54,6 +54,10 @@ impl<T: GridFill> ScreenSection<T> {
         self.area
     }
 
+    pub fn tag(&self) -> u64 {
+        self.tag
+    }
+
     pub fn top(&self) -> &Panel<T> {
         &self.ring.top
     }
@@ -85,6 +89,13 @@ impl<T: GridFill> ScreenSection<T> {
             Grid(ref mut grid) => grid,
             _ => panic!("Cannot call grid_mut on a split section of the screen"),
         }
+    }
+
+    /// Get a reference to the children section of this section if it is split.
+    pub fn children(&self) -> Option<(&ScreenSection<T>, &ScreenSection<T>)> {
+        if let Split { ref left, ref right, .. } = self.ring.top {
+            Some((left, right))
+        } else { None }
     }
 
     /// Adjust this section of the grid to fit a new area.
