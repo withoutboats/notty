@@ -71,18 +71,17 @@ impl Screen {
         }
     }
 
-    pub fn unsplit(&mut self, save: SaveGrid, unsplit_tag: Option<u64>) {
-        self.active = if let Some((left, right)) = self.find(unsplit_tag)
-                                                       .and_then(ScreenSection::children) {
+    pub fn unsplit(&mut self, save: SaveGrid, tag: u64) {
+        if let Some((left, right)) = self.screen.find(tag).and_then(ScreenSection::children) {
             if self.active == left.tag() || self.active == right.tag() {
-                unsplit_tag.expect("Child and parent tags must be different.")
-            } else { self.active }
-        } else { self.active };
-        self.find_mut(unsplit_tag).map(|section| section.unsplit(save));
+                self.active = tag;
+            }
+        }
+        self.find_mut(Some(tag)).map(|section| section.unsplit(save));
     }
 
-    pub fn adjust_split(&mut self, adjust_tag: Option<u64>, kind: SplitKind, rule: ResizeRule) {
-        self.find_mut(adjust_tag).map(|section| section.adjust_split(kind, rule));
+    pub fn adjust_split(&mut self, tag: u64, kind: SplitKind, rule: ResizeRule) {
+        self.find_mut(Some(tag)).map(|section| section.adjust_split(kind, rule));
     }
 
     pub fn push(&mut self, tag: Option<u64>, retain_offscreen_state: bool) {

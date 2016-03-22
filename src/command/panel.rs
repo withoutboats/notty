@@ -1,4 +1,5 @@
 use command::prelude::*;
+use datatypes::{SaveGrid, ResizeRule};
 
 use notty_encoding::cmds::{
     PushPanel, PopPanel,
@@ -29,7 +30,9 @@ impl Command for PopPanel {
 
 impl Command for SplitPanel {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.split(self.save, self.kind, self.rule, self.split_tag, self.l_tag, self.r_tag,
+        let save = self.save.unwrap_or(SaveGrid::Left);
+        let rule = self.rule.unwrap_or(ResizeRule::Percentage);
+        terminal.split(save, self.kind, rule, self.split_tag, self.l_tag, self.r_tag,
                        self.retain_offscreen_state.unwrap_or(true));
         Ok(())
     }

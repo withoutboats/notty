@@ -46,10 +46,10 @@ impl NottyData {
                 } else { None }
             }
             Some(0x15)  => {
-                let coords = Coords::decode(args.next(), Some(Coords {x: 0, y: 0})).unwrap();
                 let w = match u32::decode(args.next(), None) { Some(w) => w, None => return None };
                 let h = match u32::decode(args.next(), None) { Some(h) => h, None => return None };
                 let p = MediaPosition::decode(args.next(), Some(MediaPosition::default())).unwrap();
+                let coords = Coords::decode(args.next(), Some(Coords {x: 0, y: 0})).unwrap();
                 if let Some((mime, data)) = image(self.attachments.iter()) {
                     wrap(Some(PutAt::new_image(data, mime, p, w, h, coords)))
                 } else { None }
@@ -134,24 +134,28 @@ impl NottyData {
                 let rule = ResizeRule::decode(args.next(), Some(ResizeRule::Percentage));
                 let split_tag = u64::decode(args.next(), None);
                 let offscreen_state = bool::decode(args.next(), Some(true));
-                match (l_tag, r_tag, kind, save, rule) {
-                    (Some(l_t), Some(r_t), Some(k), Some(s), Some(r)) => {
-                        wrap(Some(SplitPanel::new(l_t, r_t, k, s, r, split_tag, offscreen_state)))
+                match (l_tag, r_tag, kind) {
+                    (Some(l_tag), Some(r_tag), Some(kind)) => {
+                        wrap(Some(SplitPanel::new(l_tag, r_tag, kind, save, rule,
+                                                  split_tag, offscreen_state)))
                     }
                     _ => None
                 }
             }
             Some(0x63)  => {
-                SaveGrid::decode(args.next(), Some(SaveGrid::Left)).and_then(|save| {
-                    wrap(Some(UnsplitPanel::new(save, u64::decode(args.next(), None))))
-                })
+                let tag = u64::decode(args.next(), None);
+                let save = SaveGrid::decode(args.next(), Some(SaveGrid::Left));
+                if let (Some(tag), Some(save)) = (tag, save) {
+                    wrap(Some(UnsplitPanel::new(save, tag)))
+                } else { None }
             }
             Some(0x64)  => {
-                SplitKind::decode(args.next(), None).and_then(|k| {
-                    ResizeRule::decode(args.next(), Some(ResizeRule::Percentage)).map(|r| (k, r))
-                }).and_then(|(kind, rule)| {
-                    wrap(Some(AdjustPanelSplit::new(kind, rule, u64::decode(args.next(), None))))
-                })
+                let tag = u64::decode(args.next(), None);
+                let kind = SplitKind::decode(args.next(), None);
+                let rule = ResizeRule::decode(args.next(), Some(ResizeRule::Percentage));
+                if let (Some(tag), Some(kind), Some(rule)) = (tag, kind, rule) {
+                    wrap(Some(AdjustPanelSplit::new(kind, rule, tag)))
+                } else { None }
             }
             Some(0x65)  => wrap(Some(RotateSectionDown(u64::decode(args.next(), None)))),
             Some(0x66)  => wrap(Some(RotateSectionUp(u64::decode(args.next(), None)))),
