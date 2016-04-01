@@ -13,8 +13,8 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::ops::Index;
 
 use unicode_width::*;
 
@@ -40,57 +40,39 @@ pub struct CharGrid {
     grid: Grid<CharCell>,
     cursor: Cursor,
     tooltips: HashMap<Coords, Tooltip>,
-    pub grid_width: u32,
-    pub grid_height: u32,
+    window: Region,
 }
 
 impl CharGrid {
-    pub fn new(w: u32, h: u32, scroll_x: bool, scroll_y: bool) -> CharGrid {
-        let grid = match (scroll_x, scroll_y) {
-            (false, false)  => Grid::new(w as usize, h as usize),
-            (false, true)   => Grid::with_y_cap(w as usize, h as usize, CONFIG.scrollback as usize),
-            (true, false)   => unimplemented!(),
-            (true, true)    => unimplemented!(),
+    pub fn new(width: u32, height: u32, retain_offscreen_state: bool) -> CharGrid {
+        let grid = if retain_offscreen_state {
+            Grid::with_x_y_caps(width as usize, height as usize,
+                                CONFIG.scrollback as usize, CONFIG.scrollback as usize)
+        } else {
+            Grid::new(width as usize, height as usize)
         };
         CharGrid {
             grid: grid,
             cursor: Cursor::default(),
             tooltips: HashMap::new(),
-            grid_width: w,
-            grid_height: h,
+            window: Region::new(0, 0, width, height),
         }
     }
 
-    pub fn set_height(&mut self, h: u32) {
-        if self.grid.scrolls_y { return; }
-        match self.grid_height.cmp(&h) {
-            Ordering::Greater   => {
-                let n = (self.grid_height - h) as usize;
-                self.grid.remove_from_bottom(n);
-            }
-            Ordering::Equal     => (),
-            Ordering::Less      => {
-                let n = ((h - self.grid_height) * self.grid_width) as usize;
-                self.grid.add_to_bottom(vec![CharCell::default(); n]);
-            }
+    pub fn resize_window(&mut self, region: Region) {
+        if self.grid_width() < region.width() {
+            let n = (region.width() - self.grid_width()) * self.grid_height();
+            self.grid.add_to_right(vec![CharCell::default(); n as usize]);
         }
-        self.grid_height = h;
-    }
-
-    pub fn set_width(&mut self, w: u32) {
-        if self.grid.scrolls_x { return; }
-        match self.grid_width.cmp(&w) {
-            Ordering::Greater   => {
-                let n = (self.grid_width - w) as usize;
-                self.grid.remove_from_right(n);
-            }
-            Ordering::Equal     => (),
-            Ordering::Less      => {
-                let n = ((w - self.grid_width) * self.grid_height) as usize;
-                self.grid.add_to_right(vec![CharCell::default(); n]);
-            }
+        if self.grid_height() < region.height() {
+            let n = (region.height() - self.grid_height()) * self.grid_width();
+            self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
         }
-        self.grid_width = w;
+        self.window = Region {
+            right: self.window.left + region.width(),
+            bottom: self.window.top + region.height(),
+            ..self.window
+        };
     }
 
     pub fn write(&mut self, data: CellData) {
@@ -134,12 +116,11 @@ impl CharGrid {
                 }
             }
         }
-        self.grid_height = self.grid.height as u32;
     }
 
     pub fn move_cursor(&mut self, movement: Movement) {
         self.cursor.navigate(&mut self.grid, movement);
-        self.grid_height = self.grid.height as u32;
+        self.window = self.window.move_to_contain(self.cursor.coords);
     }
 
     pub fn add_tooltip(&mut self, coords: Coords, tooltip: String) {
@@ -267,17 +248,34 @@ impl<'a> IntoIterator for &'a CharGrid {
     }
 }
 
+impl Index<Coords> for CharGrid {
+    type Output = CharCell;
+    fn index(&self, Coords {x, y}: Coords) -> &CharCell {
+        let coords = Coords { x: x + self.window.left, y: y + self.window.top };
+        assert!(self.window.contains(coords));
+        &self.grid[coords]
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
 
     use cfg::CONFIG;
-    use datatypes::{CellData, Coords, Direction, Movement};
+    use datatypes::{CellData, Coords, Direction, Movement, Region};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        test(CharGrid::new(10, 10, false, false), 10);
-        test(CharGrid::new(10, 10, false, true), 11);
+        test(CharGrid::new(10, 10, false), 10);
+        test(CharGrid::new(10, 10, true), 11);
+    }
+
+    #[test]
+    fn window_scrolls_with_cursor() {
+        run_test(|mut grid, h| {
+            grid.move_cursor(Movement::NextLine(10));
+            assert_eq!(grid.window, Region::new(0, h - 10, 10, h));
+        })
     }
 
     #[test]

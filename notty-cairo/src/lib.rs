@@ -49,7 +49,7 @@ impl Renderer {
         });
         let width = pix_w / (char_w as u32);
         let height = pix_h / (char_h as u32);
-        terminal.set_winsize(width, height).unwrap_or_else(|e| panic!("{}", e));
+        terminal.set_winsize(Some(width), Some(height)).unwrap_or_else(|e| panic!("{}", e));
     }
 
     pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
@@ -60,8 +60,8 @@ impl Renderer {
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 
-        let col_n = terminal.grid_width as usize;
-        let rows = terminal.into_iter().chunks_lazy(col_n);
+        let col_n = terminal.area().width() as usize;
+        let rows = terminal.cells().chunks_lazy(col_n);
 
         // Remove dead images from the cache.
         for key in self.images.keys().filter(|k| Arc::strong_count(k) == 1).cloned().collect::<Vec<_>>() {

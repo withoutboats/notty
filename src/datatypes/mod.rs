@@ -42,6 +42,9 @@ pub mod args {
         MediaPosition,
         Movement,
         Region,
+        ResizeRule,
+        SaveGrid,
+        SplitKind,
         Style,
     };
     pub use super::Area::*;

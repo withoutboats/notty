@@ -114,6 +114,10 @@ impl CoordsIter {
         }
     }
 
+    pub fn region(&self) -> Region {
+        self.region
+    }
+
 }
 
 impl Iterator for CoordsIter {

@@ -22,13 +22,13 @@ use terminal::Styles;
 
 use self::CharCell::*;
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Debug)]
 pub struct ImageData {
     pub data: Vec<u8>,
     coords: Coords,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum CharCell {
     Empty(Styles),
     Char(char, Styles),

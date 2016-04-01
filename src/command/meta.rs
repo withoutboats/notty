@@ -15,33 +15,10 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::cell::RefCell;
 
-use notty_encoding::cmds::{PushBuffer, PopBuffer, SetInputMode};
+use notty_encoding::cmds::SetInputMode;
 
 use command::prelude::*;
 use datatypes::InputSettings;
-
-impl Command for PushBuffer {
-    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.push_buffer(false, self.0);
-        Ok(())
-    }
-    fn repr(&self) -> String {
-        match self.0 {
-            true    => String::from("PUSH BUFFER SCROLLING"),
-            false   => String::from("PUSH BUFFER STATIC"),
-        }
-    }
-}
-
-impl Command for PopBuffer {
-    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.pop_buffer();
-        Ok(())
-    }
-    fn repr(&self) -> String {
-        String::from("POP BUFFER")
-    }
-}
 
 pub struct SetTitle(pub RefCell<Option<String>>);
 

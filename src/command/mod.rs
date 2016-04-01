@@ -22,6 +22,7 @@ mod erase;
 mod input;
 mod meta;
 mod movement;
+mod panel;
 mod put;
 mod respond;
 mod style;
@@ -29,7 +30,9 @@ mod tooltip;
 
 pub use notty_encoding::cmds::{
     Erase, RemoveChars, RemoveRows, InsertBlank, InsertRows,
-    PushBuffer, PopBuffer, SetInputMode,
+    PushPanel, PopPanel, SplitPanel, UnsplitPanel, AdjustPanelSplit,
+    RotateSectionDown, RotateSectionUp, SwitchActiveSection,
+    SetInputMode,
     Move, ScrollScreen,
     SetCursorStyle, DefaultCursorStyle,
     SetTextStyle, DefaultTextStyle,

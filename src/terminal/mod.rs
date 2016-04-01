@@ -14,10 +14,10 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::{self, Write};
-use std::mem;
 use std::ops::{Deref, DerefMut};
 
 mod char_grid;
+mod screen;
 mod input;
 
 use Command;
@@ -25,30 +25,23 @@ use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
+pub use self::screen::{Screen, Cells, Panels};
 
 use self::input::Input;
 
 pub struct Terminal {
-    width: u32,
-    height: u32,
     title: String,
-    active: CharGrid,
-    inactive: Vec<CharGrid>,
+    screen: Screen,
     tty: Input,
 }
 
 impl Terminal {
 
     pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W) -> Terminal {
-        let grid = CharGrid::new(width, height, false, true);
-        let tty = Input::new(tty);
         Terminal {
-            width: width,
-            height: height,
             title: String::new(),
-            active: grid,
-            inactive: Vec::new(),
-            tty: tty,
+            screen: Screen::new(width, height),
+            tty: Input::new(tty),
         }
     }
 
@@ -76,16 +69,6 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn push_buffer(&mut self, scroll_x: bool, scroll_y: bool) {
-        let mut grid = CharGrid::new(self.width, self.height, scroll_x, scroll_y);
-        mem::swap(&mut grid, &mut self.active);
-        self.inactive.push(grid);
-    }
-
-    pub fn pop_buffer(&mut self) {
-        self.inactive.pop().map(|grid| self.active = grid);
-    }
-
     pub fn set_title(&mut self, title: String) {
         self.title = title;
     }
@@ -98,25 +81,28 @@ impl Terminal {
         println!("BELL");
     }
 
-    pub fn set_winsize(&mut self, cols: u32, rows: u32) -> io::Result<()> {
-        self.active.set_width(cols);
-        self.width = cols;
-        self.active.set_height(rows);
-        self.height = rows;
+    pub fn set_winsize(&mut self, cols: Option<u32>, rows: Option<u32>) -> io::Result<()> {
+        let (cols, rows) = match (cols, rows) {
+            (Some(w), Some(h)) if w > 0 && h > 0    => (w, h),
+            (Some(w), _) if w > 0                   => (w, self.area().bottom),
+            (_, Some(h)) if h > 0                   => (self.area().right, h),
+            (_, _)                                  => (self.area().right, self.area().bottom),
+        };
+        self.resize(cols, rows);
         self.tty.set_winsize(cols, rows)
     }
 
 }
 
 impl Deref for Terminal {
-    type Target = CharGrid;
-    fn deref(&self) -> &CharGrid {
-        &self.active
+    type Target = Screen;
+    fn deref(&self) -> &Screen {
+        &self.screen
     }
 }
 
 impl DerefMut for Terminal {
-    fn deref_mut(&mut self) -> &mut CharGrid {
-        &mut self.active
+    fn deref_mut(&mut self) -> &mut Screen {
+        &mut self.screen
     }
 }
