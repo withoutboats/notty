@@ -22,7 +22,7 @@ use super::modifiers::Modifiers;
 
 macro_rules! term_key {
     ($term:expr, $app_mode:expr, $mods:expr) => (match $mods.triplet() {
-        (false, false, false) if $app_mode  => Some(Cow::Borrowed(concat!("\x1b0", $term))),
+        (false, false, false) if $app_mode  => Some(Cow::Borrowed(concat!("\x1bO", $term))),
         (false, false, false)               => Some(Cow::Borrowed(concat!("\x1b[", $term))),
         (true,  false, false)               => Some(Cow::Borrowed(concat!("\x1b[1;2", $term))),
         (false, false, true)                => Some(Cow::Borrowed(concat!("\x1b[1;3", $term))),
@@ -56,7 +56,7 @@ pub fn encode(key: &Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static,
         DownArrow               => term_key!('B', app_mode, mods),
         LeftArrow               => term_key!('D', app_mode, mods),
         RightArrow              => term_key!('C', app_mode, mods),
-        Enter                   => Some(Cow::Borrowed("\n")),
+        Enter                   => Some(Cow::Borrowed("\r")),
         Backspace               => Some(Cow::Borrowed("\x08")),
         Meta | Menu             => None,
         PageUp                  => tilde_key!('5', mods),
