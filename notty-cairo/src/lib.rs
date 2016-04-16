@@ -19,7 +19,7 @@ use gdk::glib::translate::ToGlibPtr;
 use itertools::Itertools;
 
 use notty::cfg::CONFIG;
-use notty::datatypes::Color;
+use notty::datatypes::{Coords, Color};
 use notty::terminal::{CharCell, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
@@ -72,6 +72,18 @@ impl Renderer {
             let y_pix = self.y_pixels(y_pos as u32);
             let mut text = TextRenderer::new(0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
+                if (Coords { x: x_pos as u32, y: y_pos as u32 } == terminal.cursor_position()) {
+                    let cursor_styles = terminal.cursor_styles();
+                    match cell {
+                        &CharCell::Empty(style) => text.push_cursor(' ', style, cursor_styles),
+                        &CharCell::Char(ch, style) => text.push_cursor(ch, style, cursor_styles),
+                        &CharCell::Grapheme(ref s, style)   =>
+                            text.push_str_cursor(s, style, cursor_styles),
+                        &CharCell::Extension(..)            => unreachable!(),
+                        &CharCell::Image(..)                => continue,
+                    }
+                    continue;
+                }
                 match cell {
                     &CharCell::Empty(style)                             => text.push(' ', style),
                     &CharCell::Char(ch, style)                          => text.push(ch, style),

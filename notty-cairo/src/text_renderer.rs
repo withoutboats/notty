@@ -74,6 +74,20 @@ impl TextRenderer {
         self.add_style(&range, styles);
     }
 
+    pub fn push_cursor(&mut self, ch: char, styles: Styles, cursor_styles: Styles) {
+        let lower = self.text.len();
+        self.text.push(ch);
+        let range = lower..self.text.len();
+        self.add_cursor_style(&range, styles, cursor_styles);
+    }
+
+    pub fn push_str_cursor(&mut self, s: &str, styles: Styles, cursor_styles: Styles) {
+        let lower = self.text.len();
+        self.text.push_str(s);
+        let range = lower..self.text.len();
+        self.add_cursor_style(&range, styles, cursor_styles);
+    }
+
     pub fn draw(&self, canvas: &cairo::Context) {
         if self.is_blank() { return; }
 
@@ -109,6 +123,10 @@ impl TextRenderer {
         if style.italic { append_bool(range.clone(), &mut self.italic) }
         if style.strikethrough { append_bool(range.clone(), &mut self.strikethrough); }
         if style.blink { append_bool(range.clone(), &mut self.blink) }
+    }
+
+    fn add_cursor_style(&mut self, range: &Range<usize>, style: Styles, _: Styles) {
+        self.add_style(range, Styles { inverted: !style.inverted, ..style });
     }
 
     fn cursor_style(&mut self, range: &Range<usize>, style: Styles) {
