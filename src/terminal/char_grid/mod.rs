@@ -140,7 +140,7 @@ impl CharGrid {
     }
 
     pub fn erase(&mut self, area: Area) {
-        self.in_area(area, |grid, coords| grid[coords].empty());
+        self.in_area(area, |grid, coords| grid[coords] = CharCell::default());
     }
 
     pub fn insert_blank_at(&mut self, n: u32) {

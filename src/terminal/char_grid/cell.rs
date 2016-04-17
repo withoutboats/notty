@@ -110,11 +110,6 @@ impl CharCell {
         }
     }
 
-    pub fn empty(&mut self) {
-        let style = *self.style();
-        *self = Empty(style);
-    }
-
     pub fn is_empty(&self) -> bool {
         if let Empty(_) = *self { true } else { false }
     }
