@@ -14,7 +14,7 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::collections::HashMap;
-use std::ops::Index;
+use std::ops::{Index, Range};
 
 use unicode_width::*;
 
@@ -213,6 +213,21 @@ impl CharGrid {
 
     pub fn cursor_styles(&self) -> Styles {
         self.cursor.style
+    }
+
+    pub fn chars_in_range(&self, start: Coords, end: Coords) -> String {
+        let range_idx = Range {
+            start: start.x + start.y,
+            end: end.x + end.y
+        };
+        self.grid.range_inclusive(start, end).zip(range_idx).fold(String::new(), |s, (cell, idx)| {
+            let mut string = if idx % self.grid.width as u32 == 0 { s + "\n" } else { s };
+            match *cell {
+                CharCell::Char(c, _)            => { string.push(c); string }
+                CharCell::Grapheme(ref s, _)    => string + s,
+                _                               => string
+            }
+        })
     }
 
     pub fn grid_width(&self) -> u32 {

@@ -61,6 +61,18 @@ impl<T: Default + Clone> Grid<T> {
         Region::new(0, 0, self.width as u32, self.height as u32)
     }
 
+    pub fn range_inclusive(&self, start: Coords, end: Coords)
+            -> iter::Take<iter::Skip<<&VecDeque<T> as IntoIterator>::IntoIter>> {
+        assert!(self.width > start.x as usize, "{} outside of x bounds", start.x);
+        assert!(self.height > start.y as usize, "{} outside of y bounds", start.y);
+        assert!(self.width > end.x as usize, "{} outside of x bounds", end.x);
+        assert!(self.height > end.y as usize, "{} outside of y bounds", end.y);
+        let start = start.x as usize + start.y as usize * self.width;
+        let end = end.x as usize + end.y as usize * self.width;
+        assert!(end >= start, "range must be ascending");
+        self.into_iter().skip(start).take(end - start + 1)
+    }
+
     pub fn add_to_top(&mut self, data: Vec<T>) {
         assert!(data.len() % self.width == 0);
         self.height += data.len() / self.width;
@@ -265,7 +277,7 @@ impl<T> Index<Coords> for Grid<T> {
 impl<T> IndexMut<Coords> for Grid<T> {
     fn index_mut(&mut self, idx: Coords) -> &mut T {
         assert!(self.width > idx.x as usize, "{} index outside of x bounds", idx.x);
-        assert!(self.height > idx.y as usize, "{} index otuside of y bounds", idx.y);
+        assert!(self.height > idx.y as usize, "{} index outside of y bounds", idx.y);
         &mut self.data[(idx.y as usize * self.width) + idx.x as usize]
     }
 }
@@ -461,6 +473,23 @@ mod tests {
             assert_eq!(height, grid.height);
             assert_eq!(grid.data.len(), width * height);
         }, 8, 10);
+    }
+
+    #[test]
+    fn range() {
+        const RANGE_TESTS: &'static [(Coords, Coords, &'static [u32])] = &[
+            (Coords { x: 0, y: 0 }, Coords { x: 7, y: 0 }, &[0, 1, 2, 3, 4, 5, 6, 7]),
+            (Coords { x: 6, y: 0 }, Coords { x: 1, y: 1 }, &[6, 7, 8, 9]),
+            (Coords { x: 4, y: 7 }, Coords { x: 7, y: 7 }, &[60, 61, 62, 63]),
+            (Coords { x: 7, y: 1 }, Coords { x: 0, y: 3 },
+                 &[15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
+        ];
+        let mut grid = Grid::new(8, 8);
+        for (idx, cell) in (&mut grid).into_iter().enumerate() { *cell = idx as u32; }
+        for &(coords1, coords2, values) in RANGE_TESTS {
+            assert_eq!(&*grid.range_inclusive(coords1, coords2).cloned().collect::<Vec<_>>(),
+                       values);
+        }
     }
 
 }
