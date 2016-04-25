@@ -20,7 +20,7 @@ use itertools::Itertools;
 
 use notty::datatypes::{Coords, Color};
 use notty::cfg::Config;
-use notty::terminal::{CharCell, Terminal, ImageData};
+use notty::terminal::{CharData, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
@@ -72,39 +72,39 @@ impl Renderer {
             let y_pix = self.y_pixels(y_pos as u32);
             let mut text = TextRenderer::new(0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
+                let style = cell.styles;
                 if (Coords { x: x_pos as u32, y: y_pos as u32 } == terminal.cursor_position()) {
-                    let cursor_styles = terminal.cursor_styles();
-                    match cell {
-                        &CharCell::Empty(style) => text.push_cursor(' ', style, cursor_styles),
-                        &CharCell::Char(ch, style) => text.push_cursor(ch, style, cursor_styles),
-                        &CharCell::Grapheme(ref s, style)   =>
-                            text.push_str_cursor(s, style, cursor_styles),
-                        &CharCell::Extension(..)            => unreachable!(),
-                        &CharCell::Image(..)                => continue,
+                    let cursor_style = terminal.cursor_styles();
+                    match cell.content {
+                        CharData::Empty             => text.push_cursor(' ', style, cursor_style),
+                        CharData::Char(ch)          => text.push_cursor(ch, style, cursor_style),
+                        CharData::Grapheme(ref s)   => text.push_str_cursor(s, style, cursor_style),
+                        CharData::Extension(_)      => unreachable!(),
+                        CharData::Image { .. }      => continue,
                     }
                     continue;
                 }
-                match cell {
-                    &CharCell::Empty(style)                             => text.push(' ', style),
-                    &CharCell::Char(ch, style)                          => text.push(ch, style),
-                    &CharCell::Grapheme(ref s, style)                   => text.push_str(s, style),
-                    &CharCell::Extension(..)                            => { }
-                    &CharCell::Image(ref image, ref mime, ref pos, (ref w, ref h), _) => {
+                match cell.content {
+                    CharData::Empty             => text.push(' ', style),
+                    CharData::Char(ch)          => text.push(ch, style),
+                    CharData::Grapheme(ref s)   => text.push_str(s, style),
+                    CharData::Extension(_)      => { }
+                    CharData::Image { ref data, ref pos, ref width, ref height, .. } => {
                         let x_pix = self.x_pixels(x_pos as u32);
-                        if (x_pos + *w as usize) < col_n {
+                        if (x_pos + *width as usize) < col_n {
                             text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
                             text = TextRenderer::new(x_pix, y_pix);
                         }
-                        if let Some(image) = self.images.get(image) {
+                        if let Some(image) = self.images.get(data) {
                             image.draw(canvas);
                             continue;
                         }
-                        let w_pix = self.x_pixels(*w);
-                        let h_pix = self.y_pixels(*h);
-                        let img = ImageRenderer::new(&image.data, x_pix, y_pix, w_pix, h_pix,
+                        let w_pix = self.x_pixels(*width);
+                        let h_pix = self.y_pixels(*height);
+                        let img = ImageRenderer::new(&data.data, x_pix, y_pix, w_pix, h_pix,
                                                      *pos);
                         img.draw(canvas);
-                        self.images.insert(image.clone(), img);
+                        self.images.insert(data.clone(), img);
                     }
                 }
             }

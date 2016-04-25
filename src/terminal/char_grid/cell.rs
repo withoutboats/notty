@@ -20,7 +20,28 @@ use mime::Mime;
 use datatypes::{Coords, MediaPosition};
 use terminal::Styles;
 
-use self::CharCell::*;
+use self::CharData::*;
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct CharCell {
+    pub styles: Styles,
+    pub content: CharData,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum CharData {
+    Empty,
+    Char(char),
+    Grapheme(String),
+    Extension(Coords),
+    Image { 
+        data: Arc<ImageData>,
+        mime: Mime,
+        pos: MediaPosition,
+        width: u32,
+        height: u32,
+    }
+}
 
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct ImageData {
@@ -28,27 +49,27 @@ pub struct ImageData {
     coords: Coords,
 }
 
-#[derive(Clone, PartialEq, Debug)]
-pub enum CharCell {
-    Empty(Styles),
-    Char(char, Styles),
-    Grapheme(String, Styles),
-    Image(Arc<ImageData>, Mime, MediaPosition, (u32, u32), Styles),
-    Extension(Coords, Styles),
-}
-
 impl CharCell {
 
-    pub fn new(style: Styles) -> CharCell {
-        Empty(style)
+    pub fn new(styles: Styles) -> CharCell {
+        CharCell {
+            styles: styles,
+            content: Empty,
+        }
     }
 
-    pub fn character(ch: char, style: Styles) -> CharCell {
-        Char(ch, style)
+    pub fn character(ch: char, styles: Styles) -> CharCell {
+        CharCell {
+            styles: styles,
+            content: Char(ch)
+        }
     }
 
-    pub fn grapheme(grapheme: String, style: Styles) -> CharCell {
-       Grapheme(grapheme, style)
+    pub fn grapheme(grapheme: String, styles: Styles) -> CharCell {
+        CharCell {
+            styles: styles,
+            content: Grapheme(grapheme)
+        }
     }
 
     pub fn image(data: Vec<u8>,
@@ -57,69 +78,71 @@ impl CharCell {
                  pos: MediaPosition, 
                  width: u32,
                  height: u32,
-                 style: Styles) -> CharCell {
-        Image(Arc::new(ImageData {
-            data: data,
-            coords: coords,
-        }), mime, pos, (width, height), style)
+                 styles: Styles) -> CharCell {
+        CharCell {
+            styles: styles,
+            content: Image {
+                data: Arc::new(ImageData {
+                    data: data,
+                    coords: coords,
+                }),
+                mime: mime,
+                pos: pos,
+                width: width,
+                height: height
+            }
+        }
+    }
+
+    pub fn extension(coords: Coords, styles: Styles) -> CharCell {
+        CharCell {
+            styles: styles,
+            content: Extension(coords),
+        }
     }
 
     pub fn extend_by(&mut self, ext: char) -> bool {
-        match *self {
-            Char(c, style)          => {
+        match self.content {
+            Char(c)             => {
                 let mut string = c.to_string();
                 string.push(ext);
-                *self = Grapheme(string, style);
+                self.content = Grapheme(string);
                 true
             }
-            Grapheme(ref mut s, _)  => {
+            Grapheme(ref mut s) => {
                 s.push(ext);
                 true
             }
-            _                       => {
-                false
-            }
+            _                   => false
         }
     }
 
     pub fn repr(&self) -> String {
-        match *self {
-            Char(c, _)          => c.to_string(),
-            Grapheme(ref s, _)  => s.clone(),
-            Image(..)           => String::from("IMG"),
-            Empty(_)            => String::new(),
-            Extension(..)       => String::from("EXT"),
-        }
-    }
-
-    pub fn style(&self) -> &Styles {
-        match *self {
-            Char(_, ref style)
-                | Grapheme(_, ref style)
-                | Empty(ref style)
-                | Image(_, _, _, _, ref style)
-                | Extension(_, ref style)
-                => style
-        }
-    }
-
-    pub fn style_mut(&mut self) -> &mut Styles {
-        match *self {
-            Char(_, ref mut style)
-                | Grapheme(_, ref mut style)
-                | Empty(ref mut style)
-                | Image(_, _, _, _, ref mut style) 
-                | Extension(_, ref mut style)
-                => style
+        match self.content {
+            Char(c)         => c.to_string(),
+            Grapheme(ref s) => s.clone(),
+            Image { .. }    => String::from("IMG"),
+            Empty           => String::new(),
+            Extension(_)    => String::from("EXT"),
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        if let Empty(_) = *self { true } else { false }
+        self.content == Empty
     }
 
     pub fn is_char_extension(&self) -> bool {
-        if let Extension(..) = *self { true } else { false }
+        if let Extension(..) = self.content { true } else { false }
     }
 
+}
+
+impl ToString for CharCell {
+    fn to_string(&self) -> String {
+        match self.content {
+            Char(c)         => c.to_string(),
+            Grapheme(ref s) => s.clone(),
+            _               => String::new()
+        }
+    }
 }

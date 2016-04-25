@@ -25,7 +25,7 @@ use Command;
 use datatypes::{InputSettings, Key};
 use cfg::Config;
 
-pub use self::char_grid::{CharCell, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
+pub use self::char_grid::{CharCell, CharData, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
 pub use self::screen::{Screen, Cells, Panels};
 

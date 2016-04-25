@@ -19,7 +19,7 @@ use cfg::Config;
 use datatypes::{Coords, Movement, move_within};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
-use terminal::{CharCell, Grid, Styles};
+use terminal::{CharCell, CharData, Grid, Styles};
 
 #[derive(Clone)]
 pub struct Cursor {
@@ -63,7 +63,7 @@ impl Cursor {
         }
         let mut coords = move_within(self.coords, movement, grid.bounds(), tab_stop);
 
-        if let CharCell::Extension(source, _) = grid[coords] {
+        if let CharData::Extension(source) = grid[coords].content {
             match movement {
                 Position(_) => {
                     self.coords = source;
@@ -89,7 +89,7 @@ impl Cursor {
                                                   grid.bounds(),
                                                   tab_stop);
                     if next_coords == coords { self.coords = source; return; }
-                    if let CharCell::Extension(source2, _) = grid[next_coords] {
+                    if let CharData::Extension(source2) = grid[next_coords].content {
                         if source2 != source { self.coords = source2; return; }
                         else { coords = next_coords; }
                     } else { self.coords = next_coords; return; }
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn navigate() {
         let config = Rc::new(Config::default());
-        let default = CharCell::Empty(Styles::new(&config));
+        let default = CharCell::new(Styles::new(&config));
         let mut grid = Grid::new(5, 5, default);
         for &(mov, coords) in MOVEMENTS {
             let mut cursor = cursor();
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn navigate_and_scroll() {
         let config = Rc::new(Config::default());
-        let default = CharCell::Empty(Styles::new(&config));
+        let default = CharCell::new(Styles::new(&config));
         let mut grid = Grid::with_y_cap(5, 5, 10, default);
         for &(mov, coords) in MOVEMENTS {
             let mut cursor = cursor();
@@ -167,11 +167,11 @@ mod tests {
     #[test]
     fn navigate_around_extended_cells() {
         let config = Rc::new(Config::default());
-        let default = CharCell::Empty(Styles::new(&config));
+        let default = CharCell::new(Styles::new(&config));
         let mut grid = Grid::new(5, 5, default);
-        grid[Coords{x:2,y:1}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(&config));
-        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(&config));
-        grid[Coords{x:2,y:2}] = CharCell::Extension(Coords{x:1,y:1}, Styles::new(&config));
+        grid[Coords{x:2,y:1}] = CharCell::extension(Coords{x:1,y:1}, Styles::new(&config));
+        grid[Coords{x:1,y:2}] = CharCell::extension(Coords{x:1,y:1}, Styles::new(&config));
+        grid[Coords{x:2,y:2}] = CharCell::extension(Coords{x:1,y:1}, Styles::new(&config));
         for &(init, mov, end) in MOVEMENTS_EXTENDED {
             let mut cursor = Cursor { coords: init, ..Cursor::new(&config) };
             cursor.navigate(&mut grid, mov, config.tab_stop);
@@ -193,11 +193,11 @@ mod tests {
     #[test]
     fn navigate_around_extended_at_border() {
         let config = Rc::new(Config::default());
-        let default = CharCell::Empty(Styles::new(&config));
+        let default = CharCell::new(Styles::new(&config));
         let mut grid = Grid::new(2, 5, default);
-        grid[Coords{x:1,y:1}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(&config));
-        grid[Coords{x:0,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(&config));
-        grid[Coords{x:1,y:2}] = CharCell::Extension(Coords{x:0,y:1}, Styles::new(&config));
+        grid[Coords{x:1,y:1}] = CharCell::extension(Coords{x:0,y:1}, Styles::new(&config));
+        grid[Coords{x:0,y:2}] = CharCell::extension(Coords{x:0,y:1}, Styles::new(&config));
+        grid[Coords{x:1,y:2}] = CharCell::extension(Coords{x:0,y:1}, Styles::new(&config));
         for &(init, mov, end) in MOVEMENTS_EXTENDED_AT_BORDER {
             let mut cursor = Cursor { coords: init, ..Cursor::new(&config) };
             cursor.navigate(&mut grid, mov, config.tab_stop);
