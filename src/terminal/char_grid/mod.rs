@@ -53,13 +53,13 @@ impl CharGrid {
                                 height as usize,
                                 config.scrollback as usize,
                                 config.scrollback as usize,
-                                CharCell::new(Styles::new(&config)))
+                                CharCell::new(Styles::new()))
         } else {
-            Grid::new(width as usize, height as usize, CharCell::new(Styles::new(&config)))
+            Grid::new(width as usize, height as usize, CharCell::new(Styles::new()))
         };
         CharGrid {
             grid: grid,
-            cursor: Cursor::new(&config.clone()),
+            cursor: Cursor::new(),
             tooltips: HashMap::new(),
             window: Region::new(0, 0, width, height),
             config: config.clone(),
@@ -69,11 +69,11 @@ impl CharGrid {
     pub fn resize_window(&mut self, region: Region) {
         if self.grid_width() < region.width() {
             let n = (region.width() - self.grid_width()) * self.grid_height();
-            self.grid.add_to_right(vec![CharCell::new(Styles::new(&self.config)); n as usize]);
+            self.grid.add_to_right(vec![CharCell::new(Styles::new()); n as usize]);
         }
         if self.grid_height() < region.height() {
             let n = (region.height() - self.grid_height()) * self.grid_width();
-            self.grid.add_to_bottom(vec![CharCell::new(Styles::new(&self.config)); n as usize]);
+            self.grid.add_to_bottom(vec![CharCell::new(Styles::new()); n as usize]);
         }
         self.window = Region {
             right: self.window.left + region.width(),
@@ -159,7 +159,7 @@ impl CharGrid {
     }
 
     pub fn erase(&mut self, area: Area) {
-        let styles = Styles::new(&self.config);
+        let styles = Styles::new();
         self.in_area(area, |grid, coords| grid[coords] = CharCell::new(styles));
     }
 
@@ -204,29 +204,27 @@ impl CharGrid {
     }
 
     pub fn set_style(&mut self, style: Style) {
-        self.cursor.text_style.update(style, &self.config);
+        self.cursor.text_style.update(style);
     }
 
     pub fn reset_styles(&mut self) {
-        self.cursor.text_style = Styles::new(&self.config);
+        self.cursor.text_style = Styles::new();
     }
 
     pub fn set_cursor_style(&mut self, style: Style) {
-        self.cursor.style.update(style, &self.config);
+        self.cursor.style.update(style);
     }
 
     pub fn reset_cursor_styles(&mut self) {
-        self.cursor.style = Styles::new(&self.config);
+        self.cursor.style = Styles::new();
     }
 
     pub fn set_style_in_area(&mut self, area: Area, style: Style) {
-        let config = self.config.clone();
-        self.in_area(area, |grid, coords| grid[coords].styles.update(style, &config));
+        self.in_area(area, |grid, coords| grid[coords].styles.update(style));
     }
 
     pub fn reset_styles_in_area(&mut self, area: Area) {
-        let config = self.config.clone();
-        self.in_area(area, |grid, coords| grid[coords].styles = Styles::new(&config));
+        self.in_area(area, |grid, coords| grid[coords].styles = Styles::new());
     }
 
     pub fn cursor_position(&self) -> Coords {

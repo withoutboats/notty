@@ -190,19 +190,19 @@ impl AnsiData {
                 38              => match self.arg(1, 0) {
                     2   => match (self.arg(3, 257), self.arg(4, 257), self.arg(5, 257)) {
                         (r, g, b) if r < 256 && g < 256 && b < 256
-                            => wrap(SetTextStyle(FgColor(Color(r as u8, g as u8, b as u8)))),
+                            => wrap(SetTextStyle(FgColor(Color::True(r as u8, g as u8, b as u8)))),
                         _   => None
                     },
-                    5   => wrap(SetTextStyle(FgColorCfg(Some(self.arg(2, 0) as u8)))),
+                    5   => wrap(SetTextStyle(FgColor(Color::Palette(self.arg(2, 0) as u8)))),
                     _   => None
                 },
                 48              => match self.arg(1, 0) {
                     2   => match (self.arg(3, 257), self.arg(4, 257), self.arg(5, 257)) {
                         (r, g, b) if r < 256 && g < 256 && b < 256
-                            => wrap(SetTextStyle(BgColor(Color(r as u8, g as u8, b as u8)))),
+                            => wrap(SetTextStyle(BgColor(Color::True(r as u8, g as u8, b as u8)))),
                         _   => None
                     },
-                    5   => wrap(SetTextStyle(BgColorCfg(Some(self.arg(2, 0) as u8)))),
+                    5   => wrap(SetTextStyle(BgColor(Color::Palette(self.arg(2, 0) as u8)))),
                     _   => None
                 },
                 _               => {
@@ -223,12 +223,12 @@ impl AnsiData {
                     27              => wrap(SetTextStyle(InvertColors(false))),
                     28              => wrap(SetTextStyle(Opacity(0xff))),
                     29              => wrap(SetTextStyle(Strikethrough(false))),
-                    n @ 30...37     => wrap(SetTextStyle(FgColorCfg(Some((n - 30) as u8)))),
-                    39              => wrap(SetTextStyle(FgColorCfg(None))),
-                    n @ 40...47     => wrap(SetTextStyle(BgColorCfg(Some((n - 40) as u8)))),
-                    49              => wrap(SetTextStyle(BgColorCfg(None))),
-                    n @ 90...97     => wrap(SetTextStyle(FgColorCfg(Some((n - 82) as u8)))),
-                    n @ 100...107   => wrap(SetTextStyle(BgColorCfg(Some((n - 92) as u8)))),
+                    n @ 30...37     => wrap(SetTextStyle(FgColor(Color::Palette((n - 30) as u8)))),
+                    39              => wrap(SetTextStyle(FgColor(Color::Default))),
+                    n @ 40...47     => wrap(SetTextStyle(BgColor(Color::Palette((n - 40) as u8)))),
+                    49              => wrap(SetTextStyle(BgColor(Color::Default))),
+                    n @ 90...97     => wrap(SetTextStyle(FgColor(Color::Palette((n - 82) as u8)))),
+                    n @ 100...107   => wrap(SetTextStyle(BgColor(Color::Palette((n - 92) as u8)))),
                     _               => None
                 })
                 }

@@ -13,9 +13,6 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::rc::Rc;
-
-use cfg::Config;
 use datatypes::{Color, Style};
 use datatypes::Style::*;
 
@@ -33,11 +30,11 @@ pub struct Styles {
     pub blink: bool,
 }
 
-impl Styles {
-    pub fn new(config: &Rc<Config>) -> Styles {
-        Styles {
-            fg_color:           config.fg_color,
-            bg_color:           config.bg_color,
+impl Default for Styles {
+    fn default() -> Styles {
+         Styles {
+            fg_color:           Color::Default,
+            bg_color:           Color::Default,
             opacity:            0xff,
             bold:               false,
             italic:             false,
@@ -47,8 +44,16 @@ impl Styles {
             inverted:           false,
             blink:              false,
         }
+   }
+}
+
+impl Styles {
+
+    pub fn new() -> Styles {
+        Styles::default()
     }
-    pub fn update(&mut self, style: Style, config: &Rc<Config>) {
+
+    pub fn update(&mut self, style: Style) {
         match style {
             Underline(0)            => { self.underline = false; self.double_underline = false; }
             Underline(1)            => { self.underline = true;  self.double_underline = false; }
@@ -61,53 +66,41 @@ impl Styles {
             Blink(flag)             => self.blink = flag,
             Opacity(n)              => self.opacity = n,
             FgColor(color)          => self.fg_color = color,
-            FgColorCfg(Some(n))     => self.fg_color = config.colors[n],
-            FgColorCfg(None)        => self.fg_color = config.fg_color,
             BgColor(color)          => self.bg_color = color,
-            BgColorCfg(Some(n))     => self.bg_color = config.colors[n],
-            BgColorCfg(None)        => self.bg_color = config.bg_color,
         }
     }
+
 }
 
 #[cfg(test)]
 mod tests {
 
-    use std::rc::Rc;
-
-    use cfg::Config;
     use datatypes::Color;
     use datatypes::Style::*;
     use super::*;
 
     #[test]
     fn styles_update() {
-        let config = Rc::new(Config::default());
-        let mut style = Styles::new(&config);
-        style.update(Bold(true), &config);
+        let mut style = Styles::new();
+        style.update(Bold(true));
         assert_eq!(style.bold, true);
-        style.update(Italic(true), &config);
+        style.update(Italic(true));
         assert_eq!(style.italic, true);
-        style.update(Underline(1), &config);
+        style.update(Underline(1));
         assert_eq!(style.underline, true);
-        style.update(Underline(2), &config);
+        style.update(Underline(2));
         assert_eq!(style.double_underline, true);
-        style.update(Strikethrough(true), &config);
+        style.update(Strikethrough(true));
         assert_eq!(style.strikethrough, true);
-        style.update(InvertColors(true), &config);
+        style.update(InvertColors(true));
         assert_eq!(style.inverted, true);
-        style.update(Blink(true), &config);
+        style.update(Blink(true));
         assert_eq!(style.blink, true);
 
-        style.update(FgColor(Color(0x10, 0x10, 0x10)), &config);
-        assert_eq!(style.fg_color, Color(0x10, 0x10, 0x10));
-        style.update(BgColor(Color(0x10, 0x10, 0x10)), &config);
-        assert_eq!(style.bg_color, Color(0x10, 0x10, 0x10));
-
-        style.update(FgColorCfg(None), &config);
-        assert_eq!(style.fg_color, config.fg_color);
-        style.update(BgColorCfg(None), &config);
-        assert_eq!(style.bg_color, config.bg_color);
+        style.update(FgColor(Color::True(0x10, 0x10, 0x10)));
+        assert_eq!(style.fg_color, Color::True(0x10, 0x10, 0x10));
+        style.update(BgColor(Color::True(0x10, 0x10, 0x10)));
+        assert_eq!(style.bg_color, Color::True(0x10, 0x10, 0x10));
     }
 
 }

@@ -13,9 +13,6 @@
 //
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::rc::Rc;
-
-use cfg::Config;
 use datatypes::{Coords, Movement, move_within};
 use datatypes::Direction::*;
 use datatypes::Movement::*;
@@ -30,11 +27,11 @@ pub struct Cursor {
 
 impl Cursor {
 
-    pub fn new(config: &Rc<Config>) -> Cursor {
+    pub fn new() -> Cursor {
         Cursor {
             coords: Coords::default(),
-            style: Styles::new(config),
-            text_style: Styles::new(config),
+            style: Styles::new(),
+            text_style: Styles::new(),
         }
     }
 
@@ -122,14 +119,13 @@ mod tests {
 
 
     fn cursor() -> Cursor {
-        let config = Rc::new(Config::default());
-        Cursor { coords: Coords {x: 2, y: 2}, ..Cursor::new(&config) }
+        Cursor { coords: Coords {x: 2, y: 2}, ..Cursor::new() }
     }
 
     #[test]
     fn navigate() {
         let config = Rc::new(Config::default());
-        let default = CharCell::new(Styles::new(&config));
+        let default = CharCell::new(Styles::new());
         let mut grid = Grid::new(5, 5, default);
         for &(mov, coords) in MOVEMENTS {
             let mut cursor = cursor();
@@ -141,7 +137,7 @@ mod tests {
     #[test]
     fn navigate_and_scroll() {
         let config = Rc::new(Config::default());
-        let default = CharCell::new(Styles::new(&config));
+        let default = CharCell::new(Styles::new());
         let mut grid = Grid::with_y_cap(5, 5, 10, default);
         for &(mov, coords) in MOVEMENTS {
             let mut cursor = cursor();
@@ -167,13 +163,13 @@ mod tests {
     #[test]
     fn navigate_around_extended_cells() {
         let config = Rc::new(Config::default());
-        let default = CharCell::new(Styles::new(&config));
+        let default = CharCell::new(Styles::new());
         let mut grid = Grid::new(5, 5, default);
-        grid[Coords{x:2,y:1}] = CharCell::extension(Coords{x:1,y:1}, Styles::new(&config));
-        grid[Coords{x:1,y:2}] = CharCell::extension(Coords{x:1,y:1}, Styles::new(&config));
-        grid[Coords{x:2,y:2}] = CharCell::extension(Coords{x:1,y:1}, Styles::new(&config));
+        grid[Coords{x:2,y:1}] = CharCell::extension(Coords{x:1,y:1}, Styles::new());
+        grid[Coords{x:1,y:2}] = CharCell::extension(Coords{x:1,y:1}, Styles::new());
+        grid[Coords{x:2,y:2}] = CharCell::extension(Coords{x:1,y:1}, Styles::new());
         for &(init, mov, end) in MOVEMENTS_EXTENDED {
-            let mut cursor = Cursor { coords: init, ..Cursor::new(&config) };
+            let mut cursor = Cursor { coords: init, ..Cursor::new() };
             cursor.navigate(&mut grid, mov, config.tab_stop);
             assert_eq!(cursor.coords, end);
         }
@@ -193,13 +189,13 @@ mod tests {
     #[test]
     fn navigate_around_extended_at_border() {
         let config = Rc::new(Config::default());
-        let default = CharCell::new(Styles::new(&config));
+        let default = CharCell::new(Styles::new());
         let mut grid = Grid::new(2, 5, default);
-        grid[Coords{x:1,y:1}] = CharCell::extension(Coords{x:0,y:1}, Styles::new(&config));
-        grid[Coords{x:0,y:2}] = CharCell::extension(Coords{x:0,y:1}, Styles::new(&config));
-        grid[Coords{x:1,y:2}] = CharCell::extension(Coords{x:0,y:1}, Styles::new(&config));
+        grid[Coords{x:1,y:1}] = CharCell::extension(Coords{x:0,y:1}, Styles::new());
+        grid[Coords{x:0,y:2}] = CharCell::extension(Coords{x:0,y:1}, Styles::new());
+        grid[Coords{x:1,y:2}] = CharCell::extension(Coords{x:0,y:1}, Styles::new());
         for &(init, mov, end) in MOVEMENTS_EXTENDED_AT_BORDER {
-            let mut cursor = Cursor { coords: init, ..Cursor::new(&config) };
+            let mut cursor = Cursor { coords: init, ..Cursor::new() };
             cursor.navigate(&mut grid, mov, config.tab_stop);
             assert_eq!(cursor.coords, end);
         }

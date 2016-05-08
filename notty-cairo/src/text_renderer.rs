@@ -15,7 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::ops::Range;
 
-use notty::datatypes::Color;
+use notty::cfg::Config;
 use notty::terminal::Styles;
 
 use cairo;
@@ -25,10 +25,11 @@ use pangocairo::wrap::{PangoAttribute, PangoAttrList, PangoLayout};
 
 use color;
 
-pub struct TextRenderer {
+pub struct TextRenderer<'a> {
+    config: &'a Config,
     text: String,
-    fg_color: Vec<(Range<usize>, Color)>,
-    bg_color: Vec<(Range<usize>, Color)>,
+    fg_color: Vec<(Range<usize>, (u8, u8, u8))>,
+    bg_color: Vec<(Range<usize>, (u8, u8, u8))>,
     opacity: Vec<(Range<usize>, u8)>,
     underline: Vec<Range<usize>>,
     double_underline: Vec<Range<usize>>,
@@ -40,10 +41,11 @@ pub struct TextRenderer {
     y_pos: f64,
 }
 
-impl TextRenderer {
+impl<'a> TextRenderer<'a> {
 
-    pub fn new(x: f64, y: f64) -> TextRenderer {
+    pub fn new(config: &'a Config, x: f64, y: f64) -> TextRenderer<'a> {
         TextRenderer {
+            config: config,
             text: String::new(),
             fg_color: Vec::new(),
             bg_color: Vec::new(),
@@ -87,33 +89,35 @@ impl TextRenderer {
         self.add_cursor_style(&range, styles, cursor_styles);
     }
 
-   pub fn draw(&self, canvas: &cairo::Context, font: &str, bg_color: Color) {
-        if self.is_blank(bg_color) { return; }
+   pub fn draw(&self, canvas: &cairo::Context) {
+        if self.is_blank() { return; }
 
         // Line positioning
         canvas.move_to(self.x_pos, self.y_pos);
 
         // Set text color
-        let Color(r,g,b) = bg_color;
+        let (r, g, b) = self.config.bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
 
         // Draw the text
         let cairo = canvas.to_glib_none();
-        PangoLayout::new(cairo.0, font, &self.text, self.pango_attrs()).show(cairo.0);
+        PangoLayout::new(cairo.0, &self.config.font, &self.text, self.pango_attrs()).show(cairo.0);
     }
 
-    fn is_blank(&self, bg_color: Color) -> bool {
+    fn is_blank(&self) -> bool {
         self.text.chars().all(char::is_whitespace)
-        && self.bg_color.iter().all(|&(_, color)| color == bg_color)
+        && self.bg_color.iter().all(|&(_, color)| color == self.config.bg_color)
     }
 
     fn add_style(&mut self, range: &Range<usize>, style: Styles) {
+        let fg_color = self.config.fg_color(style.fg_color);
+        let bg_color = self.config.bg_color(style.bg_color);
         if !style.inverted {
-            append_field(range.clone(), style.fg_color, &mut self.fg_color);
-            append_field(range.clone(), style.bg_color, &mut self.bg_color);
+            append_field(range.clone(), fg_color, &mut self.fg_color);
+            append_field(range.clone(), bg_color, &mut self.bg_color);
         } else {
-            append_field(range.clone(), style.bg_color, &mut self.fg_color);
-            append_field(range.clone(), style.fg_color, &mut self.bg_color);
+            append_field(range.clone(), bg_color, &mut self.fg_color);
+            append_field(range.clone(), fg_color, &mut self.bg_color);
         }
         append_field(range.clone(), style.opacity, &mut self.opacity);
         if style.underline { append_bool(range.clone(), &mut self.underline) }
@@ -128,23 +132,10 @@ impl TextRenderer {
         self.add_style(range, Styles { inverted: !style.inverted, ..style });
     }
 
-    fn cursor_style(&mut self, range: &Range<usize>, style: Styles) {
-        if let Some(&mut (ref mut prev_range, ref mut color)) = self.bg_color.last_mut() {
-            if style.fg_color == *color { return; }
-            if prev_range == range {
-                *color = style.fg_color;
-                return;
-            } else {
-                prev_range.end = range.start;
-            }
-        }
-        self.bg_color.push((range.clone(), style.fg_color));
-    }
-
     fn pango_attrs(&self) -> PangoAttrList {
-        self.fg_color.iter().map(|&(ref range, Color(r,g,b))| {
+        self.fg_color.iter().map(|&(ref range, (r,g,b))| {
             PangoAttribute::fg_color(range, (r,g,b))
-        }).chain(self.bg_color.iter().map(|&(ref range, Color(r,g,b))| {
+        }).chain(self.bg_color.iter().map(|&(ref range, (r,g,b))| {
             PangoAttribute::bg_color(range, (r,g,b))
         })).chain(self.underline.iter().map(PangoAttribute::underline))
         .chain(self.double_underline.iter().map(PangoAttribute::double_underline))

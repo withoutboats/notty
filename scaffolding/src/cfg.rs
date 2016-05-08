@@ -20,8 +20,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::{error,fmt,io,result};
 
-use notty::datatypes::Color;
-use notty::cfg::{Config, Palette};
+use notty::cfg::{Config, Palette, TrueColor};
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -104,20 +103,19 @@ pub fn update_from_file<P: AsRef<Path>>(config: &mut Config, path: P) -> Result<
     Ok(())
 }
 
-fn convert_tomlv_to_color(value: &toml::Value) -> Color {
+fn convert_tomlv_to_color(value: &toml::Value) -> TrueColor {
     let slice = value.as_slice().unwrap();
-    Color(slice[0].as_integer().unwrap() as u8,
-          slice[1].as_integer().unwrap() as u8,
-          slice[2].as_integer().unwrap() as u8)
+    (
+        slice[0].as_integer().unwrap() as u8,
+        slice[1].as_integer().unwrap() as u8,
+        slice[2].as_integer().unwrap() as u8
+    )
 }
 
 fn convert_tomlv_to_palette(value: &toml::Value) -> Palette {
-    let v: Vec<Color> = value.
-        as_slice().
-        unwrap().
-        into_iter().
-        map(convert_tomlv_to_color).
-        collect();
+    let v = value.as_slice().unwrap()
+                 .into_iter().map(convert_tomlv_to_color)
+                 .collect::<Vec<_>>();
     Palette::new(&v)
 }
 
@@ -156,17 +154,16 @@ mod tests {
     use super::*;
 
     use notty::cfg::Config;
-    use notty::datatypes::Color;
 
     fn test_default_config(config: &Config) {
         assert_eq!(config.font, "Inconsolata 10");
         assert_eq!(config.scrollback, 512);
         assert_eq!(config.tab_stop, 4);
-        assert_eq!(config.fg_color, Color(0xff,0xff,0xff));
-        assert_eq!(config.bg_color, Color(0x00,0x00,0x00));
-        assert_eq!(config.cursor_color, Color(0xbb,0xbb,0xbb));
-        assert_eq!(config.colors[0], Color(0x00,0x00,0x00));
-        assert_eq!(config.colors[5], Color(0xff,0x55,0xff));
+        assert_eq!(config.fg_color, (0xff,0xff,0xff));
+        assert_eq!(config.bg_color, (0x00,0x00,0x00));
+        assert_eq!(config.cursor_color, (0xbb,0xbb,0xbb));
+        assert_eq!(config.colors[0], (0x00,0x00,0x00));
+        assert_eq!(config.colors[5], (0xff,0x55,0xff));
     }
 
     #[test]

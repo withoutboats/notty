@@ -18,7 +18,7 @@ use gdk::glib::translate::ToGlibPtr;
 
 use itertools::Itertools;
 
-use notty::datatypes::{Coords, Color};
+use notty::datatypes::Coords;
 use notty::cfg::Config;
 use notty::terminal::{CharData, Terminal, ImageData};
 
@@ -53,10 +53,12 @@ impl Renderer {
     }
 
     pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
+
+        let cfg = terminal.config.clone();
         if self.char_d.is_none() {
             self.char_d = Some(self.char_dimensions(canvas, &terminal.config));
         }
-        let Color(r,g,b) = terminal.config.bg_color;
+        let (r,g,b) = terminal.config.bg_color;
         canvas.set_source_rgb(color(r), color(g), color(b));
         canvas.paint();
 
@@ -70,7 +72,7 @@ impl Renderer {
 
         for (y_pos, row) in rows.into_iter().enumerate() {
             let y_pix = self.y_pixels(y_pos as u32);
-            let mut text = TextRenderer::new(0.0, y_pix);
+            let mut text = TextRenderer::new(&cfg, 0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
                 let style = cell.styles;
                 if (Coords { x: x_pos as u32, y: y_pos as u32 } == terminal.cursor_position()) {
@@ -92,8 +94,8 @@ impl Renderer {
                     CharData::Image { ref data, ref pos, ref width, ref height, .. } => {
                         let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + *width as usize) < col_n {
-                            text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
-                            text = TextRenderer::new(x_pix, y_pix);
+                            text.draw(canvas);
+                            text = TextRenderer::new(&cfg, x_pix, y_pix);
                         }
                         if let Some(image) = self.images.get(data) {
                             image.draw(canvas);
@@ -108,7 +110,7 @@ impl Renderer {
                     }
                 }
             }
-            text.draw(canvas, &terminal.config.font, terminal.config.bg_color);
+            text.draw(canvas);
         }
     }
 
