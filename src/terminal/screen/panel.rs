@@ -74,7 +74,6 @@ fn resize_split(old_area: Region, new_area: Region, kind: SplitKind, rule: Resiz
 mod tests {
 
     use std::fmt::Debug;
-    use std::rc::Rc;
 
     use cfg::Config;
     use datatypes::{Region, SplitKind, ResizeRule};
@@ -84,8 +83,8 @@ mod tests {
     use super::*;
     use super::Panel::*;
 
-    fn cfg() -> Rc<Config> {
-        Rc::new(Config::default())
+    fn cfg() -> Config {
+        Config::default()
     }
 
     fn grid_panel() -> Panel<Region> {

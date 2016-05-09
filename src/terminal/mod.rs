@@ -15,7 +15,6 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::{self, Write};
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
 
 mod char_grid;
 mod screen;
@@ -39,7 +38,7 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W, config: Rc<Config>)
+    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W, config: Config)
             -> Terminal {
         Terminal {
             title: String::new(),

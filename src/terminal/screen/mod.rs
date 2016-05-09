@@ -1,5 +1,4 @@
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
 
 use cfg::Config;
 use datatypes::{Region, SaveGrid, SplitKind, ResizeRule, CoordsIter};
@@ -15,19 +14,19 @@ use self::panel::Panel::*;
 const E_ACTIVE: &'static str = "Active screen section must exist.";
 
 pub trait GridFill {
-    fn new(u32, u32, bool, Rc<Config>) -> Self;
+    fn new(u32, u32, bool, Config) -> Self;
     fn resize(&mut self, Region);
 }
 
 impl GridFill for CharGrid {
-    fn new(width: u32, height: u32, expand: bool, config: Rc<Config>) -> CharGrid {
+    fn new(width: u32, height: u32, expand: bool, config: Config) -> CharGrid {
         CharGrid::new(width, height, expand, config)
     }
     fn resize(&mut self, area: Region) { self.resize_window(area); }
 }
 
 impl GridFill for Region {
-    fn new(width: u32, height: u32, _: bool, _: Rc<Config>) -> Region {
+    fn new(width: u32, height: u32, _: bool, _: Config) -> Region {
         Region::new(0, 0, width, height)
     }
     fn resize(&mut self, area: Region) { *self = Region::new(0, 0, area.width(), area.height()) }
@@ -36,15 +35,15 @@ impl GridFill for Region {
 pub struct Screen {
     active: u64,
     screen: ScreenSection,
-    pub config: Rc<Config>,
+    pub config: Config,
 }
 
 impl Screen {
 
-    pub fn new(width: u32, height: u32, config: Rc<Config>) -> Screen {
+    pub fn new(width: u32, height: u32, config: Config) -> Screen {
         Screen {
             active: 0,
-            screen: ScreenSection::new(0, Region::new(0, 0, width, height), true, config.clone()),
+            screen: ScreenSection::new(0, Region::new(0, 0, width, height), true, config),
             config: config,
         }
     }
@@ -65,7 +64,7 @@ impl Screen {
 
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
                  split_tag: Option<u64>, l_tag: u64, r_tag: u64, retain_offscreen_state: bool) {
-        let config = self.config.clone();
+        let config = self.config;
         self.find_mut(split_tag).map(|section| section.split(save, kind, rule, l_tag, r_tag,
                                                              retain_offscreen_state, config));
         if split_tag.map_or(true, |tag| tag == self.active) {
@@ -90,7 +89,7 @@ impl Screen {
     }
 
     pub fn push(&mut self, tag: Option<u64>, retain_offscreen_state: bool) {
-        let config = self.config.clone();
+        let config = self.config;
         self.find_mut(tag).map(|section| section.push(retain_offscreen_state, config));
     }
 

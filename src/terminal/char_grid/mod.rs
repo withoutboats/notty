@@ -15,7 +15,6 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::ops::Index;
-use std::rc::Rc;
 
 use unicode_width::*;
 
@@ -42,11 +41,11 @@ pub struct CharGrid {
     cursor: Cursor,
     tooltips: HashMap<Coords, Tooltip>,
     window: Region,
-    config: Rc<Config>
+    config: Config,
 }
 
 impl CharGrid {
-    pub fn new(width: u32, height: u32, retain_offscreen_state: bool, config: Rc<Config>)
+    pub fn new(width: u32, height: u32, retain_offscreen_state: bool, config: Config)
             -> CharGrid {
         let grid = if retain_offscreen_state {
             Grid::with_x_y_caps(width as usize,
@@ -62,7 +61,7 @@ impl CharGrid {
             cursor: Cursor::new(),
             tooltips: HashMap::new(),
             window: Region::new(0, 0, width, height),
-            config: config.clone(),
+            config: config,
         }
     }
 
@@ -293,16 +292,14 @@ impl Index<Coords> for CharGrid {
 #[cfg(test)]
 mod tests {
 
-    use std::rc::Rc;
-
     use super::*;
 
     use cfg::Config;
     use datatypes::{CellData, Coords, Direction, Movement, Region};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        test(CharGrid::new(10, 10, false, Rc::new(Config::default())), 10);
-        test(CharGrid::new(10, 10, true, Rc::new(Config::default())), 11);
+        test(CharGrid::new(10, 10, false, Config::default()), 10);
+        test(CharGrid::new(10, 10, true, Config::default()), 11);
     }
 
     #[test]

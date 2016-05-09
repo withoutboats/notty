@@ -1,6 +1,5 @@
 use std::mem;
 use std::ops::Index;
-use std::rc::Rc;
 
 use cfg::Config;
 use datatypes::{Region, Coords, CoordsIter, SaveGrid, SplitKind, ResizeRule};
@@ -24,7 +23,7 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Construct a new ScreenSection with a given tag for this area of the screen. It will be
     /// filled with an empty grid.
-    pub fn new(tag: u64, area: Region, retain_offscreen_state: bool, config: Rc<Config>)
+    pub fn new(tag: u64, area: Region, retain_offscreen_state: bool, config: Config)
             -> ScreenSection<T> {
         let grid = T::new(area.width(), area.height(), retain_offscreen_state, config);
         ScreenSection::with_data(tag, area, Grid(grid))
@@ -111,7 +110,7 @@ impl<T: GridFill> ScreenSection<T> {
 
     /// Split the top panel this section into two sections.
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
-                 l_tag: u64, r_tag: u64, retain_offscreen_state: bool, config: Rc<Config>) {
+                 l_tag: u64, r_tag: u64, retain_offscreen_state: bool, config: Config) {
         let (kind, l_area, r_area) = self.area.split(kind, rule);
         match save {
             SaveGrid::Left => {
@@ -167,7 +166,7 @@ impl<T: GridFill> ScreenSection<T> {
     }
 
     /// Push a new empty grid panel on top of this section.
-    pub fn push(&mut self, retain_offscreen_state: bool, config: Rc<Config>) {
+    pub fn push(&mut self, retain_offscreen_state: bool, config: Config) {
         let grid = T::new(self.area.width(), self.area.height(), retain_offscreen_state, config);
         self.ring.push(Grid(grid));
     }
@@ -231,7 +230,6 @@ impl Index<Coords> for ScreenSection {
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
-    use std::rc::Rc;
 
     use super::*;
     use super::super::GridFill;
@@ -243,8 +241,8 @@ mod tests {
     use datatypes::SplitKind::*;
     use terminal::CharGrid;
 
-    fn cfg() -> Rc<Config> {
-        Rc::new(Config::default())
+    fn cfg() -> Config {
+        Config::default()
     }
 
     fn grid_section<T: GridFill>() -> ScreenSection<T> {
