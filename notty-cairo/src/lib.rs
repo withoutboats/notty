@@ -8,6 +8,7 @@ extern crate libc;
 extern crate notty;
 extern crate pangocairo;
 
+mod colors;
 mod image_renderer;
 mod text_renderer;
 
@@ -19,31 +20,37 @@ use gdk::glib::translate::ToGlibPtr;
 use itertools::Itertools;
 
 use notty::datatypes::Coords;
-use notty::cfg::Config;
 use notty::terminal::{CharData, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
+use self::colors::gtk_color;
 use self::image_renderer::ImageRenderer;
 use self::text_renderer::TextRenderer;
+
+pub use self::colors::{ColorConfig, TrueColor};
 
 pub struct Renderer {
     images: HashMap<Arc<ImageData>, ImageRenderer>,
     char_d: Option<(f64, f64)>,
+    color_cfg: ColorConfig,
+    font: String,
 }
 
 impl Renderer {
-    pub fn new() -> Renderer {
+    pub fn new(font: String, color_cfg: ColorConfig) -> Renderer {
         Renderer {
             images: HashMap::new(),
-            char_d: None
+            char_d: None,
+            color_cfg: color_cfg,
+            font: font,
         }
     }
 
     pub fn reset_dimensions(&mut self, canvas: &cairo::Context, terminal: &mut Terminal,
                             pix_w: u32, pix_h: u32) {
         let (char_w, char_h) = self.char_d.unwrap_or_else(|| {
-            let char_d = self.char_dimensions(canvas, &terminal.config);
+            let char_d = self.char_dimensions(canvas);
             self.char_d = Some(char_d);
             char_d
         });
@@ -54,12 +61,9 @@ impl Renderer {
 
     pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
 
-        let cfg = terminal.config.clone();
-        if self.char_d.is_none() {
-            self.char_d = Some(self.char_dimensions(canvas, &terminal.config));
-        }
-        let (r,g,b) = terminal.config.bg_color;
-        canvas.set_source_rgb(color(r), color(g), color(b));
+        if self.char_d.is_none() { self.char_d = Some(self.char_dimensions(canvas)); }
+        let (r, g, b) = gtk_color(self.color_cfg.bg_color);
+        canvas.set_source_rgb(r, g, b);
         canvas.paint();
 
         let col_n = terminal.area().width() as usize;
@@ -72,7 +76,7 @@ impl Renderer {
 
         for (y_pos, row) in rows.into_iter().enumerate() {
             let y_pix = self.y_pixels(y_pos as u32);
-            let mut text = TextRenderer::new(&cfg, 0.0, y_pix);
+            let mut text = TextRenderer::new(&self.color_cfg, &self.font, 0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
                 let style = cell.styles;
                 if (Coords { x: x_pos as u32, y: y_pos as u32 } == terminal.cursor_position()) {
@@ -95,7 +99,7 @@ impl Renderer {
                         let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + *width as usize) < col_n {
                             text.draw(canvas);
-                            text = TextRenderer::new(&cfg, x_pix, y_pix);
+                            text = TextRenderer::new(&self.color_cfg, &self.font, x_pix, y_pix);
                         }
                         if let Some(image) = self.images.get(data) {
                             image.draw(canvas);
@@ -114,14 +118,13 @@ impl Renderer {
         }
     }
 
-    fn char_dimensions(&self, canvas: &cairo::Context, config: &Config) -> (f64, f64) {
+    fn char_dimensions(&self, canvas: &cairo::Context) -> (f64, f64) {
         //save the canvas position
         let (x_save, y_save) = canvas.get_current_point();
         let string = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN\
                       OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         let cairo = canvas.to_glib_none();
-        let (w, h) = PangoLayout::new(cairo.0, &config.font, string,
-                                      PangoAttrList::new()).extents();
+        let (w, h) = PangoLayout::new(cairo.0, &self.font, string, PangoAttrList::new()).extents();
         canvas.move_to(x_save, y_save);
         ((w / string.len() as i32) as f64, h as f64)
     }
@@ -133,8 +136,4 @@ impl Renderer {
     fn y_pixels(&self, y: u32) -> f64 {
         self.char_d.unwrap().1 * (y as f64)
     }
-}
-
-fn color(byte: u8) -> f64 {
-    byte as f64 / 255.0
 }

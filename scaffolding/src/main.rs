@@ -32,7 +32,6 @@ use std::thread;
 
 use gtk::{WindowTrait, WidgetTrait, WidgetSignals, ContainerTrait};
 
-use notty::cfg::Config;
 use notty::{Output, Command};
 use notty::terminal::Terminal;
 use notty_cairo::Renderer;
@@ -41,6 +40,7 @@ mod cfg;
 mod commands;
 mod key;
 
+use cfg::Config;
 use commands::CommandApplicator;
 
 static mut X_PIXELS: Option<u32> = None;
@@ -100,24 +100,9 @@ fn main() {
     });
 
     // Set up logical terminal and renderer.
-    let config = &mut Config::default();
-    let user_config_path = env::home_dir()
-        .unwrap()
-        .join(".scaffolding.rc");
-
-    // For now we don't care why the config failed to update, but in the
-    // reasonably near future we should figure out a more graceful way to
-    // detect and report configuration errors.
-    match cfg::update_from_file(config, &user_config_path) {
-        _ => {},
-    }
-
-    let config = Rc::new(config.clone());
-    let terminal = Rc::new(RefCell::new(Terminal::new(COLS,
-                                                      ROWS,
-                                                      tty_w,
-                                                      config)));
-    let renderer = RefCell::new(Renderer::new());
+    let Config { notty_cfg, color_cfg, font } = Config::new();
+    let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w, Rc::new(notty_cfg))));
+    let renderer = RefCell::new(Renderer::new(font, color_cfg));
 
     // Process screen logic every 25 milliseconds.
     let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());

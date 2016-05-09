@@ -18,9 +18,12 @@ extern crate toml;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::{error,fmt,io,result};
+use std::{error, fmt, io, mem, result};
 
-use notty::cfg::{Config, Palette, TrueColor};
+use super::Config;
+
+use notty::cfg::Config as NottyConfig;
+use notty_cairo::{ColorConfig, TrueColor};
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -62,10 +65,10 @@ impl From<io::Error> for ConfigError {
 
 pub type Result<T> = result::Result<T, ConfigError>;
 
-fn update_general(config: &mut Config, table: &toml::Table) {
+fn update_general(config: &mut NottyConfig, font: &mut String, table: &toml::Table) {
     for (k, v) in table.iter() {
         match &k[..] {
-            "font" => config.font = v.as_str().
+            "font" => *font = v.as_str().
                 map(|s| s.to_string()).
                 unwrap(),
             "tabstop" => config.tab_stop = v.as_integer().
@@ -77,13 +80,13 @@ fn update_general(config: &mut Config, table: &toml::Table) {
     }
 }
 
-fn update_colors(config: &mut Config, table: &toml::Table) {
+fn update_colors(config: &mut ColorConfig, table: &toml::Table) {
     for (k, v) in table.iter() {
         match &k[..] {
             "fg" => config.bg_color = convert_tomlv_to_color(v),
             "bg" => config.fg_color = convert_tomlv_to_color(v),
             "cursor" => config.cursor_color = convert_tomlv_to_color(v),
-            "palette" => config.colors = convert_tomlv_to_palette(v),
+            "palette" => config.palette = convert_tomlv_to_palette(v),
             _ => {},
         };
     }
@@ -95,8 +98,8 @@ pub fn update_from_file<P: AsRef<Path>>(config: &mut Config, path: P) -> Result<
 
     for (k, v) in table.iter() {
         match &k[..] {
-            "colors" => update_colors(config, v.as_table().unwrap()),
-            "general" => update_general(config, v.as_table().unwrap()),
+            "colors" => update_colors(&mut config.color_cfg, v.as_table().unwrap()),
+            "general" => update_general(&mut config.notty_cfg, &mut config.font, v.as_table().unwrap()),
             _ => {},
         };
     }
@@ -112,11 +115,13 @@ fn convert_tomlv_to_color(value: &toml::Value) -> TrueColor {
     )
 }
 
-fn convert_tomlv_to_palette(value: &toml::Value) -> Palette {
+fn convert_tomlv_to_palette(value: &toml::Value) -> [TrueColor; 256] {
     let v = value.as_slice().unwrap()
                  .into_iter().map(convert_tomlv_to_color)
                  .collect::<Vec<_>>();
-    Palette::new(&v)
+    assert_eq!(v.len(), 256);
+    let palette: &[TrueColor; 256] = unsafe { mem::transmute(v.as_ptr()) };
+    *palette
 }
 
 fn read_toml_file<P: AsRef<Path>>(path: P) -> Result<toml::Table> {
@@ -153,17 +158,17 @@ mod tests {
 
     use super::*;
 
-    use notty::cfg::Config;
+    use super::super::Config;
 
     fn test_default_config(config: &Config) {
         assert_eq!(config.font, "Inconsolata 10");
-        assert_eq!(config.scrollback, 512);
-        assert_eq!(config.tab_stop, 4);
-        assert_eq!(config.fg_color, (0xff,0xff,0xff));
-        assert_eq!(config.bg_color, (0x00,0x00,0x00));
-        assert_eq!(config.cursor_color, (0xbb,0xbb,0xbb));
-        assert_eq!(config.colors[0], (0x00,0x00,0x00));
-        assert_eq!(config.colors[5], (0xff,0x55,0xff));
+        assert_eq!(config.notty_cfg.scrollback, 512);
+        assert_eq!(config.notty_cfg.tab_stop, 4);
+        assert_eq!(config.color_cfg.fg_color, (0xff,0xff,0xff));
+        assert_eq!(config.color_cfg.bg_color, (0x00,0x00,0x00));
+        assert_eq!(config.color_cfg.cursor_color, (0xbb,0xbb,0xbb));
+        assert_eq!(config.color_cfg.palette[0], (0x00,0x00,0x00));
+        assert_eq!(config.color_cfg.palette[5], (0xff,0x55,0xff));
     }
 
     #[test]
@@ -174,11 +179,11 @@ mod tests {
 
     #[test]
     fn test_update_from_file() {
-        let mut config = &mut Config::default();
+        let mut config = Config::default();
         test_default_config(&config);
 
         let update_path = "resources/update-config.toml".to_string();
-        update_from_file(config, &update_path).unwrap();
+        update_from_file(&mut config, &update_path).unwrap();
         assert_eq!(config.font, "Liberation Mono 8");
     }
 }
