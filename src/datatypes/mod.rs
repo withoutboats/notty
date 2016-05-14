@@ -18,16 +18,20 @@
 //! The types in this module are intended to be passed between modules. As a design restriction,
 //! any methods on any type in this submodule are required to take the receiver immutably.
 use std::cmp;
+use std::sync::atomic::Ordering::Relaxed;
 
 use mime::Mime;
 
 mod iter;
 mod key;
 
+use TAB_STOP;
+
 pub use self::iter::CoordsIter;
 pub use self::key::Key;
 
 pub use notty_encoding::args::*;
+
 
 pub mod args {
     pub use super::{
@@ -83,9 +87,10 @@ pub enum Code {
 }
 
 /// Calculate the movement from one coordinate to another within a region.
-pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region, tab: u32) -> Coords {
+pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region) -> Coords {
     use self::Movement::*;
     use self::Direction::*;
+    let tab_stop = TAB_STOP.load(Relaxed) as u32;
     match movement {
         Position(coords)    => region.xy_within(coords),
         Column(n)           => Coords {x: region.x_within(n), y: y},
@@ -151,11 +156,11 @@ pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region, ta
             unimplemented!()
         }
         Tab(Left, n, _)                 => {
-            let tab = ((x / tab).saturating_sub(n)) * tab;
+            let tab = ((x / tab_stop).saturating_sub(n)) * tab_stop;
             Coords {x: cmp::max(tab, region.left), y: y}
         }
         Tab(Right, n, _)                => {
-            let tab = ((x / tab) + n) * tab;
+            let tab = ((x / tab_stop) + n) * tab_stop;
             Coords {x: cmp::min(tab, region.right - 1), y: y}
         }
         Tab(..)                             => unimplemented!(),

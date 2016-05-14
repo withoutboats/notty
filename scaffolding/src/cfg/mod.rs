@@ -1,12 +1,10 @@
 use std::env;
 
-use notty::cfg::Config as NottyConfig;
 use notty_cairo::ColorConfig;
 
 mod toml;
 
 pub struct Config {
-    pub notty_cfg: NottyConfig,
     pub color_cfg: ColorConfig,
     pub font: String,
 }
@@ -23,7 +21,6 @@ impl Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            notty_cfg: NottyConfig::default(),
             color_cfg: ColorConfig::default(),
             font: String::from("Inconsolata 10"),
         }

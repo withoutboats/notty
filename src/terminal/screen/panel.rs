@@ -75,17 +75,12 @@ mod tests {
 
     use std::fmt::Debug;
 
-    use cfg::Config;
     use datatypes::{Region, SplitKind, ResizeRule};
     use datatypes::ResizeRule::*;
     use super::super::GridFill;
     use super::super::section::ScreenSection;
     use super::*;
     use super::Panel::*;
-
-    fn cfg() -> Config {
-        Config::default()
-    }
 
     fn grid_panel() -> Panel<Region> {
         Grid(Region::new(0, 0, 8, 8))
@@ -94,8 +89,8 @@ mod tests {
     fn split_panel() -> Panel<Region> {
         Split {
             kind: SplitKind::Horizontal(4),
-            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false, cfg())),
-            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false, cfg())),
+            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false)),
+            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false)),
         }
     }
 

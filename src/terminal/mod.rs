@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io::{self, Write};
 use std::ops::{Deref, DerefMut};
+use std::sync::atomic::Ordering::Relaxed;
 
 mod char_grid;
 mod screen;
@@ -22,13 +23,13 @@ mod input;
 
 use Command;
 use datatypes::{InputSettings, Key};
-use cfg::Config;
 
 pub use self::char_grid::{CharCell, CharData, CharGrid, Cursor, Grid, Styles, Tooltip, ImageData};
 pub use self::input::Tty;
 pub use self::screen::{Screen, Cells, Panels};
 
 use self::input::Input;
+use {SCROLLBACK, TAB_STOP};
 
 pub struct Terminal {
     title: String,
@@ -38,11 +39,13 @@ pub struct Terminal {
 
 impl Terminal {
 
-    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W, config: Config)
+    pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W)
             -> Terminal {
+        if SCROLLBACK.load(Relaxed) == 0 { SCROLLBACK.store(512, Relaxed) };
+        if TAB_STOP.load(Relaxed) == 0 { TAB_STOP.store(4, Relaxed) };
         Terminal {
             title: String::new(),
-            screen: Screen::new(width, height, config),
+            screen: Screen::new(width, height),
             tty: Input::new(tty),
         }
     }

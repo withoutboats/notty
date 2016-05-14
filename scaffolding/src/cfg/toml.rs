@@ -18,11 +18,12 @@ extern crate toml;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::sync::atomic::Ordering::Relaxed;
 use std::{error, fmt, io, mem, result};
 
 use super::Config;
 
-use notty::cfg::Config as NottyConfig;
+use notty::{SCROLLBACK, TAB_STOP};
 use notty_cairo::{ColorConfig, TrueColor};
 
 #[derive(Debug)]
@@ -65,16 +66,14 @@ impl From<io::Error> for ConfigError {
 
 pub type Result<T> = result::Result<T, ConfigError>;
 
-fn update_general(config: &mut NottyConfig, font: &mut String, table: &toml::Table) {
+fn update_general(font: &mut String, table: &toml::Table) {
     for (k, v) in table.iter() {
         match &k[..] {
             "font" => *font = v.as_str().
                 map(|s| s.to_string()).
                 unwrap(),
-            "tabstop" => config.tab_stop = v.as_integer().
-                unwrap() as u32,
-            "scrollback" => config.scrollback = v.as_integer().
-                unwrap() as u32,
+            "tabstop" => TAB_STOP.store(v.as_integer().unwrap() as usize, Relaxed),
+            "scrollback" => SCROLLBACK.store(v.as_integer().unwrap() as usize, Relaxed),
             _ => {},
         };
     }
@@ -99,7 +98,7 @@ pub fn update_from_file<P: AsRef<Path>>(config: &mut Config, path: P) -> Result<
     for (k, v) in table.iter() {
         match &k[..] {
             "colors" => update_colors(&mut config.color_cfg, v.as_table().unwrap()),
-            "general" => update_general(&mut config.notty_cfg, &mut config.font, v.as_table().unwrap()),
+            "general" => update_general(&mut config.font, v.as_table().unwrap()),
             _ => {},
         };
     }
@@ -162,8 +161,6 @@ mod tests {
 
     fn test_default_config(config: &Config) {
         assert_eq!(config.font, "Inconsolata 10");
-        assert_eq!(config.notty_cfg.scrollback, 512);
-        assert_eq!(config.notty_cfg.tab_stop, 4);
         assert_eq!(config.color_cfg.fg_color, (0xff,0xff,0xff));
         assert_eq!(config.color_cfg.bg_color, (0x00,0x00,0x00));
         assert_eq!(config.color_cfg.cursor_color, (0xbb,0xbb,0xbb));

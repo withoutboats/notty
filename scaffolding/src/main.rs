@@ -100,8 +100,8 @@ fn main() {
     });
 
     // Set up logical terminal and renderer.
-    let Config { notty_cfg, color_cfg, font } = Config::new();
-    let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w, notty_cfg)));
+    let Config { color_cfg, font } = Config::new();
+    let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
     let renderer = RefCell::new(Renderer::new(font, color_cfg));
 
     // Process screen logic every 25 milliseconds.

@@ -32,7 +32,7 @@ pub struct CoordsIter {
 
 impl CoordsIter {
 
-    pub fn from_area(area: Area, cursor: Coords, screen: Region, tab: u32) -> CoordsIter {
+    pub fn from_area(area: Area, cursor: Coords, screen: Region) -> CoordsIter {
         match area {
             CursorCell              => CoordsIter {
                 point: cursor,
@@ -57,13 +57,13 @@ impl CoordsIter {
             },
             CursorTo(mov)           => CoordsIter {
                 point: cursor,
-                back_point: move_within(cursor, mov, screen, tab),
+                back_point: move_within(cursor, mov, screen),
                 region: screen,
                 dir: mov.direction(cursor),
                 fin: false,
             },
             CursorBound(coords) if coords == cursor => {
-                CoordsIter::from_area(CursorCell, cursor, screen, tab)
+                CoordsIter::from_area(CursorCell, cursor, screen)
             }
             CursorBound(coords)     => {
                 let (l, r) = (cmp::min(coords.x, cursor.x), cmp::max(coords.x, cursor.x) + 1);
@@ -131,7 +131,7 @@ impl Iterator for CoordsIter {
                 Some(self.point)
             }
             (false, _)  => {
-                let point = move_within(self.point, To(self.dir, 1, true), self.region, 0);
+                let point = move_within(self.point, To(self.dir, 1, true), self.region);
                 Some(mem::replace(&mut self.point, point))
             }
         }
@@ -153,8 +153,7 @@ impl DoubleEndedIterator for CoordsIter {
                 Some(self.point)
             }
             (false, _)  => {
-                let point = move_within(self.back_point, To(self.dir.rev(), 1, true), self.region,
-                                        0);
+                let point = move_within(self.back_point, To(self.dir.rev(), 1, true), self.region);
                 Some(mem::replace(&mut self.back_point, point))
             }
         }

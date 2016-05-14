@@ -20,7 +20,6 @@ extern crate mime;
 extern crate notty_encoding;
 extern crate unicode_width;
 
-pub mod cfg;
 mod command;
 pub mod datatypes;
 mod grapheme_tables;
@@ -59,3 +58,11 @@ impl Command {
         }
     }
 }
+
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
+/// The amount of scrollback to save in terminal grids which save their scrollback. If you do not
+/// set this to a non-zero value, it will be set to 512 when the terminal is initialized.
+pub static SCROLLBACK:  AtomicUsize = ATOMIC_USIZE_INIT;
+/// The distance between each tab stop. If you do not set this to a non-zero value, it will be set
+/// to 4 when the terminal is initialized.
+pub static TAB_STOP:    AtomicUsize = ATOMIC_USIZE_INIT;
