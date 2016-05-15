@@ -19,12 +19,12 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::sync::atomic::Ordering::Relaxed;
-use std::{error, fmt, io, mem, result};
+use std::{error, fmt, io, result};
 
 use super::Config;
 
 use notty::cfg::{SCROLLBACK, TAB_STOP};
-use notty_cairo::{ColorConfig, TrueColor};
+use notty_cairo::{ColorConfig, TrueColor, PALETTE};
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -82,10 +82,10 @@ fn update_general(font: &mut String, table: &toml::Table) {
 fn update_colors(config: &mut ColorConfig, table: &toml::Table) {
     for (k, v) in table.iter() {
         match &k[..] {
-            "fg" => config.bg_color = convert_tomlv_to_color(v),
-            "bg" => config.fg_color = convert_tomlv_to_color(v),
-            "cursor" => config.cursor_color = convert_tomlv_to_color(v),
-            "palette" => config.palette = convert_tomlv_to_palette(v),
+            "foreground"    => config.bg_color = convert_tomlv_to_color(v),
+            "background"    => config.fg_color = convert_tomlv_to_color(v),
+            "cursor"        => config.cursor_color = convert_tomlv_to_color(v),
+            "palette"       => config.palette = convert_tomlv_to_palette(v),
             _ => {},
         };
     }
@@ -97,7 +97,7 @@ pub fn update_from_file<P: AsRef<Path>>(config: &mut Config, path: P) -> Result<
 
     for (k, v) in table.iter() {
         match &k[..] {
-            "colors" => update_colors(&mut config.color_cfg, v.as_table().unwrap()),
+            "color" => update_colors(&mut config.color_cfg, v.as_table().unwrap()),
             "general" => update_general(&mut config.font, v.as_table().unwrap()),
             _ => {},
         };
@@ -115,12 +115,12 @@ fn convert_tomlv_to_color(value: &toml::Value) -> TrueColor {
 }
 
 fn convert_tomlv_to_palette(value: &toml::Value) -> [TrueColor; 256] {
-    let v = value.as_slice().unwrap()
-                 .into_iter().map(convert_tomlv_to_color)
-                 .collect::<Vec<_>>();
-    assert_eq!(v.len(), 256);
-    let palette: &[TrueColor; 256] = unsafe { mem::transmute(v.as_ptr()) };
-    *palette
+    let mut palette = PALETTE;
+    for (key, value) in value.as_table().unwrap() {
+        let n: usize = key.trim_left_matches("color").parse().unwrap();
+        palette[n] = convert_tomlv_to_color(value);
+    }
+    palette
 }
 
 fn read_toml_file<P: AsRef<Path>>(path: P) -> Result<toml::Table> {

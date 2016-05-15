@@ -62,10 +62,10 @@ impl Default for ColorConfig {
     }
 }
 
-const FG_COLOR:     TrueColor           = (0xff, 0xff, 0xff);
-const BG_COLOR:     TrueColor           = (0x00, 0x00, 0x00);
-const CURSOR_COLOR: TrueColor           = (0xbb, 0xbb, 0xbb);
-const PALETTE:      [TrueColor; 256]    = [
+pub const FG_COLOR:     TrueColor           = (0xff, 0xff, 0xff);
+pub const BG_COLOR:     TrueColor           = (0x00, 0x00, 0x00);
+pub const CURSOR_COLOR: TrueColor           = (0xbb, 0xbb, 0xbb);
+pub const PALETTE:      [TrueColor; 256]    = [
     /*  0    */ (0x00,0x00,0x00),
     /*  1    */ (0x55,0x55,0xff),
     /*  2    */ (0x55,0xff,0x55),

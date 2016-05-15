@@ -28,7 +28,7 @@ use self::colors::gtk_color;
 use self::image_renderer::ImageRenderer;
 use self::text_renderer::TextRenderer;
 
-pub use self::colors::{ColorConfig, TrueColor};
+pub use self::colors::{ColorConfig, TrueColor, PALETTE};
 
 pub struct Renderer {
     images: HashMap<Arc<ImageData>, ImageRenderer>,
