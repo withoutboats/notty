@@ -19,7 +19,7 @@ use std::sync::atomic::Ordering::Relaxed;
 
 use unicode_width::*;
 
-use SCROLLBACK;
+use cfg::SCROLLBACK;
 use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style, move_within};
 use datatypes::Area::*;
 use datatypes::Movement::*;
@@ -46,15 +46,10 @@ pub struct CharGrid {
 
 impl CharGrid {
     pub fn new(width: u32, height: u32, retain_offscreen_state: bool) -> CharGrid {
-        let scrollback = SCROLLBACK.load(Relaxed);
-        let grid = if retain_offscreen_state {
-            Grid::with_x_y_caps(width as usize,
-                                height as usize,
-                                scrollback,
-                                scrollback,
-                                CharCell::new(Styles::new()))
-        } else {
-            Grid::new(width as usize, height as usize, CharCell::new(Styles::new()))
+        let grid = match (retain_offscreen_state, SCROLLBACK.load(Relaxed)) {
+            (false, _) | (_, 0) => Grid::new(width as usize, height as usize),
+            (_, n) if n > 0     => Grid::with_y_cap(width as usize, height as usize, n as usize),
+            _                   => Grid::with_infinite_scroll(width as usize, height as usize),
         };
         CharGrid {
             grid: grid,
@@ -67,11 +62,11 @@ impl CharGrid {
     pub fn resize_window(&mut self, region: Region) {
         if self.grid_width() < region.width() {
             let n = (region.width() - self.grid_width()) * self.grid_height();
-            self.grid.add_to_right(vec![CharCell::new(Styles::new()); n as usize]);
+            self.grid.add_to_right(vec![CharCell::default(); n as usize]);
         }
         if self.grid_height() < region.height() {
             let n = (region.height() - self.grid_height()) * self.grid_width();
-            self.grid.add_to_bottom(vec![CharCell::new(Styles::new()); n as usize]);
+            self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
         }
         self.window = Region {
             right: self.window.left + region.width(),
@@ -280,8 +275,8 @@ mod tests {
     use datatypes::{CellData, Coords, Direction, Movement, Region};
 
     fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        ::SCROLLBACK.store(32, Relaxed);
-        ::TAB_STOP.store(4, Relaxed);
+        ::cfg::TAB_STOP.store(4, Relaxed);
+        ::cfg::SCROLLBACK.store(-1, Relaxed);
         test(CharGrid::new(10, 10, false), 10);
         test(CharGrid::new(10, 10, true), 11);
     }

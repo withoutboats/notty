@@ -23,7 +23,7 @@ use std::{error, fmt, io, mem, result};
 
 use super::Config;
 
-use notty::{SCROLLBACK, TAB_STOP};
+use notty::cfg::{SCROLLBACK, TAB_STOP};
 use notty_cairo::{ColorConfig, TrueColor};
 
 #[derive(Debug)]
@@ -73,7 +73,7 @@ fn update_general(font: &mut String, table: &toml::Table) {
                 map(|s| s.to_string()).
                 unwrap(),
             "tabstop" => TAB_STOP.store(v.as_integer().unwrap() as usize, Relaxed),
-            "scrollback" => SCROLLBACK.store(v.as_integer().unwrap() as usize, Relaxed),
+            "scrollback" => SCROLLBACK.store(v.as_integer().unwrap() as isize, Relaxed),
             _ => {},
         };
     }

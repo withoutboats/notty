@@ -137,6 +137,12 @@ impl CharCell {
 
 }
 
+impl Default for CharCell {
+    fn default() -> CharCell {
+        CharCell::new(Styles::new())
+    }
+}
+
 impl ToString for CharCell {
     fn to_string(&self) -> String {
         match self.content {

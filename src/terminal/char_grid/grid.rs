@@ -24,38 +24,41 @@ use datatypes::{Coords, Direction, Region};
 pub struct Grid<T> {
     pub width: usize,
     pub height: usize,
-    pub scrolls_x: bool,
-    pub scrolls_y: bool,
     data: VecDeque<T>,
-    rem_x: usize,
-    rem_y: usize,
-    default: T,
+    rem_x: Option<usize>,
+    rem_y: Option<usize>,
 }
 
-impl<T: Clone> Grid<T> {
+impl<T: Clone + Default> Grid<T> {
 
-    pub fn new(width: usize, height: usize, default: T) -> Grid<T> {
-        Grid::with_x_y_caps(width, height, 0, 0, default)
+    pub fn new(width: usize, height: usize) -> Grid<T> {
+        Grid::constructor(width, height, Some(0), Some(0))
     }
 
-    pub fn with_x_cap(width: usize, height: usize, max_x: usize, default: T) -> Grid<T> {
-        Grid::with_x_y_caps(width, height, max_x, 0, default)
+    pub fn with_x_cap(width: usize, height: usize, max_x: usize) -> Grid<T> {
+        Grid::constructor(width, height, Some(max_x), Some(0))
     }
 
-    pub fn with_y_cap(width: usize, height: usize, max_y: usize, default: T) -> Grid<T> {
-        Grid::with_x_y_caps(width, height, 0, max_y, default)
+    pub fn with_y_cap(width: usize, height: usize, max_y: usize) -> Grid<T> {
+        Grid::constructor(width, height, Some(0), Some(max_y))
     }
 
-    pub fn with_x_y_caps(w: usize, h: usize, max_x: usize, max_y: usize, default: T) -> Grid<T> {
+    pub fn with_x_y_caps(width: usize, height: usize, max_x: usize, max_y: usize) -> Grid<T> {
+        Grid::constructor(width, height, Some(max_x), Some(max_y))
+    }
+
+    pub fn with_infinite_scroll(width: usize, height: usize) -> Grid<T> {
+        Grid::constructor(width, height, None, None)
+    }
+
+    fn constructor(w: usize, h: usize, max_x: Option<usize>, max_y: Option<usize>)
+            -> Grid<T> {
         Grid {
             width: w,
             height: h,
-            scrolls_x: max_x != 0,
-            scrolls_y: max_y != 0,
-            data: iter::repeat(default.clone()).take(w * h).collect(),
-            rem_x: max_x.saturating_sub(w),
-            rem_y: max_y.saturating_sub(h),
-            default: default,
+            data: iter::repeat(T::default()).take(w * h).collect(),
+            rem_x: max_x.map(|x| x.saturating_sub(w)),
+            rem_y: max_y.map(|y| y.saturating_sub(h)),
         }
     }
 
@@ -154,104 +157,103 @@ impl<T: Clone> Grid<T> {
     pub fn scroll(&mut self, n: usize, direction: Direction) {
         use datatypes::Direction::*;
         match direction {
-            Up if self.rem_y != 0           => self.extend_up(n),
+            Up if self.rem_y != Some(0)     => self.extend_up(n),
             Up if n >= self.height          => self.data.clear(),
             Up                              => self.shift_up(n),
-            Down if self.rem_y != 0         => self.extend_down(n),
+            Down if self.rem_y != Some(0)   => self.extend_down(n),
             Down if n >= self.height        => self.data.clear(),
             Down                            => self.shift_down(n),
-            Left if self.rem_x != 0         => self.extend_left(n),
+            Left if self.rem_x != Some(0)   => self.extend_left(n),
             Left if n >= self.width         => self.data.clear(),
             Left                            => self.shift_left(n),
-            Right if self.rem_x != 0        => self.extend_right(n),
+            Right if self.rem_x != Some(0)  => self.extend_right(n),
             Right if n >= self.width        => self.data.clear(),
             Right                           => self.shift_right(n),
         }
     }
 
     pub fn moveover(&mut self, from: Coords, to: Coords) {
-        let default = self.default.clone();
-        self[to] = mem::replace(&mut self[from], default);
+        self[to] = mem::replace(&mut self[from], T::default());
     }
 
     fn extend_up(&mut self, n: usize) {
-        let rem_or_n = cmp::min(self.rem_y, n);
+        let rem_or_n = self.rem_y.map_or(n, |y| cmp::min(y, n));
         for _ in 0..(rem_or_n * self.width) {
-            self.data.push_front(self.default.clone());
+            self.data.push_front(T::default());
         }
         self.height += rem_or_n;
-        if n > self.rem_y {
-            let rem = n - self.rem_y;
+        if self.rem_y.map_or(false, |y| n > y) {
+            let rem = n - self.rem_y.unwrap();
             self.shift_up(rem);
         }
-        self.rem_y = self.rem_y.saturating_sub(n);
+        self.rem_y = self.rem_y.map(|y| y.saturating_sub(n));
     }
 
     fn extend_down(&mut self, n: usize) {
-        let rem_or_n = cmp::min(self.rem_y, n);
+        let rem_or_n = self.rem_y.map_or(n, |y| cmp::min(y, n));
         for _ in 0..(rem_or_n * self.width) {
-            self.data.push_back(self.default.clone());
+            self.data.push_back(T::default());
         }
         self.height += rem_or_n;
-        if n > self.rem_y {
-            let rem = n - self.rem_y;
+        if self.rem_y.map_or(false, |y| n > y) {
+            let rem = n - self.rem_y.unwrap();
             self.shift_down(rem);
         }
-        self.rem_y = self.rem_y.saturating_sub(n);
+        self.rem_y = self.rem_y.map(|y| y.saturating_sub(n));
     }
 
     fn extend_left(&mut self, n: usize) {
-        let rem_or_n = cmp::min(self.rem_x, n);
+        let rem_or_n = self.rem_x.map_or(n, |x| cmp::min(x, n));
         for i in 0..rem_or_n {
             for j in (1..self.height).rev() {
-                self.data.insert((self.width + i) * j, self.default.clone());
+                self.data.insert((self.width + i) * j, T::default());
             }
-            self.data.push_front(self.default.clone());
+            self.data.push_front(T::default());
         }
         self.width += rem_or_n;
-        if n > self.rem_x {
-            let rem = n - self.rem_x;
+        if self.rem_x.map_or(false, |x| n > x) {
+            let rem = n - self.rem_x.unwrap();
             self.shift_left(rem);
         }
-        self.rem_y = self.rem_y.saturating_sub(n);
+        self.rem_x = self.rem_x.map(|x| x.saturating_sub(n));
     }
 
     fn extend_right(&mut self, n: usize) {
-        let rem_or_n = cmp::min(self.rem_x, n);
+        let rem_or_n = self.rem_x.map_or(n, |x| cmp::min(x, n));
         for i in 0..rem_or_n {
             for j in (1..self.height).rev() {
-                self.data.insert((self.width + i) * j, self.default.clone());
+                self.data.insert((self.width + i) * j, T::default());
             }
-            self.data.push_back(self.default.clone());
+            self.data.push_back(T::default());
         }
         self.width += rem_or_n;
-        if n > self.rem_x {
-            let rem = n - self.rem_x;
+        if self.rem_x.map_or(false, |x| n > x) {
+            let rem = n - self.rem_x.unwrap();
             self.shift_right(rem);
         }
-        self.rem_y = self.rem_y.saturating_sub(n);
+        self.rem_x = self.rem_x.map(|x| x.saturating_sub(n));
     }
 
     fn shift_up(&mut self, n: usize) {
         for _ in 0..(n * self.width) {
             self.data.pop_back();
-            self.data.push_front(self.default.clone());
+            self.data.push_front(T::default());
         }
     }
 
     fn shift_down(&mut self, n: usize) {
         for _ in 0..(n * self.width) {
             self.data.pop_front();
-            self.data.push_back(self.default.clone());
+            self.data.push_back(T::default());
         }
     }
 
     fn shift_left(&mut self, n: usize) {
         for _ in 0..n {
             self.data.pop_back();
-            self.data.push_front(self.default.clone());
+            self.data.push_front(T::default());
             for i in 1..self.height {
-                self.data[i * self.width] = self.default.clone();
+                self.data[i * self.width] = T::default();
             }
         }
     }
@@ -259,9 +261,9 @@ impl<T: Clone> Grid<T> {
     fn shift_right(&mut self, n: usize) {
         for _ in 0..n {
             self.data.pop_front();
-            self.data.push_back(self.default.clone());
+            self.data.push_back(T::default());
             for i in 1..self.height {
-                self.data[(i * self.width) - 1] = self.default.clone();
+                self.data[(i * self.width) - 1] = T::default();
             }
         }
     }
@@ -311,10 +313,10 @@ mod tests {
 
     fn run_test<F: Fn(Grid<i32>, usize, usize)>(test: F, new_w: usize, new_h: usize) {
         let fill = |grid: &mut Grid<i32>| for i in grid { *i = 1; };
-        test({ let mut grid = Grid::new(8, 8, 0); fill(&mut grid); grid }, 8, 8);
-        test({ let mut grid = Grid::with_x_cap(8, 8, 10, 0); fill(&mut grid); grid }, new_w, 8);
-        test({ let mut grid = Grid::with_y_cap(8, 8, 10, 0); fill(&mut grid); grid }, 8, new_h);
-        test({ let mut grid = Grid::with_x_y_caps(8, 8, 10, 10, 0); fill(&mut grid); grid },
+        test({ let mut grid = Grid::new(8, 8); fill(&mut grid); grid }, 8, 8);
+        test({ let mut grid = Grid::with_x_cap(8, 8, 10); fill(&mut grid); grid }, new_w, 8);
+        test({ let mut grid = Grid::with_y_cap(8, 8, 10); fill(&mut grid); grid }, 8, new_h);
+        test({ let mut grid = Grid::with_x_y_caps(8, 8, 10, 10); fill(&mut grid); grid },
              new_w, new_h);
     }
 
@@ -487,7 +489,7 @@ mod tests {
             (Coords { x: 7, y: 1 }, Coords { x: 0, y: 3 },
                  &[15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
         ];
-        let mut grid = Grid::new(8, 8, 0);
+        let mut grid = Grid::new(8, 8);
         for (idx, cell) in (&mut grid).into_iter().enumerate() { *cell = idx as u32; }
         for &(coords1, coords2, values) in RANGE_TESTS {
             assert_eq!(&*grid.range_inclusive(coords1, coords2).cloned().collect::<Vec<_>>(),

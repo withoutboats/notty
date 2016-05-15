@@ -29,7 +29,7 @@ pub use self::input::Tty;
 pub use self::screen::{Screen, Cells, Panels};
 
 use self::input::Input;
-use {SCROLLBACK, TAB_STOP};
+use cfg::{TAB_STOP, SCROLLBACK};
 
 pub struct Terminal {
     title: String,
@@ -41,8 +41,8 @@ impl Terminal {
 
     pub fn new<W: Tty + Send + 'static>(width: u32, height: u32, tty: W)
             -> Terminal {
-        if SCROLLBACK.load(Relaxed) == 0 { SCROLLBACK.store(512, Relaxed) };
         if TAB_STOP.load(Relaxed) == 0 { TAB_STOP.store(4, Relaxed) };
+        if SCROLLBACK.load(Relaxed) == 0 { SCROLLBACK.store(-1, Relaxed) };
         Terminal {
             title: String::new(),
             screen: Screen::new(width, height),

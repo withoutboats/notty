@@ -25,7 +25,7 @@ use mime::Mime;
 mod iter;
 mod key;
 
-use TAB_STOP;
+use cfg::TAB_STOP;
 
 pub use self::iter::CoordsIter;
 pub use self::key::Key;
