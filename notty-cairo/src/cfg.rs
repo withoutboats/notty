@@ -1,25 +1,34 @@
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::mem;
 
-use notty::datatypes::Color;
+use notty::datatypes::{Color, ConfigStyle};
+use notty::terminal::Styles;
 
 pub type TrueColor = (u8, u8, u8);
 pub type GtkColor = (f64, f64, f64);
 
-pub struct ColorConfig {
+pub struct Config {
+    pub font: Cow<'static, str>,
+    pub styles: BTreeMap<ConfigStyle, Styles>,
     pub fg_color: TrueColor,
     pub bg_color: TrueColor,
     pub cursor_color: TrueColor,
     pub palette: [TrueColor; 256],
 }
 
-impl ColorConfig {
-    pub fn new(fg_color: TrueColor,
+impl Config {
+    pub fn new(font: Cow<'static, str>,
+               styles: BTreeMap<ConfigStyle, Styles>,
+               fg_color: TrueColor,
                bg_color: TrueColor,
                cursor_color: TrueColor,
-               palette: &[TrueColor]) -> ColorConfig {
+               palette: &[TrueColor]) -> Config {
         assert_eq!(palette.len(), 256);
         let palette: &[TrueColor; 256] = unsafe { mem::transmute(palette.as_ptr()) };
-        ColorConfig {
+        Config {
+            font: font,
+            styles: styles,
             fg_color: fg_color,
             bg_color: bg_color,
             cursor_color: cursor_color,
@@ -51,9 +60,11 @@ pub fn gtk_color((r, g, b): TrueColor) -> GtkColor {
     (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0)
 }
 
-impl Default for ColorConfig {
-    fn default() -> ColorConfig {
-        ColorConfig {
+impl Default for Config {
+    fn default() -> Config {
+        Config {
+            font: Cow::Borrowed("Inconsolata 10"),
+            styles: BTreeMap::new(),
             fg_color: FG_COLOR,
             bg_color: BG_COLOR,
             cursor_color: CURSOR_COLOR,

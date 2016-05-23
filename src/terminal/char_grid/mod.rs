@@ -34,7 +34,7 @@ mod tooltip;
 pub use self::cell::{CharCell, CharData, ImageData};
 pub use self::cursor::Cursor;
 pub use self::grid::Grid;
-pub use self::styles::Styles;
+pub use self::styles::{Styles, UseStyles};
 pub use self::tooltip::Tooltip;
 
 pub struct CharGrid {
@@ -138,8 +138,7 @@ impl CharGrid {
     }
 
     pub fn erase(&mut self, area: Area) {
-        let styles = Styles::new();
-        self.in_area(area, |grid, coords| grid[coords] = CharCell::new(styles));
+        self.in_area(area, |grid, coords| grid[coords] = CharCell::default());
     }
 
     pub fn insert_blank_at(&mut self, n: u32) {
@@ -186,7 +185,7 @@ impl CharGrid {
     }
 
     pub fn reset_styles(&mut self) {
-        self.cursor.text_style = Styles::new();
+        self.cursor.text_style = UseStyles::default();
     }
 
     pub fn set_cursor_style(&mut self, style: Style) {
@@ -202,7 +201,7 @@ impl CharGrid {
     }
 
     pub fn reset_styles_in_area(&mut self, area: Area) {
-        self.in_area(area, |grid, coords| grid[coords].styles = Styles::new());
+        self.in_area(area, |grid, coords| grid[coords].styles = UseStyles::default());
     }
 
     pub fn cursor_position(&self) -> Coords {

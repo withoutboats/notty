@@ -15,20 +15,20 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::ops::Range;
 
-use notty::terminal::Styles;
+use notty::datatypes::ConfigStyle;
+use notty::terminal::{Styles, UseStyles};
 
 use cairo;
 use cairo::glib::translate::ToGlibPtr;
 
 use pangocairo::wrap::{PangoAttribute, PangoAttrList, PangoLayout};
 
-use colors::{TrueColor, ColorConfig};
+use cfg::{TrueColor, Config};
 
 type AppliedStyles<T> = Vec<(Range<usize>, T)>;
 
 pub struct TextRenderer<'a> {
-    color_cfg: &'a ColorConfig,
-    font: &'a str,
+    cfg: &'a Config,
     x_pos: f64,
     y_pos: f64,
 
@@ -46,10 +46,9 @@ pub struct TextRenderer<'a> {
 
 impl<'a> TextRenderer<'a> {
 
-    pub fn new(color_cfg: &'a ColorConfig, font: &'a str, x: f64, y: f64) -> TextRenderer<'a> {
+    pub fn new(cfg: &'a Config, x: f64, y: f64) -> TextRenderer<'a> {
         TextRenderer {
-            color_cfg: color_cfg,
-            font: font,
+            cfg: cfg,
             x_pos: x,
             y_pos: y,
 
@@ -66,28 +65,28 @@ impl<'a> TextRenderer<'a> {
         }
     }
 
-    pub fn push(&mut self, ch: char, styles: Styles) {
+    pub fn push(&mut self, ch: char, styles: UseStyles) {
         let lower = self.text.len();
         self.text.push(ch);
         let range = lower..self.text.len();
         self.add_style(&range, styles);
     }
 
-    pub fn push_str(&mut self, s: &str, styles: Styles) {
+    pub fn push_str(&mut self, s: &str, styles: UseStyles) {
         let lower = self.text.len();
         self.text.push_str(s);
         let range = lower..self.text.len();
         self.add_style(&range, styles);
     }
 
-    pub fn push_cursor(&mut self, ch: char, styles: Styles, cursor_styles: Styles) {
+    pub fn push_cursor(&mut self, ch: char, styles: UseStyles, cursor_styles: Styles) {
         let lower = self.text.len();
         self.text.push(ch);
         let range = lower..self.text.len();
         self.add_cursor_style(&range, styles, cursor_styles);
     }
 
-    pub fn push_str_cursor(&mut self, s: &str, styles: Styles, cursor_styles: Styles) {
+    pub fn push_str_cursor(&mut self, s: &str, styles: UseStyles, cursor_styles: Styles) {
         let lower = self.text.len();
         self.text.push_str(s);
         let range = lower..self.text.len();
@@ -102,17 +101,29 @@ impl<'a> TextRenderer<'a> {
 
         // Draw the text
         let cairo = canvas.to_glib_none();
-        PangoLayout::new(cairo.0, &self.font, &self.text, self.pango_attrs()).show(cairo.0);
+        PangoLayout::new(cairo.0, &self.cfg.font, &self.text, self.pango_attrs()).show(cairo.0);
     }
 
     fn is_blank(&self) -> bool {
         self.text.chars().all(char::is_whitespace)
-        && self.bg_color.iter().all(|&(_, color)| color == self.color_cfg.bg_color)
+        && self.bg_color.iter().all(|&(_, color)| color == self.cfg.bg_color)
     }
 
-    fn add_style(&mut self, range: &Range<usize>, style: Styles) {
-        let fg_color = self.color_cfg.fg_color(style.fg_color);
-        let bg_color = self.color_cfg.bg_color(style.bg_color);
+    fn add_style(&mut self, range: &Range<usize>, style: UseStyles) {
+        match style {
+            UseStyles::Custom(styles) => self.add_style_set(range, styles),
+            UseStyles::Config(config) => {
+                let styles = self.cfg.styles.get(&config)
+                                 .or_else(|| self.cfg.styles.get(&ConfigStyle::Plain))
+                                 .map_or_else(Styles::default, |&s|s);
+                self.add_style_set(range, styles);
+            }
+        }
+    }
+
+    fn add_style_set(&mut self, range: &Range<usize>, style: Styles) {
+        let fg_color = self.cfg.fg_color(style.fg_color);
+        let bg_color = self.cfg.bg_color(style.bg_color);
         if !style.inverted {
             append_field(range.clone(), fg_color, &mut self.fg_color);
             append_field(range.clone(), bg_color, &mut self.bg_color);
@@ -129,8 +140,17 @@ impl<'a> TextRenderer<'a> {
         if style.blink { append_bool(range.clone(), &mut self.blink) }
     }
 
-    fn add_cursor_style(&mut self, range: &Range<usize>, style: Styles, _: Styles) {
-        self.add_style(range, Styles { inverted: !style.inverted, ..style });
+    fn add_cursor_style(&mut self, range: &Range<usize>, style: UseStyles, _: Styles) {
+        match style {
+            UseStyles::Config(config)   => {
+                let styles = self.cfg.styles.get(&config).map_or_else(Styles::default,
+                                                                            |&s|s);
+                self.add_style_set(range, Styles { inverted: !styles.inverted, ..styles });
+            },
+            UseStyles::Custom(style)    => {
+                self.add_style_set(range, Styles { inverted: !style.inverted, ..style });
+            }
+        }
     }
 
     fn pango_attrs(&self) -> PangoAttrList {

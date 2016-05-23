@@ -18,13 +18,13 @@ use std::sync::Arc;
 use mime::Mime;
 
 use datatypes::{Coords, MediaPosition};
-use terminal::Styles;
+use terminal::{UseStyles, Styles};
 
 use self::CharData::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct CharCell {
-    pub styles: Styles,
+    pub styles: UseStyles,
     pub content: CharData,
 }
 
@@ -51,21 +51,21 @@ pub struct ImageData {
 
 impl CharCell {
 
-    pub fn new(styles: Styles) -> CharCell {
+    pub fn new(styles: UseStyles) -> CharCell {
         CharCell {
             styles: styles,
             content: Empty,
         }
     }
 
-    pub fn character(ch: char, styles: Styles) -> CharCell {
+    pub fn character(ch: char, styles: UseStyles) -> CharCell {
         CharCell {
             styles: styles,
             content: Char(ch)
         }
     }
 
-    pub fn grapheme(grapheme: String, styles: Styles) -> CharCell {
+    pub fn grapheme(grapheme: String, styles: UseStyles) -> CharCell {
         CharCell {
             styles: styles,
             content: Grapheme(grapheme)
@@ -78,7 +78,7 @@ impl CharCell {
                  pos: MediaPosition, 
                  width: u32,
                  height: u32,
-                 styles: Styles) -> CharCell {
+                 styles: UseStyles) -> CharCell {
         CharCell {
             styles: styles,
             content: Image {
@@ -94,7 +94,7 @@ impl CharCell {
         }
     }
 
-    pub fn extension(coords: Coords, styles: Styles) -> CharCell {
+    pub fn extension(coords: Coords, styles: UseStyles) -> CharCell {
         CharCell {
             styles: styles,
             content: Extension(coords),
@@ -139,7 +139,7 @@ impl CharCell {
 
 impl Default for CharCell {
     fn default() -> CharCell {
-        CharCell::new(Styles::new())
+        CharCell::new(UseStyles::Custom(Styles::new()))
     }
 }
 

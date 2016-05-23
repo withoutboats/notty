@@ -16,6 +16,7 @@
 extern crate cairo;
 extern crate gdk;
 extern crate gtk;
+extern crate toml;
 
 extern crate tty;
 extern crate notty;
@@ -40,7 +41,6 @@ mod cfg;
 mod commands;
 mod key;
 
-use cfg::Config;
 use commands::CommandApplicator;
 
 static mut X_PIXELS: Option<u32> = None;
@@ -51,6 +51,9 @@ static ROWS: u32 = 25;
 
 fn main() {
 
+    // Read in configurations
+    let config = cfg::Config::new();
+
     // Set up window and drawing canvas.
     gtk::init().unwrap();
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
@@ -60,11 +63,7 @@ fn main() {
     // Set the TERM variable and establish a TTY connection
     env::set_var("TERM", "notty");
 
-    let shell = match env::var("SHELL") {
-        Ok(v) => v,
-        Err(_) => "sh".to_string(),
-    };
-    let (tty_r, tty_w) = tty::pty(&shell, COLS as u16, ROWS as u16);
+    let (tty_r, tty_w) = tty::pty(&config.shell, COLS as u16, ROWS as u16);
 
     // Handle program output (tty -> screen) on separate thread.
     let (tx_out, rx) = mpsc::channel();
@@ -100,9 +99,8 @@ fn main() {
     });
 
     // Set up logical terminal and renderer.
-    let Config { color_cfg, font } = Config::new();
     let terminal = Rc::new(RefCell::new(Terminal::new(COLS, ROWS, tty_w)));
-    let renderer = RefCell::new(Renderer::new(font, color_cfg));
+    let renderer = RefCell::new(Renderer::new(config.cairo));
 
     // Process screen logic every 25 milliseconds.
     let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());

@@ -8,7 +8,7 @@ extern crate libc;
 extern crate notty;
 extern crate pangocairo;
 
-mod colors;
+mod cfg;
 mod image_renderer;
 mod text_renderer;
 
@@ -24,26 +24,24 @@ use notty::terminal::{CharData, Terminal, ImageData};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
-use self::colors::gtk_color;
+use self::cfg::gtk_color;
 use self::image_renderer::ImageRenderer;
 use self::text_renderer::TextRenderer;
 
-pub use self::colors::{ColorConfig, TrueColor, PALETTE};
+pub use self::cfg::{Config, TrueColor, PALETTE};
 
 pub struct Renderer {
     images: HashMap<Arc<ImageData>, ImageRenderer>,
     char_d: Option<(f64, f64)>,
-    color_cfg: ColorConfig,
-    font: String,
+    cfg: Config,
 }
 
 impl Renderer {
-    pub fn new(font: String, color_cfg: ColorConfig) -> Renderer {
+    pub fn new(cfg: Config) -> Renderer {
         Renderer {
             images: HashMap::new(),
             char_d: None,
-            color_cfg: color_cfg,
-            font: font,
+            cfg: cfg,
         }
     }
 
@@ -62,7 +60,7 @@ impl Renderer {
     pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
 
         if self.char_d.is_none() { self.char_d = Some(self.char_dimensions(canvas)); }
-        let (r, g, b) = gtk_color(self.color_cfg.bg_color);
+        let (r, g, b) = gtk_color(self.cfg.bg_color);
         canvas.set_source_rgb(r, g, b);
         canvas.paint();
 
@@ -76,7 +74,7 @@ impl Renderer {
 
         for (y_pos, row) in rows.into_iter().enumerate() {
             let y_pix = self.y_pixels(y_pos as u32);
-            let mut text = TextRenderer::new(&self.color_cfg, &self.font, 0.0, y_pix);
+            let mut text = TextRenderer::new(&self.cfg, 0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
                 let style = cell.styles;
                 if (Coords { x: x_pos as u32, y: y_pos as u32 } == terminal.cursor_position()) {
@@ -99,7 +97,7 @@ impl Renderer {
                         let x_pix = self.x_pixels(x_pos as u32);
                         if (x_pos + *width as usize) < col_n {
                             text.draw(canvas);
-                            text = TextRenderer::new(&self.color_cfg, &self.font, x_pix, y_pix);
+                            text = TextRenderer::new(&self.cfg, x_pix, y_pix);
                         }
                         if let Some(image) = self.images.get(data) {
                             image.draw(canvas);
@@ -124,7 +122,7 @@ impl Renderer {
         let string = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN\
                       OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         let cairo = canvas.to_glib_none();
-        let (w, h) = PangoLayout::new(cairo.0, &self.font, string, PangoAttrList::new()).extents();
+        let (w, h) = PangoLayout::new(cairo.0, &self.cfg.font, string, PangoAttrList::new()).extents();
         canvas.move_to(x_save, y_save);
         ((w / string.len() as i32) as f64, h as f64)
     }

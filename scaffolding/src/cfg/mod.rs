@@ -1,15 +1,16 @@
+use std::borrow::Cow;
 use std::env;
 use std::path::PathBuf;
 
-use notty_cairo::ColorConfig;
+use notty_cairo::Config as CairoConfig;
 
 mod toml;
 
 const CONFIG_FILE: &'static str = "scaffolding.toml";
 
 pub struct Config {
-    pub color_cfg: ColorConfig,
-    pub font: String,
+    pub cairo: CairoConfig,
+    pub shell: Cow<'static, str>,
 }
 
 impl Config {
@@ -27,8 +28,8 @@ impl Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            color_cfg: ColorConfig::default(),
-            font: String::from("Inconsolata 10"),
+            cairo: CairoConfig::default(),
+            shell: Cow::Borrowed("sh"),
         }
     }
 }

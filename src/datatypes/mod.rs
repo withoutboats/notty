@@ -32,13 +32,14 @@ pub use self::key::Key;
 
 pub use notty_encoding::args::*;
 
-
 pub mod args {
     pub use super::{
         Area,
         BufferSettings,
-        Coords,
+        CodeGroup,
         Color,
+        ConfigStyle,
+        Coords,
         Direction,
         EchoSettings,
         InputSettings,
