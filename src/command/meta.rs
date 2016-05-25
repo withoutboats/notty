@@ -41,11 +41,12 @@ impl Command for SetInputMode {
     }
     fn repr(&self) -> String {
         match self.0 {
-            InputSettings::Ansi(false)          => String::from("SET INPUTMODE ANSI"),
-            InputSettings::Ansi(true)           => String::from("SET INPUTMODE APPLICATION"),
-            InputSettings::Notty(_)             => String::from("SET INPUTMODE EXTENDED"),
-            InputSettings::LineBufferEcho(_, _) => String::from("SET INPUTMODE LINEBUFFER ECHO"), 
-            InputSettings::ScreenEcho(_)        => String::from("SET INPUTMODE SCREEN ECHO"),
+            InputSettings::Ansi(false)              => String::from("SET MODE ANSI"),
+            InputSettings::Ansi(true)               => String::from("SET MODE APPLICATION"),
+            InputSettings::Notty(_)                 => String::from("SET MODE EXTENDED"),
+            InputSettings::LineBufferEcho(_, _)     => String::from("SET MODE LINEBUFFER ECHO"), 
+            InputSettings::ScreenEcho(_)            => String::from("SET MODE SCREEN ECHO"),
+            InputSettings::BracketedPasteMode(_)    => String::from("SET BRACKETED PASTE MODE"),
         }
     }
 }

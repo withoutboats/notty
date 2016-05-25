@@ -54,6 +54,12 @@ impl Terminal {
         cmd.inner.apply(self)
     }
 
+    pub fn paste(&mut self, data: &str) -> io::Result<()> {
+        if let Some(cmd) = try!(self.tty.paste(data)) {
+            cmd.inner.apply(self)
+        } else { Ok(()) }
+    }
+
     pub fn send_input(&mut self, key: Key, press: bool) -> io::Result<()> {
         if let Some(cmd) = try!(match key {
             Key::DownArrow | Key::UpArrow | Key::Enter if press => {
@@ -69,9 +75,8 @@ impl Terminal {
             }
             _           => self.tty.write(key, press),
         }) {
-            try!(cmd.inner.apply(self));
-        }
-        Ok(())
+            cmd.inner.apply(self)
+        } else { Ok(()) }
     }
 
     pub fn set_title(&mut self, title: String) {

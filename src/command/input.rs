@@ -37,3 +37,14 @@ impl Command for KeyRelease {
         String::from("KEY RELEASE")
     }
 }
+
+pub struct Paste(pub String);
+
+impl Command for Paste {
+    fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
+        terminal.paste(&self.0)
+    }
+    fn repr(&self) -> String {
+        String::from("PASTE")
+    }
+}

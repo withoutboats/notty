@@ -39,7 +39,7 @@ pub use notty_encoding::cmds::{
     SetStyleInArea, DefaultStyleInArea,
 };
 
-pub use self::input::{KeyPress, KeyRelease};
+pub use self::input::{KeyPress, KeyRelease, Paste};
 pub use self::meta::{SetTitle, Bell};
 pub use self::put::{Put, PutAt};
 pub use self::respond::{StaticResponse, ReportPosition};

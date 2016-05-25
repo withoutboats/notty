@@ -28,7 +28,7 @@ pub mod terminal;
 
 pub use output::Output;
 
-use command::{KeyPress, KeyRelease, CommandTrait};
+use command::{KeyPress, KeyRelease, Paste, CommandTrait};
 use datatypes::Key;
 
 /// A command to be applied to the terminal.
@@ -55,6 +55,13 @@ impl Command {
     pub fn key_release(key: Key) -> Command {
         Command {
             inner: Box::new(KeyRelease(key)) as Box<CommandTrait>,
+        }
+    }
+
+    /// Create a command representing a paste from a clipboard.
+    pub fn paste(data: String) -> Command {
+        Command {
+            inner: Box::new(Paste(data)) as Box<CommandTrait>,
         }
     }
 }

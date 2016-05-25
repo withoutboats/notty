@@ -39,6 +39,7 @@ pub trait Tty: Write {
 pub struct Input {
     tty: Box<Tty + Send>,
     mode: InputMode,
+    paste_mode: PasteMode,
     modifiers: Modifiers,
 }
 
@@ -48,21 +49,29 @@ impl Input {
         Input {
             tty: Box::new(tty),
             mode: Ansi(false),
+            paste_mode: PasteMode::Silent,
             modifiers: Modifiers::new(),
         }
     }
 
     pub fn set_mode(&mut self, mode: InputSettings) {
-        self.mode = match mode {
+        match mode {
             InputSettings::Ansi(flag)                   =>
-                Ansi(flag),
+                self.mode = Ansi(flag),
             InputSettings::Notty(_)                     =>
-                ExtendedRaw(Extended),
+                self.mode = ExtendedRaw(Extended),
             InputSettings::LineBufferEcho(echo, buffer) =>
-                ExtendedLineBuffer(LineEcho::new(echo), InputBuffer::new(buffer)),
+                self.mode = ExtendedLineBuffer(LineEcho::new(echo), InputBuffer::new(buffer)),
             InputSettings::ScreenEcho(settings)         =>
-                ExtendedScreen(ScreenEcho::new(settings), Extended)
-        }
+                self.mode = ExtendedScreen(ScreenEcho::new(settings), Extended),
+            InputSettings::BracketedPasteMode(_)        => (),
+        };
+        self.paste_mode = match mode {
+            InputSettings::BracketedPasteMode(true)     => PasteMode::Bracketed,
+            InputSettings::BracketedPasteMode(false)    => PasteMode::Silent,
+            _                                           => self.paste_mode,
+
+        };
     }
 
     pub fn set_winsize(&mut self, width: u32, height: u32) -> io::Result<()> {
@@ -75,18 +84,28 @@ impl Input {
         self.mode.write(key, press, &mut self.tty, self.modifiers)
     }
 
+    pub fn paste(&mut self, data: &str) -> io::Result<Option<Command>> {
+        self.mode.paste(data, &mut self.tty, self.paste_mode)
+    }
+
 }
 
-pub enum InputMode {
+enum InputMode {
     Ansi(bool),
     ExtendedRaw(Extended),
     ExtendedLineBuffer(LineEcho, InputBuffer),
     ExtendedScreen(ScreenEcho, Extended),
 }
 
+#[derive(Copy, Clone)]
+enum PasteMode {
+    Silent,
+    Bracketed,
+}
+
 impl InputMode {
 
-    pub fn write(&mut self, key: Key, press: bool, tty: &mut Write, modifiers: Modifiers)
+    fn write(&mut self, key: Key, press: bool, tty: &mut Write, modifiers: Modifiers)
             -> io::Result<Option<Command>> {
         match *self {
             Ansi(app_mode) if press && !key.is_modifier() => {
@@ -110,6 +129,17 @@ impl InputMode {
                 if press { Ok(echo.echo(key)) } else { Ok(None) }
             }
             _                                   => Ok(None)
+        }
+    }
+
+    fn paste(&self, data: &str, tty: &mut Write, paste_mode: PasteMode)
+            -> io::Result<Option<Command>> {
+        match (self, paste_mode) {
+            (&Ansi(_), PasteMode::Bracketed)    =>
+                write!(tty, "\x1b[200~{}\x1b[201~", data).and(Ok(None)),
+            (&Ansi(_), PasteMode::Silent)       =>
+                write!(tty, "{}", data).and(Ok(None)),
+            _               => unimplemented!(),
         }
     }
 
