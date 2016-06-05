@@ -1,8 +1,10 @@
 #![feature(arc_counts)]
 extern crate cairo;
 extern crate gdk;
-extern crate gdk_pixbuf_sys as pixbuf;
+extern crate gdk_pixbuf as pixbuf;
+extern crate gdk_pixbuf_sys as pixbuf_sys;
 extern crate gio_sys as gio;
+extern crate glib;
 extern crate itertools;
 extern crate libc;
 extern crate notty;
@@ -15,7 +17,7 @@ mod text_renderer;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use gdk::glib::translate::ToGlibPtr;
+use glib::translate::ToGlibPtr;
 
 use itertools::Itertools;
 

@@ -3,13 +3,13 @@ use std::ptr;
 
 use cairo;
 
-use gdk::{InterpType, Pixbuf};
-use gdk::cairo_interaction::ContextExt;
-use gdk::glib::translate::FromGlibPtr;
+use gdk::prelude::ContextExt;
+use glib::translate::FromGlibPtr;
 use notty::datatypes::MediaPosition;
 use notty::datatypes::MediaPosition::*;
+use pixbuf::{InterpType, Pixbuf};
 use gio;
-use pixbuf;
+use pixbuf_sys;
 use libc;
 
 use notty::terminal::Styles;
@@ -27,7 +27,7 @@ impl ImageRenderer {
             unsafe {
                 let (data, len) = (mem::transmute(data.as_ptr()), data.len() as libc::ssize_t);
                 let stream = gio::g_memory_input_stream_new_from_data(data, len, None);
-                let pixbuf = pixbuf::gdk_pixbuf_new_from_stream(stream, null, null as *mut _);
+                let pixbuf = pixbuf_sys::gdk_pixbuf_new_from_stream(stream, null, null as *mut _);
                 if pixbuf != null as *mut _ { Some(Pixbuf::from_glib_full(pixbuf)) }
                 else { None }
             }

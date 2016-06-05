@@ -19,7 +19,7 @@ use notty::datatypes::ConfigStyle;
 use notty::terminal::{Styles, UseStyles};
 
 use cairo;
-use cairo::glib::translate::ToGlibPtr;
+use glib::translate::ToGlibPtr;
 
 use pangocairo::wrap::{PangoAttribute, PangoAttrList, PangoLayout};
 

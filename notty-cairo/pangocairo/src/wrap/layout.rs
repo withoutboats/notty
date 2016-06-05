@@ -16,9 +16,9 @@
 use std::ffi::CString;
 use std::ptr;
 
+use cairo;
 use gobject_sys;
-use cairo::ffi as cairo;
-use pango::ffi as pango;
+use pango_sys as pango;
 
 use ffi as pangocairo;
 

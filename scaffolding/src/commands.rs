@@ -5,7 +5,7 @@ use std::result;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::TryRecvError::*;
 
-use gtk::{self, WidgetTrait};
+use gtk::{self, WidgetExt};
 
 use notty::Command;
 use notty::terminal::Terminal;

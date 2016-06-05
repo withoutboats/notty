@@ -13,8 +13,8 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use cairo::ffi as cairo;
-use pango::ffi as pango;
+use cairo;
+use pango_sys as pango;
 
 #[link(name = "pangocairo-1.0")]
 extern {

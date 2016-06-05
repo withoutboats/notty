@@ -15,7 +15,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern crate gobject_sys;
 extern crate pango;
-extern crate cairo;
+extern crate pango_sys;
+extern crate cairo_sys as cairo;
 
 pub mod ffi;
 

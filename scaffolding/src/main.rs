@@ -15,7 +15,9 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern crate cairo;
 extern crate gdk;
+extern crate glib;
 extern crate gtk;
+extern crate gtk_sys;
 extern crate toml;
 
 extern crate tty;
@@ -31,7 +33,7 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use gtk::{WindowTrait, WidgetTrait, WidgetSignals, ContainerTrait};
+use gtk::{WindowExt, WidgetExt, WidgetSignals, ContainerExt};
 
 use notty::{Output, Command};
 use notty::terminal::Terminal;
@@ -56,8 +58,8 @@ fn main() {
 
     // Set up window and drawing canvas.
     gtk::init().unwrap();
-    let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
-    let canvas = Rc::new(gtk::DrawingArea::new().unwrap());
+    let window = gtk::Window::new(gtk::WindowType::Toplevel);
+    let canvas = Rc::new(gtk::DrawingArea::new());
     window.add(&*canvas);
 
     // Set the TERM variable and establish a TTY connection
@@ -88,12 +90,12 @@ fn main() {
 
     // Quit GTK main loop if the (tty -> screen) output handler thread indicates
     // pty is no longer open.
-    gdk::glib::timeout_add(50, move || {
+    glib::timeout_add(50, move || {
         match pty_open_checker.load(Ordering::SeqCst) {
-            true => gdk::glib::Continue(true),
+            true => glib::Continue(true),
             false => {
                 gtk::main_quit();
-                gdk::glib::Continue(false)
+                glib::Continue(false)
             }
         }
     });
@@ -104,12 +106,12 @@ fn main() {
 
     // Process screen logic every 25 milliseconds.
     let cmd = CommandApplicator::new(rx, terminal.clone(), canvas.clone());
-    gdk::glib::timeout_add(25, move || {
+    glib::timeout_add(25, move || {
         match cmd.apply() {
-            Ok(_) => gdk::glib::Continue(true),
+            Ok(_) => glib::Continue(true),
             Err(_) => {
                 gtk::main_quit();
-                gdk::glib::Continue(false)
+                glib::Continue(false)
             }
         }
     });
@@ -121,17 +123,18 @@ fn main() {
             renderer.borrow_mut().reset_dimensions(&canvas, &mut terminal, x_pix, y_pix);
         }
         renderer.borrow_mut().draw(&terminal, &canvas);
-        gtk::signal::Inhibit(false)
+        gtk::Inhibit(false)
     });
 
     // Connect signal for changing window size.
     canvas.connect_configure_event(move |canvas, config| {
         unsafe {
-            X_PIXELS = Some(config.width as u32);
-            Y_PIXELS = Some(config.height as u32);
+            let (width, height) = config.get_size();
+            X_PIXELS = Some(width);
+            Y_PIXELS = Some(height);
         }
         canvas.queue_draw();
-        gtk::signal::Inhibit(false)
+        gtk::Inhibit(false)
     });
 
     // Connect signal to receive key presses.
@@ -139,7 +142,7 @@ fn main() {
         if let Some(cmd) = key::key_from_event(event).map(Command::key_press) {
             tx_key_press.send(cmd).unwrap();
         } else { window.queue_draw(); }
-        gtk::signal::Inhibit(false)
+        gtk::Inhibit(false)
     });
 
     // Connect signal to receive key releases.
@@ -147,12 +150,12 @@ fn main() {
         if let Some(cmd) = key::key_from_event(event).map(Command::key_release) {
             tx_key_release.send(cmd).unwrap();
         } else { window.queue_draw(); }
-        gtk::signal::Inhibit(false)
+        gtk::Inhibit(false)
     });
 
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
-        gtk::signal::Inhibit(false)
+        gtk::Inhibit(false)
     });
 
     // Show the window and run the GTK event loop.

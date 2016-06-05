@@ -18,19 +18,19 @@ use gdk::EventKey;
 use notty::datatypes::Key;
 
 pub fn key_from_event(event: &EventKey) -> Option<Key> {
-    if super_mode(event) && (event.keyval == 0xff52 || event.keyval == 0xff54) && release(event) {
+    if super_mode(event) && (event.get_keyval() == 0xff52 || event.get_keyval() == 0xff54) && release(event) {
         None
     } else {
-        Some(keyval(event.keyval))
+        Some(keyval(event.get_keyval()))
     }
 }
 
 fn super_mode(key: &EventKey) -> bool {
-    key.state.bits() & 0o100 == 0o100
+    key.get_state().bits() & 0o100 == 0o100
 }
 
 fn release(key: &EventKey) -> bool {
-    key._type == ::gdk::EventType::KeyRelease
+    key.get_event_type() == ::gdk::EventType::KeyRelease
 }
 
 fn keyval(n: u32) -> Key {

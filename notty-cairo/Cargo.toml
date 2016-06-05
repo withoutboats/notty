@@ -4,12 +4,14 @@ name = "notty-cairo"
 version = "0.1.0"
 
 [dependencies]
-cairo-rs = "0.0.7"
-gdk = "0.2.0"
-gdk-pixbuf-sys = "0.2.1"
-gio-sys = "0.2.1"
+cairo-rs = "0.0.8"
+gdk = "0.3.0"
+gdk-pixbuf = "0.0.1"
+gdk-pixbuf-sys = "0.3.0"
+glib = "0.0.8"
+gio-sys = "0.3.0"
 itertools = "0.4.4"
-libc = "0.1"
+libc = "0.2.11"
 
 [dependencies.notty]
 path = ".."

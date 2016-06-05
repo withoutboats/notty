@@ -15,7 +15,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::ops::Range;
 
-use pango::{self, ffi};
+use pango;
+use pango_sys as ffi;
 
 pub struct PangoAttribute(*mut ffi::PangoAttribute);
 

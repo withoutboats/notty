@@ -16,7 +16,7 @@
 use std::iter::FromIterator;
 use std::mem;
 
-use pango::ffi;
+use pango_sys as ffi;
 
 use super::PangoAttribute;
 
