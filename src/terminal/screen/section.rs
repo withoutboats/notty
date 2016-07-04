@@ -189,7 +189,7 @@ impl ScreenSection {
     pub fn cells(&self) -> super::Cells {
         super::Cells {
             iter: CoordsIter::from_region(self.area),
-            screen: self,
+            section: self,
         }
     }
 

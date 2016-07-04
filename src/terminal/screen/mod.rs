@@ -1,14 +1,16 @@
 use std::ops::{Deref, DerefMut};
 
-use datatypes::{Region, SaveGrid, SplitKind, ResizeRule, CoordsIter};
-use terminal::char_grid::{CharGrid, CharCell};
+use datatypes::{Region, SaveGrid, SplitKind, ResizeRule};
+use terminal::char_grid::CharGrid;
 
 mod panel;
 mod section;
+mod iter;
 mod ring;
 
+pub use self::iter::{Cells, Panels};
+
 use self::section::ScreenSection;
-use self::panel::Panel::*;
 
 const E_ACTIVE: &'static str = "Active screen section must exist.";
 
@@ -128,77 +130,5 @@ impl Deref for Screen {
 impl DerefMut for Screen {
     fn deref_mut(&mut self) -> &mut CharGrid {
         self.find_mut(None).expect(E_ACTIVE).grid_mut()
-    }
-}
-
-/// An iterator over all of the cells in a section of the screen - either one panel or the entire
-/// screen.
-pub struct Cells<'a> {
-    iter: CoordsIter,
-    screen: &'a ScreenSection,
-}
-
-impl<'a> Cells<'a> {
-    /// The section of the screen that this iterator iterates over.
-    pub fn area(&self) -> Region {
-        self.iter.region()
-    }
-}
-
-impl<'a> Iterator for Cells<'a> {
-    type Item = &'a CharCell;
-
-    fn next(&mut self) -> Option<&'a CharCell> {
-        self.iter.next().map(|coords| &self.screen[coords])
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-
-}
-
-impl<'a> DoubleEndedIterator for Cells<'a> {
-    fn next_back(&mut self) -> Option<&'a CharCell> {
-        self.iter.next_back().map(|coords| &self.screen[coords])
-    }
-}
-
-impl<'a> ExactSizeIterator for Cells<'a> { }
-
-/// An iterator over all of the visible panels in the terminal's screen.
-pub struct Panels<'a> {
-    stack: Vec<&'a ScreenSection>,
-}
-
-impl<'a> Iterator for Panels<'a> {
-    type Item = Cells<'a>;
-
-    fn next(&mut self) -> Option<Cells<'a>> {
-        fn cells<'a>(section: &'a ScreenSection, stack: &mut Vec<&'a ScreenSection>) -> Cells<'a> {
-            match *section.top() {
-                Grid(_) => Cells {
-                    iter: CoordsIter::from_region(section.area()),
-                    screen: section
-                },
-                Split { ref left, ref right, .. } => {
-                    stack.push(right);
-                    cells(left, stack)
-                }
-                _ => unreachable!()
-            }
-        }
-        self.stack.pop().map(|section| cells(section, &mut self.stack))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len(), Some(self.len()))
-    }
-
-}
-
-impl<'a> ExactSizeIterator for Panels<'a> {
-    fn len(&self) -> usize {
-        self.stack.iter().cloned().map(ScreenSection::count_grids).sum()
     }
 }
