@@ -63,7 +63,7 @@ pub fn gtk_color((r, g, b): TrueColor) -> GtkColor {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            font: Cow::Borrowed("Inconsolata 10"),
+            font: Cow::Borrowed("Monospace 10"),
             styles: BTreeMap::new(),
             fg_color: FG_COLOR,
             bg_color: BG_COLOR,
