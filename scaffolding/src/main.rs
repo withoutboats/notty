@@ -33,9 +33,10 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use gtk::{WindowExt, WidgetExt, ContainerExt};
+use gdk::Display;
+use gtk::{Clipboard, WindowExt, WidgetExt, ContainerExt};
 
-use notty::Output;
+use notty::{Command, Output};
 use notty::terminal::Terminal;
 use notty_cairo::Renderer;
 
@@ -139,15 +140,17 @@ fn main() {
     });
 
     // Connect signal to receive key presses.
+    let clipboard = Display::get_default().as_ref().and_then(Clipboard::get_default);
     window.connect_key_press_event(move |window, event| {
         match KeyEvent::new(event) {
             KeyEvent::Command(cmd)  => tx_key_press.send(cmd).unwrap(),
-            KeyEvent::Copy          => unimplemented!(),
-            KeyEvent::Paste         => unimplemented!(),
-            KeyEvent::ScrollUp      => unimplemented!(),
-            KeyEvent::ScrollDown    => unimplemented!(),
-            KeyEvent::ScrollLeft    => unimplemented!(),
-            KeyEvent::ScrollRight   => unimplemented!(),
+            KeyEvent::Scroll(_)     => println!("Scrolling is currently unimplemented"),
+            KeyEvent::Copy          => println!("Copying text is currently unimplemented"),
+            KeyEvent::Paste         => {
+                if let Some(text) = clipboard.as_ref().and_then(Clipboard::wait_for_text) {
+                    tx_key_press.send(Command::paste(text)).unwrap();
+                }
+            }
             KeyEvent::Ignore        => window.queue_draw(),
         }
         gtk::Inhibit(false)
