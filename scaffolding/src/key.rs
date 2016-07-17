@@ -15,17 +15,14 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use gdk::{EventKey, EventType, CONTROL_MASK};
-use notty::datatypes::Key;
+use notty::datatypes::{Direction, Key};
 use notty::Command;
 
 pub enum KeyEvent {
     Command(Command),
+    Scroll(Direction),
     Copy,
     Paste,
-    ScrollUp,
-    ScrollDown,
-    ScrollLeft,
-    ScrollRight,
     Ignore,
 }
 
@@ -42,13 +39,13 @@ impl KeyEvent {
             // Shift+Ctrl+V
             (0x56, true) | (0x76, true) => KeyEvent::Paste,
             // Shift+Ctrl+Up Arrow
-            (0xff52, true)              => KeyEvent::ScrollUp,
+            (0xff52, true)              => KeyEvent::Scroll(Direction::Up),
             // Shift+Ctrl+Down Arrow
-            (0xff54, true)              => KeyEvent::ScrollDown,
+            (0xff54, true)              => KeyEvent::Scroll(Direction::Down),
             // Shift+Ctrl+Left Arrow
-            (0xff51, true)              => KeyEvent::ScrollLeft,
+            (0xff51, true)              => KeyEvent::Scroll(Direction::Left),
             // Shift+Ctrl+Right Arrow
-            (0xff53, true)              => KeyEvent::ScrollRight,
+            (0xff53, true)              => KeyEvent::Scroll(Direction::Right),
             (_, true)                   => KeyEvent::Ignore,
             (b @ 0x20...0x7e, _)        => KeyEvent::Command(ctor(Key::Char(b as u8 as char))),
             (0xff08, _)                 => KeyEvent::Command(ctor(Key::Backspace)),

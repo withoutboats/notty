@@ -8,9 +8,12 @@ version = "0.1.0"
 cairo-rs = "0.1"
 gdk = "0.5"
 glib = "0.1"
-gtk = "0.1"
 gtk-sys = "0.3.1"
 toml = "0.1"
+
+[dependencies.gtk]
+version = "0.1"
+features = ["v3_16"]
 
 [dependencies.notty]
 path = ".."
