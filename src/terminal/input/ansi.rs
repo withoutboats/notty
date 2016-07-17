@@ -74,6 +74,7 @@ pub fn encode(key: &Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static,
             4   => term_key!('S', true, mods),
             _   => unimplemented!(),
         },
+        Cmd(ref cmd)            => Some(cmd.clone()),
         MenuSelection(_)        => unimplemented!(),
         ShiftLeft
             | ShiftRight
@@ -81,7 +82,6 @@ pub fn encode(key: &Key, app_mode: bool, mods: Modifiers) -> Option<Cow<'static,
             | CtrlRight
             | AltLeft
             | AltGr
-            | CapsLock
-            | Cmd(_)            => unreachable!(),
+            | CapsLock          => unreachable!(),
     }
 }
