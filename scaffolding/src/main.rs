@@ -33,7 +33,7 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::thread;
 
-use gtk::{WindowExt, WidgetExt, WidgetSignals, ContainerExt};
+use gtk::{WindowExt, WidgetExt, ContainerExt};
 
 use notty::{Output, Command};
 use notty::terminal::Terminal;
@@ -134,7 +134,7 @@ fn main() {
             Y_PIXELS = Some(height);
         }
         canvas.queue_draw();
-        gtk::Inhibit(false)
+        false
     });
 
     // Connect signal to receive key presses.

@@ -5,11 +5,11 @@ name = "scaffolding-terminal"
 version = "0.1.0"
 
 [dependencies]
-cairo-rs = "0.0.8"
-gdk = "0.3.0"
-glib = "0.0.8"
-gtk = "0.0.7"
-gtk-sys = "0.3.0"
+cairo-rs = "0.1"
+gdk = "0.5"
+glib = "0.1"
+gtk = "0.1"
+gtk-sys = "0.3.1"
 toml = "0.1"
 
 [dependencies.notty]
