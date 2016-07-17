@@ -35,7 +35,7 @@ use std::thread;
 
 use gtk::{WindowExt, WidgetExt, ContainerExt};
 
-use notty::{Output, Command};
+use notty::Output;
 use notty::terminal::Terminal;
 use notty_cairo::Renderer;
 
@@ -44,6 +44,7 @@ mod commands;
 mod key;
 
 use commands::CommandApplicator;
+use key::KeyEvent;
 
 static mut X_PIXELS: Option<u32> = None;
 static mut Y_PIXELS: Option<u32> = None;
@@ -139,17 +140,25 @@ fn main() {
 
     // Connect signal to receive key presses.
     window.connect_key_press_event(move |window, event| {
-        if let Some(cmd) = key::key_from_event(event).map(Command::key_press) {
-            tx_key_press.send(cmd).unwrap();
-        } else { window.queue_draw(); }
+        match KeyEvent::new(event) {
+            KeyEvent::Command(cmd)  => tx_key_press.send(cmd).unwrap(),
+            KeyEvent::Copy          => unimplemented!(),
+            KeyEvent::Paste         => unimplemented!(),
+            KeyEvent::ScrollUp      => unimplemented!(),
+            KeyEvent::ScrollDown    => unimplemented!(),
+            KeyEvent::ScrollLeft    => unimplemented!(),
+            KeyEvent::ScrollRight   => unimplemented!(),
+            KeyEvent::Ignore        => window.queue_draw(),
+        }
         gtk::Inhibit(false)
     });
 
     // Connect signal to receive key releases.
     window.connect_key_release_event(move |window, event| {
-        if let Some(cmd) = key::key_from_event(event).map(Command::key_release) {
-            tx_key_release.send(cmd).unwrap();
-        } else { window.queue_draw(); }
+        match KeyEvent::new(event) {
+            KeyEvent::Command(cmd)  => tx_key_release.send(cmd).unwrap(),
+            _                       => window.queue_draw(),
+        }
         gtk::Inhibit(false)
     });
 
