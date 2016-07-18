@@ -11,7 +11,7 @@ gdk-pixbuf = "0.1.0"
 gdk-pixbuf-sys = "0.3.1"
 glib = "0.1.0"
 gio-sys = "0.3.1"
-itertools = "0.4.4"
+itertools = "0.5.2"
 libc = "0.2.11"
 
 [dependencies.notty]

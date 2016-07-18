@@ -1,15 +1,13 @@
-use datatypes::{Region, SplitKind, ResizeRule};
-use datatypes::SplitKind::*;
+use datatypes::{Region, ResizeRule, SplitKind};
 use datatypes::ResizeRule::*;
+use datatypes::SplitKind::*;
+use terminal::interfaces::Resizeable;
 
-use terminal::CharGrid;
-
-use super::GridFill;
 use super::section::ScreenSection;
 use self::Panel::*;
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Panel<T=CharGrid> where T: GridFill {
+pub enum Panel<T> {
     Grid(T),
     Split {
         kind: SplitKind,
@@ -19,8 +17,24 @@ pub enum Panel<T=CharGrid> where T: GridFill {
     DeadGrid,
 }
 
-impl<T: GridFill> Panel<T> {
+impl<T: Resizeable> Panel<T> {
+    pub fn resize(&mut self, old_area: Region, new_area: Region, rule: ResizeRule) {
+        match *self {
+            Grid(ref mut grid) => {
+                grid.resize(new_area.width(), new_area.height());
+            }
+            Split { ref mut left, ref mut right, ref mut kind } => {
+                let (new_kind, l_area, r_area) = resize_split(old_area, new_area, *kind, rule);
+                *kind = new_kind;
+                left.resize(l_area, rule);
+                right.resize(r_area, rule);
+            }
+            DeadGrid => unreachable!()
+        }
+    }
+}
 
+impl<T> Panel<T> {
     pub fn is_grid(&self) -> bool {
         if let Grid(_) = *self { true } else { false }
     }
@@ -36,22 +50,6 @@ impl<T: GridFill> Panel<T> {
             left.find_mut(tag).or_else(move || right.find_mut(tag))
         } else { None }
     }
-
-    pub fn resize(&mut self, old_area: Region, new_area: Region, rule: ResizeRule) {
-        match *self {
-            Grid(ref mut grid) => {
-                grid.resize(new_area);
-            }
-            Split { ref mut left, ref mut right, ref mut kind } => {
-                let (new_kind, l_area, r_area) = resize_split(old_area, new_area, *kind, rule);
-                *kind = new_kind;
-                left.resize(l_area, rule);
-                right.resize(r_area, rule);
-            }
-            DeadGrid => unreachable!()
-        }
-    }
-
 }
 
 fn resize_split(old_area: Region, new_area: Region, kind: SplitKind, rule: ResizeRule)
@@ -72,100 +70,143 @@ fn resize_split(old_area: Region, new_area: Region, kind: SplitKind, rule: Resiz
 
 #[cfg(test)]
 mod tests {
+    pub use terminal::screen::tests::*;
 
-    use std::fmt::Debug;
+    mod grid_panel {
+        use super::*;
+        
+        const PANEL: Panel<MockGrid> = Panel::Grid(GRID);
 
-    use datatypes::{Region, SplitKind, ResizeRule};
-    use datatypes::ResizeRule::*;
-    use super::super::GridFill;
-    use super::super::section::ScreenSection;
-    use super::*;
-    use super::Panel::*;
+        #[test]
+        fn resize() {
+            let mut panel = PANEL;
+            panel.resize(OLD_AREA, NEW_AREA, Percentage);
+            assert_eq!(panel, Panel::Grid(MockGrid(6, 10)));
+        }
 
-    fn grid_panel() -> Panel<Region> {
-        Grid(Region::new(0, 0, 8, 8))
-    }
+        #[test]
+        fn is_grid() {
+            assert!(PANEL.is_grid());
+        }
 
-    fn split_panel() -> Panel<Region> {
-        Split {
-            kind: SplitKind::Horizontal(4),
-            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false)),
-            right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false)),
+        #[test]
+        fn find() {
+            assert!(PANEL.find(0).is_none());
+        }
+
+        #[test]
+        fn find_mut() {
+            let mut panel = PANEL;
+            assert!(panel.find_mut(0).is_none());
         }
     }
 
-    fn run_test<F, T>(f: F, res: [T; 2]) where F: Fn(Panel<Region>) -> T, T: PartialEq + Debug {
-        assert_eq!(f(grid_panel()), res[0]);
-        assert_eq!(f(split_panel()), res[1]);
-    }
+    mod split_panel {
+        use super::*;
 
-    fn run_resize_test(old_a: Region, new_a: Region, rule: ResizeRule,
-                       res: (Region, Region, SplitKind)) {
-        run_test(|mut panel| {
-            panel.resize(old_a, new_a, rule);
-            match panel {
-                Grid(region) => Err(region),
-                Split { left, right, kind } => Ok((left.area(), right.area(), kind)),
-                DeadGrid => unreachable!(),
+        fn split_panel() -> Panel<MockGrid> {
+            Panel::Split {
+                kind: SplitKind::Horizontal(4),
+                left: Box::new(ScreenSection::new(0, Region::new(0, 0, 8, 4), false)),
+                right: Box::new(ScreenSection::new(1, Region::new(0, 4, 8, 8), false)),
             }
-        }, [Err(new_a), Ok(res)])
+        }
+
+        #[test]
+        fn is_grid() {
+            assert!(!split_panel().is_grid());
+        }
+
+        #[test]
+        fn find() {
+            assert_eq!(split_panel().find(0), Some(&ScreenSection::new(0, Region::new(0, 0, 8, 4), false)));
+        }
+
+        #[test]
+        fn find_mut() {
+            assert_eq!(split_panel().find_mut(1), Some(&mut ScreenSection::new(1, Region::new(0, 4, 8, 8), false)));
+        }
     }
 
-    #[test]
-    fn is_grid() {
-        run_test(|panel| panel.is_grid(), [true, false]);
-    }
+    mod resize_split {
+        pub use super::*;
 
-    #[test]
-    fn find() {
-        run_test(|panel| panel.find(2).is_some(), [false, true]);
-    }
+        fn test(into: Region, rule: ResizeRule, expected_kind: SplitKind, expected_left: Region, expected_right: Region) {
+            let old_a = Region::new(0, 0, 8, 8);
+            let old_kind = Horizontal(4);
+            let (kind, left, right) = super::super::resize_split(old_a, into, old_kind, rule);
+            assert_eq!(kind, expected_kind);
+            assert_eq!(left, expected_left);
+            assert_eq!(right, expected_right);
+        }
 
-    #[test]
-    fn find_mut() {
-        run_test(|mut panel| panel.find_mut(2).is_some(), [false, true]);
-    }
+        mod into_4_4 {
+            use super::*;
 
-    #[test]
-    fn resize_down_max_left() {
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), MaxLeftTop,
-            (Region::new(0, 0, 4, 3), Region::new(0, 3, 4, 4), SplitKind::Horizontal(3)));
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 6, 6), MaxLeftTop,
-            (Region::new(0, 0, 6, 4), Region::new(0, 4, 6, 6), SplitKind::Horizontal(4)));
-    }
+            fn test_4_4(rule: ResizeRule, expected_kind: SplitKind, expected_left: Region, expected_right: Region) {
+                super::test(Region::new(0, 0, 4, 4), rule, expected_kind, expected_left, expected_right);
+            }
 
-    #[test]
-    fn resize_down_max_right() {
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), MaxRightBottom,
-            (Region::new(0, 0, 4, 1), Region::new(0, 1, 4, 4), SplitKind::Horizontal(1)));
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 6, 6), MaxRightBottom,
-            (Region::new(0, 0, 6, 2), Region::new(0, 2, 6, 6), SplitKind::Horizontal(2)));
-    }
+            #[test]
+            fn max_left() {
+                test_4_4(MaxLeftTop, Horizontal(3), Region::new(0, 0, 4, 3), Region::new(0, 3, 4, 4));
+            }
 
-    #[test]
-    fn resize_down_percent() {
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 4, 4), Percentage,
-            (Region::new(0, 0, 4, 2), Region::new(0, 2, 4, 4), SplitKind::Horizontal(2)));
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 6, 6), Percentage,
-            (Region::new(0, 0, 6, 3), Region::new(0, 3, 6, 6), SplitKind::Horizontal(3)));
-    }
+            #[test]
+            fn max_right() {
+                test_4_4(MaxRightBottom, Horizontal(1), Region::new(0, 0, 4, 1), Region::new(0, 1, 4, 4));
+            }
 
-    #[test]
-    fn resize_up_max_left() {
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 16, 16), MaxLeftTop,
-            (Region::new(0, 0, 16, 12), Region::new(0, 12, 16, 16), SplitKind::Horizontal(12)));
-    }
+            #[test]
+            fn percent() {
+                test_4_4(Percentage, Horizontal(2), Region::new(0, 0, 4, 2), Region::new(0, 2, 4, 4));
+            }
+        }
 
-    #[test]
-    fn resize_up_max_right() {
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 16, 16), MaxRightBottom,
-            (Region::new(0, 0, 16, 4), Region::new(0, 4, 16, 16), SplitKind::Horizontal(4)));
-    }
+        mod into_6_6 {
+            use super::*;
 
-    #[test]
-    fn resize_up_percent() {
-        run_resize_test(Region::new(0, 0, 8, 8), Region::new(0, 0, 16, 16), Percentage,
-            (Region::new(0, 0, 16, 8), Region::new(0, 8, 16, 16), SplitKind::Horizontal(8)));
-    }
+            fn test_6_6(rule: ResizeRule, expected_kind: SplitKind, expected_left: Region, expected_right: Region) {
+                super::test(Region::new(0, 0, 6, 6), rule, expected_kind, expected_left, expected_right);
+            }
 
+            #[test]
+            fn max_left() {
+                test_6_6(MaxLeftTop, Horizontal(4), Region::new(0, 0, 6, 4), Region::new(0, 4, 6, 6));
+            }
+
+            #[test]
+            fn max_right() {
+                test_6_6(MaxRightBottom, Horizontal(2), Region::new(0, 0, 6, 2), Region::new(0, 2, 6, 6));
+            }
+
+            #[test]
+            fn percent() {
+                test_6_6(Percentage, Horizontal(3), Region::new(0, 0, 6, 3), Region::new(0, 3, 6, 6));
+            }
+        }
+
+        mod into_16_16 {
+            use super::*;
+
+            fn test_16_16(rule: ResizeRule, expected_kind: SplitKind, expected_left: Region, expected_right: Region) {
+                super::test(Region::new(0, 0, 16, 16), rule, expected_kind, expected_left, expected_right);
+            }
+
+            #[test]
+            fn max_left() {
+                test_16_16(MaxLeftTop, Horizontal(12), Region::new(0, 0, 16, 12), Region::new(0, 12, 16, 16));
+            }
+
+            #[test]
+            fn max_right() {
+                test_16_16(MaxRightBottom, Horizontal(4), Region::new(0, 0, 16, 4), Region::new(0, 4, 16, 16));
+            }
+
+            #[test]
+            fn percent() {
+                test_16_16(Percentage, Horizontal(8), Region::new(0, 0, 16, 8), Region::new(0, 8, 16, 16));
+            }
+        }
+    }
 }

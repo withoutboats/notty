@@ -13,9 +13,11 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use datatypes::{Color, ConfigStyle, Style};
+use datatypes::{Color, ConfigStyle, Style, DEFAULT_CONFIG_STYLE};
 use datatypes::Style::*;
 use self::UseStyles::*;
+
+pub const DEFAULT_STYLES: UseStyles = Config(DEFAULT_CONFIG_STYLE);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum UseStyles {
@@ -35,7 +37,7 @@ impl UseStyles {
 
 impl Default for UseStyles {
     fn default() -> UseStyles {
-        Config(ConfigStyle::default())
+        DEFAULT_STYLES
     }
 }
 

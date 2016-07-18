@@ -13,6 +13,8 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use terminal::interfaces::Styleable;
+
 use notty_encoding::cmds::{
     SetCursorStyle, DefaultCursorStyle,
     SetTextStyle, DefaultTextStyle,
@@ -23,9 +25,11 @@ use command::prelude::*;
 
 impl Command for SetCursorStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.set_cursor_style(self.0);
+        terminal.cursor_mut().set_style(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SET CURSOR STYLE")
     }
@@ -33,9 +37,11 @@ impl Command for SetCursorStyle {
 
 impl Command for DefaultCursorStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.reset_cursor_styles();
+        terminal.cursor_mut().reset_style();
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("DEFAULT CURSOR STYLE")
     }
@@ -46,6 +52,8 @@ impl Command for SetTextStyle {
         terminal.set_style(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SET TEXT STYLE")
     }
@@ -53,9 +61,11 @@ impl Command for SetTextStyle {
 
 impl Command for DefaultTextStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.reset_styles();
+        terminal.reset_style();
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("DEFAULT TEXT STYLE")
     }
@@ -66,6 +76,8 @@ impl Command for SetStyleInArea {
         terminal.set_style_in_area(self.0, self.1);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SET STYLE IN AREA")
     }
@@ -76,6 +88,8 @@ impl Command for DefaultStyleInArea {
         terminal.reset_styles_in_area(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("DEFAULT STYLE IN AREA")
     }

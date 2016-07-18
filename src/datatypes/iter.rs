@@ -210,6 +210,12 @@ impl ExactSizeIterator for CoordsIter {
 
 }
 
+impl From<Region> for CoordsIter {
+    fn from(region: Region) -> CoordsIter {
+        CoordsIter::from_region(region)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

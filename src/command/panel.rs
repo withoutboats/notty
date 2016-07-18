@@ -13,6 +13,8 @@ impl Command for PushPanel {
         terminal.push(self.0, self.1.unwrap_or(true));
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("PUSH BUFFER")
     }
@@ -23,6 +25,8 @@ impl Command for PopPanel {
         terminal.pop(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("POP BUFFER")
     }
@@ -36,6 +40,8 @@ impl Command for SplitPanel {
                        self.retain_offscreen_state.unwrap_or(true));
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SPLIT BUFFER")
     }
@@ -46,6 +52,8 @@ impl Command for UnsplitPanel {
         terminal.unsplit(self.save, self.unsplit_tag);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("UNSPLIT BUFFER")
     }
@@ -56,6 +64,8 @@ impl Command for AdjustPanelSplit {
         terminal.adjust_split(self.adjust_tag, self.kind, self.rule);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("ADJUST PANEL SPLIT")
     }
@@ -66,6 +76,8 @@ impl Command for RotateSectionDown {
         terminal.rotate_down(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("ROTATE DOWN")
     }
@@ -76,6 +88,8 @@ impl Command for RotateSectionUp {
         terminal.rotate_up(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("ROTATE UP")
     }
@@ -86,6 +100,8 @@ impl Command for SwitchActiveSection {
         terminal.switch(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         format!("SWITCH TO PANEL {}", self.0)
     }

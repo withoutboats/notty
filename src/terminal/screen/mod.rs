@@ -1,12 +1,15 @@
 use std::ops::{Deref, DerefMut};
 
 use datatypes::{Region, SaveGrid, SplitKind, ResizeRule};
-use terminal::char_grid::CharGrid;
+use terminal::{CharGrid};
+use terminal::interfaces::{Resizeable, ConstructGrid};
 
 mod panel;
 mod section;
 mod iter;
 mod ring;
+#[cfg(test)]
+mod tests;
 
 pub use self::iter::{Cells, Panels};
 
@@ -14,53 +17,12 @@ use self::section::ScreenSection;
 
 const E_ACTIVE: &'static str = "Active screen section must exist.";
 
-pub trait GridFill {
-    fn new(u32, u32, bool) -> Self;
-    fn resize(&mut self, Region);
-}
-
-impl GridFill for CharGrid {
-    fn new(width: u32, height: u32, expand: bool) -> CharGrid {
-        CharGrid::new(width, height, expand)
-    }
-    fn resize(&mut self, area: Region) { self.resize_window(area); }
-}
-
-impl GridFill for Region {
-    fn new(width: u32, height: u32, _: bool) -> Region {
-        Region::new(0, 0, width, height)
-    }
-    fn resize(&mut self, area: Region) { *self = Region::new(0, 0, area.width(), area.height()) }
-}
-
-pub struct Screen {
+pub struct Screen<T=CharGrid> {
     active: u64,
-    screen: ScreenSection,
+    screen: ScreenSection<T>,
 }
 
-impl Screen {
-
-    pub fn new(width: u32, height: u32) -> Screen {
-        Screen {
-            active: 0,
-            screen: ScreenSection::new(0, Region::new(0, 0, width, height), true),
-        }
-    }
-
-    pub fn area(&self) -> Region {
-        self.screen.area()
-    }
-
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.screen.resize(Region::new(0, 0, width, height), ResizeRule::Percentage);
-    }
-
-    pub fn switch(&mut self, tag: u64) {
-        if self.find(Some(tag)).map_or(false, ScreenSection::is_grid) {
-            self.active = tag;
-        }
-    }
-
+impl<T: ConstructGrid + Resizeable> Screen<T> {
     pub fn split(&mut self, save: SaveGrid, kind: SplitKind, rule: ResizeRule,
                  split_tag: Option<u64>, l_tag: u64, r_tag: u64, retain_offscreen_state: bool) {
         self.find_mut(split_tag).map(|section| section.split(save, kind, rule, l_tag, r_tag,
@@ -72,6 +34,29 @@ impl Screen {
             };
         }
     }
+}
+
+impl<T: ConstructGrid> Screen<T> {
+    pub fn new(width: u32, height: u32) -> Screen<T> {
+        Screen {
+            active: 0,
+            screen: ScreenSection::new(0, Region::new(0, 0, width, height), true),
+        }
+    }
+
+    pub fn push(&mut self, tag: Option<u64>, retain_offscreen_state: bool) {
+        self.find_mut(tag).map(|section| section.push(retain_offscreen_state));
+    }
+}
+
+impl<T: Resizeable> Screen<T> {
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.screen.resize(Region::new(0, 0, width, height), ResizeRule::Percentage);
+    }
+
+    pub fn adjust_split(&mut self, tag: u64, kind: SplitKind, rule: ResizeRule) {
+        self.find_mut(Some(tag)).map(|section| section.adjust_split(kind, rule));
+    }
 
     pub fn unsplit(&mut self, save: SaveGrid, tag: u64) {
         if let Some((left, right)) = self.screen.find(tag).and_then(ScreenSection::children) {
@@ -81,13 +66,17 @@ impl Screen {
         }
         self.find_mut(Some(tag)).map(|section| section.unsplit(save));
     }
+}
 
-    pub fn adjust_split(&mut self, tag: u64, kind: SplitKind, rule: ResizeRule) {
-        self.find_mut(Some(tag)).map(|section| section.adjust_split(kind, rule));
+impl<T> Screen<T> {
+    pub fn area(&self) -> Region {
+        self.screen.area()
     }
 
-    pub fn push(&mut self, tag: Option<u64>, retain_offscreen_state: bool) {
-        self.find_mut(tag).map(|section| section.push(retain_offscreen_state));
+    pub fn switch(&mut self, tag: u64) {
+        if self.find(Some(tag)).map_or(false, ScreenSection::is_grid) {
+            self.active = tag;
+        }
     }
 
     pub fn pop(&mut self, tag: Option<u64>) {
@@ -102,33 +91,33 @@ impl Screen {
         self.find_mut(tag).map(ScreenSection::rotate_up);
     }
 
-    pub fn cells(&self) -> Cells {
+    pub fn cells(&self) -> Cells<T> {
         self.screen.cells()
     }
 
-    pub fn panels(&self) -> Panels {
+    pub fn panels(&self) -> Panels<T> {
         self.screen.panels()
     }
 
-    fn find(&self, tag: Option<u64>) -> Option<&ScreenSection> {
+    fn find(&self, tag: Option<u64>) -> Option<&ScreenSection<T>> {
         self.screen.find(tag.unwrap_or(self.active))
     }
 
-    fn find_mut(&mut self, tag: Option<u64>) -> Option<&mut ScreenSection> {
+    fn find_mut(&mut self, tag: Option<u64>) -> Option<&mut ScreenSection<T>> {
         self.screen.find_mut(tag.unwrap_or(self.active))
     }
 
 }
 
-impl Deref for Screen {
-    type Target = CharGrid;
-    fn deref(&self) -> &CharGrid {
+impl<T> Deref for Screen<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
         self.find(None).expect(E_ACTIVE).grid()
     }
 }
 
-impl DerefMut for Screen {
-    fn deref_mut(&mut self) -> &mut CharGrid {
+impl<T> DerefMut for Screen<T> {
+    fn deref_mut(&mut self) -> &mut T {
         self.find_mut(None).expect(E_ACTIVE).grid_mut()
     }
 }

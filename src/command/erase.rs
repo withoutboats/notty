@@ -22,6 +22,8 @@ impl Command for Erase {
         terminal.erase(self.area);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("ERASE")
     }
@@ -32,6 +34,8 @@ impl Command for RemoveChars {
         terminal.remove_at(self.count);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         format!("REMOVE {} CHARS", self.count)
     }
@@ -42,6 +46,8 @@ impl Command for RemoveRows {
         terminal.remove_rows_at(self.count, self.include);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         match self.include {
             true    => format!("REMOVE {} ROWS INCL CURSOR", self.count),
@@ -55,6 +61,8 @@ impl Command for InsertBlank {
         terminal.insert_blank_at(self.count);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         format!("INSERT {} BLANK SPACES", self.count)
     }
@@ -65,6 +73,8 @@ impl Command for InsertRows {
         terminal.insert_rows_at(self.count, self.include);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         match self.include {
             true    => format!("INSERT {} ROWS ABOVE CURSOR", self.count),

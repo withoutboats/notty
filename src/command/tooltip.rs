@@ -27,6 +27,8 @@ impl Command for AddToolTip {
         }
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("ADD TOOL TIP")
     }
@@ -39,6 +41,8 @@ impl Command for RemoveToolTip {
         terminal.remove_tooltip(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("REMOVE TOOL TIP")
     }
@@ -56,6 +60,8 @@ impl Command for AddDropDown {
         }
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("ADD TOOL TIP - DROP DOWN MENU")
     }

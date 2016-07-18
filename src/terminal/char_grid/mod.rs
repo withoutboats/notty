@@ -14,222 +14,127 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::collections::HashMap;
-use std::ops::Index;
-use std::sync::atomic::Ordering::Relaxed;
+use std::ops::{Index, Deref, DerefMut};
 
-use unicode_width::*;
+use datatypes::{Area, Coords, GridSettings, CoordsIter, Direction, Movement, Style, move_within};
 
-use cfg::SCROLLBACK;
-use datatypes::{Area, CellData, Coords, CoordsIter, Direction, Movement, Region, Style, move_within};
-use datatypes::Area::*;
-use datatypes::Movement::*;
-use datatypes::Direction::*;
+use terminal::UseStyles;
+use terminal::interfaces::*;
 
 mod cell;
 mod cursor;
 mod grid;
-mod styles;
 mod tooltip;
+mod view;
+mod writers;
 
-pub use self::cell::{CharCell, CharData, ImageData};
+pub use self::cell::{CharCell, CellData, ImageData, EMPTY_CELL};
 pub use self::cursor::Cursor;
-pub use self::grid::Grid;
-pub use self::styles::{Styles, UseStyles};
 pub use self::tooltip::Tooltip;
+pub use self::writers::*;
 
-pub struct CharGrid {
-    grid: Grid<CharCell>,
+use self::grid::Grid;
+use self::view::View;
+
+const RIGHT_ONE: Movement = Movement::To(Direction::Right, 1, true);
+const TO_RIGHT_EDGE: Area = Area::CursorTo(Movement::ToEdge(Direction::Right));
+
+pub struct CharGrid<G=Grid<CharCell>> {
+    grid: G,
     cursor: Cursor,
+    view: View,
     tooltips: HashMap<Coords, Tooltip>,
-    window: Region,
+    text_styles: UseStyles,
 }
 
-impl CharGrid {
-    pub fn new(width: u32, height: u32, retain_offscreen_state: bool) -> CharGrid {
-        let grid = match (retain_offscreen_state, SCROLLBACK.load(Relaxed)) {
-            (false, _) | (_, 0) => Grid::new(width as usize, height as usize),
-            (_, n) if n > 0     => Grid::with_y_cap(width as usize, height as usize, n as usize),
-            _                   => Grid::with_infinite_scroll(width as usize, height as usize),
-        };
-        CharGrid {
-            grid: grid,
-            cursor: Cursor::new(),
-            tooltips: HashMap::new(),
-            window: Region::new(0, 0, width, height),
-        }
-    }
+// Public methods
 
-    pub fn resize_window(&mut self, region: Region) {
-        if self.grid_width() < region.width() {
-            let n = (region.width() - self.grid_width()) * self.grid_height();
-            self.grid.add_to_right(vec![CharCell::default(); n as usize]);
-        }
-        if self.grid_height() < region.height() {
-            let n = (region.height() - self.grid_height()) * self.grid_width();
-            self.grid.add_to_bottom(vec![CharCell::default(); n as usize]);
-        }
-        self.window = Region {
-            right: self.window.left + region.width(),
-            bottom: self.window.top + region.height(),
-            ..self.window
-        };
+impl<G: CellGrid + WriteableGrid> CharGrid<G> where <G as WriteableGrid>::Cell: WriteableCell {
+    pub fn write<C: CharData>(&mut self, data: &C) {
+        let coords = data.write(self.cursor.coords,
+                                self.text_styles,
+                                &mut self.grid);
+        self.cursor.coords = self.calculate_movement(coords, RIGHT_ONE);
+        self.view.keep_within(self.cursor.coords);
     }
+}
 
-    pub fn write(&mut self, data: CellData) {
-        match data {
-            CellData::Char(c)       => {
-                let width = c.width().unwrap() as u32;
-                self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                let bounds = self.grid.bounds();
-                let mut coords = self.cursor.coords;
-                for _ in 1..width {
-                    let next_coords = move_within(coords, To(Right, 1, false), bounds);
-                    if next_coords == coords { break; } else { coords = next_coords; }
-                    self.grid[coords] = CharCell::extension(self.cursor.coords,
-                                                            self.cursor.text_style);
-                }
-                self.cursor.navigate(&mut self.grid, To(Right, 1, true));
-            }
-            CellData::ExtensionChar(c)  => {
-                self.cursor.navigate(&mut self.grid, To(Left, 1, true));
-                if !self.grid[self.cursor.coords].extend_by(c) {
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
-                    self.grid[self.cursor.coords] = CharCell::character(c, self.cursor.text_style);
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
-                }
-            }
-            CellData::Image { pos, width, height, data, mime }   => {
-                let mut end = self.cursor.coords;
-                end = move_within(end, To(Right, width, false), self.grid.bounds());
-                end = move_within(end, To(Down, height, false), self.grid.bounds());
-                let mut iter = CoordsIter::from_area(CursorBound(end),
-                                                     self.cursor.coords, self.grid.bounds());
-                if let Some(cu_coords) = iter.next() {
-                    self.grid[cu_coords] = CharCell::image(data, self.cursor.coords, mime, pos,
-                                                           width, height, self.cursor.text_style);
-                    for coords in iter {
-                        self.grid[coords] = CharCell::extension(cu_coords, self.cursor.text_style);
-                    }
-                    self.cursor.navigate(&mut self.grid, To(Right, 1, true));
-                }
-            }
-        }
-    }
-
+impl<T: CellGrid> CharGrid<T> {
     pub fn move_cursor(&mut self, movement: Movement) {
-        self.cursor.navigate(&mut self.grid, movement);
-        self.window = self.window.move_to_contain(self.cursor.coords);
-    }
-
-    pub fn add_tooltip(&mut self, coords: Coords, tooltip: String) {
-        self.tooltips.insert(coords, Tooltip::Basic(tooltip));
-    }
-
-    pub fn remove_tooltip(&mut self, coords: Coords) {
-        self.tooltips.remove(&coords);
-    }
-
-    pub fn add_drop_down(&mut self, coords: Coords, options: Vec<String>) {
-        self.tooltips.insert(coords, Tooltip::Menu { options: options, position: None });
-    }
-
-    pub fn scroll(&mut self, dir: Direction, n: u32) {
-        self.grid.scroll(n as usize, dir)
-    }
-
-    pub fn erase(&mut self, area: Area) {
-        self.in_area(area, |grid, coords| grid[coords] = CharCell::default());
+        self.cursor.coords = self.calculate_movement(self.cursor.coords, movement);
+        self.view.keep_within(self.cursor.coords);
     }
 
     pub fn insert_blank_at(&mut self, n: u32) {
-        let mut iter = CoordsIter::from_area(CursorTo(ToEdge(Right)),
-                                             self.cursor.coords,
-                                             self.grid.bounds());
-        iter.next();
-        for coords in iter.rev().skip(n as usize) {
-            self.grid.moveover(coords, Coords {x: coords.x + n, y: coords.y});
+        let iter = self.iterate_over_area(TO_RIGHT_EDGE);
+        let CharGrid { ref mut grid, ref view, .. } = * self;
+        let iter = iter.rev().skip(n as usize)
+                       .map(|coords| view.translate(coords));
+        for coords in iter {
+            grid.moveover(coords, Coords { x: coords.x + n, y: coords.y });
         }
     }
 
     pub fn remove_at(&mut self, n: u32) {
-        self.in_area(CursorTo(ToEdge(Right)), |grid, coords| {
-            if coords.x + n < grid.width as u32 {
-                grid.moveover(Coords {x: coords.x + n, y: coords.y}, coords);
-            }
-        })
+        let iter = self.iterate_over_area(TO_RIGHT_EDGE);
+        let CharGrid { ref mut grid, ref view, .. } = *self;
+        let iter = iter.take_while(|&Coords { x, .. }| x + n < view.width())
+                       .map(|coords| view.translate(coords));
+        for coords in iter {
+            grid.moveover(Coords { x: coords.x + n, y: coords.y }, coords);
+        }
     }
 
     pub fn insert_rows_at(&mut self, n: u32, include: bool) {
-        let region = if include {
-            Region::new(0, self.cursor.coords.y, self.grid.width as u32, self.grid.height as u32)
-        } else if self.cursor.coords.y + 1 == self.grid.width as u32 {
-            return
-        } else {
-            Region::new(0, self.cursor.coords.y + 1, self.grid.width as u32, self.grid.height as u32)
-        };
-        for coords in CoordsIter::from_region(region).rev().skip(n as usize * self.grid.width) {
-            self.grid.moveover(coords, Coords {x: coords.x, y: coords.y + n});
+        let iter = self.iterate_over_area(Area::BelowCursor(include));
+        let CharGrid { ref mut grid, ref view, .. } = *self;
+        let iter = iter.rev().skip((n * view.width()) as usize)
+                       .map(|coords| view.translate(coords));
+        for coords in iter {
+            grid.moveover(coords, Coords { x: coords.x, y: coords.y + n });
         }
     }
 
     pub fn remove_rows_at(&mut self, n: u32, include: bool) {
-        self.in_area(BelowCursor(include), |grid, coords| {
-            if coords.y + n < grid.height as u32 {
-                grid.moveover(Coords {x: coords.x, y: coords.y + n}, coords);
-            }
-        })
+        let iter = self.iterate_over_area(Area::BelowCursor(include));
+        let CharGrid { ref mut grid, ref view, .. } = *self;
+        let iter = iter.take_while(|&Coords { y, .. }| y + n < view.height())
+                       .map(|coords| view.translate(coords));
+        for coords in iter {
+            grid.moveover(Coords { x: coords.x, y: coords.y + n }, coords);
+        }
     }
+}
 
-    pub fn set_style(&mut self, style: Style) {
-        self.cursor.text_style.update(style);
+impl<T: CellGrid> CharGrid<T> where T::Cell: Cell {
+    pub fn erase(&mut self, area: Area) {
+        for coords in self.iterate_over_area(area) {
+            self.grid.get_mut(coords).map(Cell::erase);
+        }
     }
+}
 
-    pub fn reset_styles(&mut self) {
-        self.cursor.text_style = UseStyles::default();
-    }
-
-    pub fn set_cursor_style(&mut self, style: Style) {
-        self.cursor.style.update(style);
-    }
-
-    pub fn reset_cursor_styles(&mut self) {
-        self.cursor.style = Styles::new();
-    }
-
+impl<T: CellGrid> CharGrid<T> where T::Cell: Styleable {
     pub fn set_style_in_area(&mut self, area: Area, style: Style) {
-        self.in_area(area, |grid, coords| grid[coords].styles.update(style));
+        for coords in self.iterate_over_area(area) {
+            self.grid.get_mut(coords).map(|cell| cell.set_style(style));
+        }
     }
 
     pub fn reset_styles_in_area(&mut self, area: Area) {
-        self.in_area(area, |grid, coords| grid[coords].styles = UseStyles::default());
+        for coords in self.iterate_over_area(area) {
+            self.grid.get_mut(coords).map(Styleable::reset_style);
+        }
+    }
+}
+
+impl<T> CharGrid<T> {
+    pub fn cursor(&self) -> &Cursor {
+        &self.cursor
     }
 
-    pub fn cursor_position(&self) -> Coords {
-        self.cursor.coords
-    }
-
-    pub fn cursor_styles(&self) -> Styles {
-        self.cursor.style
-    }
-
-    pub fn chars_in_range(&self, start: Coords, end: Coords) -> String {
-        CoordsIter::from_area(
-            Area::CursorTo(Movement::Position(end)),
-            start,
-            self.grid.bounds(),
-        ).fold(String::new(), |s, coords| {
-            let cell_data = self.grid[coords].to_string();
-            if coords.x == 0 && !s.is_empty() { s + "\n" + &cell_data }
-            else { s + &cell_data }
-        })
-    }
-
-    pub fn grid_width(&self) -> u32 {
-        self.grid.width as u32
-    }
-
-    pub fn grid_height(&self) -> u32 {
-        self.grid.height as u32
+    pub fn cursor_mut(&mut self) -> &mut Cursor {
+        &mut self.cursor
     }
 
     pub fn tooltip_at(&self, coords: Coords) -> Option<&Tooltip> {
@@ -240,223 +145,88 @@ impl CharGrid {
         self.tooltips.get_mut(&coords)
     }
 
-    fn in_area<F>(&mut self, area: Area, f: F) where F: Fn(&mut Grid<CharCell>, Coords) {
-        for coords in CoordsIter::from_area(area, self.cursor.coords, self.grid.bounds()) {
-            f(&mut self.grid, coords);
+    pub fn add_tooltip(&mut self, coords: Coords, tooltip: String) {
+        self.tooltips.insert(coords, Tooltip::Basic(tooltip));
+    }
+
+    pub fn add_drop_down(&mut self, coords: Coords, options: Vec<String>) {
+        self.tooltips.insert(coords, Tooltip::Menu { options: options, position: None });
+    }
+
+    pub fn remove_tooltip(&mut self, coords: Coords) {
+        self.tooltips.remove(&coords);
+    }
+}
+
+impl<T: ConstructGrid> ConstructGrid for CharGrid<T> {
+    fn new(settings: GridSettings) -> CharGrid<T> {
+        CharGrid {
+            grid: T::new(settings),
+            cursor: Cursor::default(),
+            view: View::new(settings),
+            tooltips: HashMap::new(),
+            text_styles: UseStyles::default(),
         }
     }
-
 }
 
-impl<'a> IntoIterator for &'a CharGrid {
-    type IntoIter = <&'a Grid<CharCell> as IntoIterator>::IntoIter;
-    type Item = &'a CharCell;
-    fn into_iter(self) -> Self::IntoIter {
-        self.grid.into_iter()
+impl<T: Resizeable> Resizeable for CharGrid<T> {
+    fn resize_width(&mut self, width: u32) {
+        self.view.resize_width(width);
+        self.grid.resize_width(width);
+    }
+
+    fn resize_height(&mut self, height: u32) {
+        self.view.resize_height(height);
+        self.grid.resize_height(height);
     }
 }
 
-impl Index<Coords> for CharGrid {
+impl<T> Styleable for CharGrid<T> {
+    fn styles(&self) -> &UseStyles {
+        &self.text_styles
+    }
+
+    fn styles_mut(&mut self) -> &mut UseStyles {
+        &mut self.text_styles
+    }
+}
+
+impl<T: CellGrid<Cell=CharCell>> Index<Coords> for CharGrid<T> {
     type Output = CharCell;
-    fn index(&self, Coords {x, y}: Coords) -> &CharCell {
-        let coords = Coords { x: x + self.window.left, y: y + self.window.top };
-        assert!(self.window.contains(coords));
-        &self.grid[coords]
+
+    fn index(&self, coords: Coords) -> &CharCell {
+        static DEFAULT_CELL: &'static CharCell = &EMPTY_CELL;
+        self.grid.get(coords).unwrap_or(DEFAULT_CELL)
     }
 }
 
-#[cfg(test)]
-mod tests {
+impl<T> Deref for CharGrid<T> {
+    type Target = T;
 
-    use std::sync::atomic::Ordering::Relaxed;
-
-    use super::*;
-    use datatypes::{CellData, Coords, Direction, Movement, Region};
-
-    fn run_test<F: Fn(CharGrid, u32)>(test: F) {
-        ::cfg::TAB_STOP.store(4, Relaxed);
-        ::cfg::SCROLLBACK.store(-1, Relaxed);
-        test(CharGrid::new(10, 10, false), 10);
-        test(CharGrid::new(10, 10, true), 11);
+    fn deref(&self) -> &T {
+        &self.grid
     }
+}
 
-    #[test]
-    fn window_scrolls_with_cursor() {
-        run_test(|mut grid, h| {
-            grid.move_cursor(Movement::NextLine(10));
-            assert_eq!(grid.window, Region::new(0, h - 10, 10, h));
-        })
+impl<T> DerefMut for CharGrid<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.grid
     }
+}
 
-    #[test]
-    fn write() {
-        run_test(|mut grid, _| {
-            for c in vec![
-                CellData::Char('Q'),
-                CellData::Char('E'),
-                CellData::ExtensionChar('\u{301}'),
-            ].into_iter() { grid.write(c); }
-            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "Q");
-            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "E\u{301}");
-        });
+
+// Private methods
+
+impl<T> CharGrid<T> {
+    fn iterate_over_area(&self, area: Area) -> CoordsIter {
+        CoordsIter::from_area(area, self.cursor.coords, self.view.bounds())
     }
+}
 
-    fn setup(grid: &mut CharGrid) {
-        let mut chars = vec![
-            CellData::Char('A'),
-            CellData::Char('B'),
-            CellData::Char('C'),
-            CellData::Char('D'),
-            CellData::Char('E'),
-            CellData::Char('1'),
-            CellData::Char('2'),
-            CellData::Char('3'),
-            CellData::Char('4'),
-            CellData::Char('5'),
-            CellData::Char('!'),
-            CellData::Char('@'),
-            CellData::Char('#'),
-            CellData::Char('$'),
-            CellData::Char('%'),
-        ].into_iter();
-        for _ in 0..3 {
-            for c in chars.by_ref().take(5) { grid.write(c); }
-            grid.move_cursor(Movement::NextLine(1));
-        }
-        grid.move_cursor(Movement::ToBeginning);
+impl<T: CellGrid> CharGrid<T> {
+    fn calculate_movement(&self, coords: Coords, movement: Movement) -> Coords {
+        let new_coords = move_within(self.cursor.coords, movement, self.view.bounds());
+        self.grid.move_out_of_extension(new_coords, movement.direction(coords))
     }
-
-    #[test]
-    fn move_cursor() {
-        run_test(|mut grid, h| {
-            let movements = vec![
-                (Movement::ToEdge(Direction::Down), Coords {x:0, y:9}),
-                (Movement::Tab(Direction::Right, 1, false), Coords{x: 4, y:9}),
-                (Movement::NextLine(1), Coords{x:0, y:h-1}),
-            ];
-            for (mov, coords) in movements {
-                grid.move_cursor(mov);
-                assert_eq!(grid.cursor_position(), coords);
-            }
-            assert_eq!(grid.grid.height as u32, h);
-        })
-    }
-
-    #[test]
-    fn insert_blank_at() {
-        run_test(|mut grid, _| {
-            setup(&mut grid);
-            grid.insert_blank_at(1);
-            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "A");
-            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "B");
-            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "C");
-            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "D");
-            assert_eq!(grid.grid[Coords {x:5, y:0}].repr(), "E");
-            grid.move_cursor(Movement::NextLine(1));
-            grid.insert_blank_at(2);
-            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "1");
-            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "2");
-            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "3");
-            assert_eq!(grid.grid[Coords {x:5, y:1}].repr(), "4");
-            assert_eq!(grid.grid[Coords {x:6, y:1}].repr(), "5");
-            grid.move_cursor(Movement::NextLine(1));
-            grid.insert_blank_at(3);
-            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "!");
-            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "@");
-            assert_eq!(grid.grid[Coords {x:5, y:2}].repr(), "#");
-            assert_eq!(grid.grid[Coords {x:6, y:2}].repr(), "$");
-            assert_eq!(grid.grid[Coords {x:7, y:2}].repr(), "%");
-        })
-    }
-
-    #[test]
-    fn remove_at() {
-        run_test(|mut grid, _| {
-            setup(&mut grid);
-            grid.remove_at(1);
-            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "B");
-            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "C");
-            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "D");
-            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "E");
-            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "");
-            grid.move_cursor(Movement::NextLine(1));
-            grid.remove_at(2);
-            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "3");
-            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "4");
-            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "5");
-            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "");
-            grid.move_cursor(Movement::NextLine(1));
-            grid.remove_at(3);
-            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "$");
-            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "%");
-            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "");
-        })
-    }
-
-    #[test]
-    fn insert_rows_at() {
-        run_test(|mut grid, _| {
-            setup(&mut grid);
-            grid.insert_rows_at(2, false);
-            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:0, y:3}].repr(), "1");
-            assert_eq!(grid.grid[Coords {x:1, y:3}].repr(), "2");
-            assert_eq!(grid.grid[Coords {x:2, y:3}].repr(), "3");
-            assert_eq!(grid.grid[Coords {x:3, y:3}].repr(), "4");
-            assert_eq!(grid.grid[Coords {x:4, y:3}].repr(), "5");
-            grid.insert_rows_at(3, true);
-            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:0, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:1, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:1}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:0, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:1, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:2, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:3, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:4, y:2}].repr(), "");
-            assert_eq!(grid.grid[Coords {x:0, y:3}].repr(), "A");
-            assert_eq!(grid.grid[Coords {x:1, y:3}].repr(), "B");
-            assert_eq!(grid.grid[Coords {x:2, y:3}].repr(), "C");
-            assert_eq!(grid.grid[Coords {x:3, y:3}].repr(), "D");
-            assert_eq!(grid.grid[Coords {x:4, y:3}].repr(), "E");
-        })
-    }
-
-    #[test]
-    fn remove_rows_at() {
-        run_test(|mut grid, _| {
-            setup(&mut grid);
-            grid.remove_rows_at(2, true);
-            assert_eq!(grid.grid[Coords {x:0, y:0}].repr(), "!");
-            assert_eq!(grid.grid[Coords {x:1, y:0}].repr(), "@");
-            assert_eq!(grid.grid[Coords {x:2, y:0}].repr(), "#");
-            assert_eq!(grid.grid[Coords {x:3, y:0}].repr(), "$");
-            assert_eq!(grid.grid[Coords {x:4, y:0}].repr(), "%");
-        })
-    }
-
 }

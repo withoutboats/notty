@@ -20,8 +20,6 @@
 use std::cmp;
 use std::sync::atomic::Ordering::Relaxed;
 
-use mime::Mime;
-
 mod iter;
 mod key;
 
@@ -60,24 +58,6 @@ pub mod args {
     pub use super::Movement::*;
     pub use super::Style::*;
     pub use notty_encoding::args::Argument;
-}
-
-/// Data that could be placed in a character cell.
-#[derive(Clone)]
-pub enum CellData {
-    /// A single unicode code point.
-    Char(char), 
-    /// An extension code point such as U+301. Normally, writing this to the screen does not
-    /// overwrite a cell, but instead applies it to the char in the cell.
-    ExtensionChar(char),
-    /// Non-character media data, with a mime type, positioning and size info.
-    Image {
-        pos: MediaPosition,
-        width: u32,
-        height: u32,
-        data: Vec<u8>,
-        mime: Mime,
-    }
 }
 
 /// A kind of escape code format (used for structuring response strings).
@@ -173,3 +153,18 @@ pub fn move_within(Coords {x, y}: Coords, movement: Movement, region: Region) ->
         }
     }
 }
+
+#[derive(Copy, Clone)]
+pub struct GridSettings {
+    pub width: u32,
+    pub height: u32,
+    pub retain_offscreen_state: bool,
+    pub flow: Flow,
+}
+
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+pub enum Flow {
+    Moveable,
+    Reflowable,
+}
+

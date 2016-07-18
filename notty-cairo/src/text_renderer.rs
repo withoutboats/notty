@@ -79,14 +79,14 @@ impl<'a> TextRenderer<'a> {
         self.add_style(&range, styles);
     }
 
-    pub fn push_cursor(&mut self, ch: char, styles: UseStyles, cursor_styles: Styles) {
+    pub fn push_cursor(&mut self, ch: char, styles: UseStyles, cursor_styles: UseStyles) {
         let lower = self.text.len();
         self.text.push(ch);
         let range = lower..self.text.len();
         self.add_cursor_style(&range, styles, cursor_styles);
     }
 
-    pub fn push_str_cursor(&mut self, s: &str, styles: UseStyles, cursor_styles: Styles) {
+    pub fn push_str_cursor(&mut self, s: &str, styles: UseStyles, cursor_styles: UseStyles) {
         let lower = self.text.len();
         self.text.push_str(s);
         let range = lower..self.text.len();
@@ -140,7 +140,7 @@ impl<'a> TextRenderer<'a> {
         if style.blink { append_bool(range.clone(), &mut self.blink) }
     }
 
-    fn add_cursor_style(&mut self, range: &Range<usize>, style: UseStyles, _: Styles) {
+    fn add_cursor_style(&mut self, range: &Range<usize>, style: UseStyles, _: UseStyles) {
         match style {
             UseStyles::Config(config)   => {
                 let styles = self.cfg.styles.get(&config).map_or_else(Styles::default,

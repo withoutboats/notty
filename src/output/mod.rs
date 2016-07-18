@@ -14,6 +14,7 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use std::io;
+use unicode_width::UnicodeWidthChar;
 
 use command::*;
 use datatypes::args::*;
@@ -51,7 +52,14 @@ impl<R: io::BufRead> Output<R> {
     fn character(&mut self, ch: char) -> (State, Option<Command>) {
         use grapheme_tables::GraphemeCat::*;
         match gr::grapheme_category(ch) {
-            GC_Any                      => (Character, wrap(Put::new_char(ch))),
+            GC_Any                      => {
+                let width = ch.width().unwrap() as u32;
+                if width == 1 {
+                    (Character, wrap(Put::new_char(ch)))
+                } else {
+                    (Character, wrap(Put::new_wide_char(ch, width)))
+                }
+            }
             GC_Control                  => match ch {
                 '\x07'      => (Character, wrap(Bell)),
                 '\x08'      => (Character, wrap(Move::new(To(Left, 1, true)))),
@@ -67,7 +75,7 @@ impl<R: io::BufRead> Output<R> {
                 '\u{9f}'    => (ApcCode, None),
                 _           => (Character, None),
             },
-            GC_Extend | GC_SpacingMark  => (Character, wrap(Put::new_extension(ch))),
+            GC_Extend | GC_SpacingMark  => (Character, wrap(Put::new_extender(ch))),
             _                           => unimplemented!(),
         }
     }

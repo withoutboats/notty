@@ -53,6 +53,7 @@ mod prelude {
 
 pub trait CommandTrait: Send + 'static {
     fn apply(&self, &mut Terminal) -> io::Result<()>;
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String;
 }
 
@@ -65,6 +66,8 @@ impl CommandTrait for CommandSeries {
         }
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SERIES: ") + &self.0.iter().map(|c| c.inner.repr())
                                           .collect::<Vec<_>>().join("; ")
@@ -77,6 +80,8 @@ impl CommandTrait for NoFeature {
     fn apply(&self, _: &mut Terminal) -> io::Result<()> {
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         format!("NO FEATURE: {}", self.0)
     }

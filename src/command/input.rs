@@ -22,6 +22,8 @@ impl Command for KeyPress {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.send_input(self.0.clone(), true)
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("KEY PRESS")
     }
@@ -33,6 +35,8 @@ impl Command for KeyRelease {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.send_input(self.0.clone(), false)
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("KEY RELEASE")
     }
@@ -44,6 +48,8 @@ impl Command for Paste {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
         terminal.paste(&self.0)
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("PASTE")
     }

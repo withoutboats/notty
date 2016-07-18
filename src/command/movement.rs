@@ -16,7 +16,9 @@
 use notty_encoding::cmds::{Move, ScrollScreen};
 
 use command::prelude::*;
+#[cfg(any(test, debug_assertions))]
 use datatypes::Direction::*;
+#[cfg(any(test, debug_assertions))]
 use datatypes::Movement::*;
 
 impl Command for Move {
@@ -24,6 +26,8 @@ impl Command for Move {
         terminal.move_cursor(self.movement);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         match self.movement {
             To(Up, n, _)        => format!("MOVE UP {}", n),
@@ -58,6 +62,8 @@ impl Command for ScrollScreen {
         terminal.scroll(self.dir, self.n);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SCROLL SCREEN")
     }

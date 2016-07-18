@@ -18,18 +18,115 @@ use std::sync::Arc;
 use mime::Mime;
 
 use datatypes::{Coords, MediaPosition};
-use terminal::{UseStyles, Styles};
+use terminal::{UseStyles, DEFAULT_STYLES};
+use terminal::interfaces::{Cell, Styleable, WriteableCell};
 
-use self::CharData::*;
+use self::CellData::*;
+
+pub const EMPTY_CELL: CharCell = CharCell {
+    styles: DEFAULT_STYLES,
+    content: CellData::Empty,
+};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct CharCell {
-    pub styles: UseStyles,
-    pub content: CharData,
+    styles: UseStyles,
+    content: CellData,
+}
+
+impl CharCell {
+    pub fn content(&self) -> &CellData {
+        &self.content
+    }
+}
+
+impl Default for CharCell {
+    fn default() -> CharCell {
+        CharCell {
+            content: Empty,
+            styles: DEFAULT_STYLES,
+        }
+    }
+}
+
+impl ToString for CharCell {
+    fn to_string(&self) -> String {
+        match self.content {
+            Char(c)         => c.to_string(),
+            Grapheme(ref s) => s.clone(),
+            _               => String::new()
+        }
+    }
+}
+
+impl Styleable for CharCell {
+    fn styles(&self) -> &UseStyles {
+        &self.styles
+    }
+
+    fn styles_mut(&mut self) -> &mut UseStyles {
+        &mut self.styles
+    }
+}
+
+impl Cell for CharCell {
+    fn is_extension(&self) -> bool {
+        self.source().is_some()
+    }
+
+    fn erase(&mut self) {
+        self.content = CellData::Empty;
+        self.styles = DEFAULT_STYLES;
+    }
+}
+
+impl WriteableCell for CharCell {
+    fn write(&mut self, data: CellData, styles: UseStyles) {
+        self.content = data;
+        self.styles = styles;
+    }
+
+    fn extend(&mut self, extension: char, styles: UseStyles) {
+        if let CellData::Char(c) = self.content {
+            self.content = CellData::Grapheme(format!("{}{}", c, extension));
+            self.styles = styles;
+        } else if let CellData::Grapheme(ref mut s) = self.content {
+            s.push(extension);
+            self.styles = styles;
+        }
+    }
+
+    fn is_extendable(&self) -> bool {
+        match self.content {
+            CellData::Char(_) | CellData::Grapheme(_)   => true,
+            _                                           => false,
+        }
+    }
+
+    fn source(&self) -> Option<Coords> {
+        match self.content {
+            CellData::Extension(coords) => Some(coords),
+            _                           => None,
+        }
+    }
+}
+
+#[cfg(any(test, debug_assertions))]
+impl CharCell {
+    pub fn repr(&self) -> String {
+        match self.content {
+            Char(c)         => c.to_string(),
+            Grapheme(ref s) => s.clone(),
+            Image { .. }    => String::from("IMG"),
+            Empty           => String::new(),
+            Extension(_)    => String::from("EXT"),
+        }
+    }
+
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum CharData {
+pub enum CellData {
     Empty,
     Char(char),
     Grapheme(String),
@@ -46,109 +143,41 @@ pub enum CharData {
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct ImageData {
     pub data: Vec<u8>,
-    coords: Coords,
+    pub coords: Coords,
 }
 
-impl CharCell {
+#[cfg(test)]
+mod tests {
+    use datatypes::Coords;
+    use terminal::interfaces::*;
+    use terminal::UseStyles;
+    use super::*;
 
-    pub fn new(styles: UseStyles) -> CharCell {
+    fn character() -> CharCell {
         CharCell {
-            styles: styles,
-            content: Empty,
+            content: CellData::Char('a'),
+            styles: UseStyles::default(),
         }
     }
 
-    pub fn character(ch: char, styles: UseStyles) -> CharCell {
+    fn extension() -> CharCell {
         CharCell {
-            styles: styles,
-            content: Char(ch)
+            content: CellData::Extension(Coords { x: 0, y: 0 }),
+            styles: UseStyles::default(),
         }
     }
 
-    pub fn grapheme(grapheme: String, styles: UseStyles) -> CharCell {
-        CharCell {
-            styles: styles,
-            content: Grapheme(grapheme)
-        }
+    #[test]
+    fn is_extension() {
+        assert!(!character().is_extension());
+        assert!(!CharCell::default().is_extension());
+        assert!(extension().is_extension());
     }
 
-    pub fn image(data: Vec<u8>,
-                 coords: Coords,
-                 mime: Mime,
-                 pos: MediaPosition, 
-                 width: u32,
-                 height: u32,
-                 styles: UseStyles) -> CharCell {
-        CharCell {
-            styles: styles,
-            content: Image {
-                data: Arc::new(ImageData {
-                    data: data,
-                    coords: coords,
-                }),
-                mime: mime,
-                pos: pos,
-                width: width,
-                height: height
-            }
-        }
-    }
-
-    pub fn extension(coords: Coords, styles: UseStyles) -> CharCell {
-        CharCell {
-            styles: styles,
-            content: Extension(coords),
-        }
-    }
-
-    pub fn extend_by(&mut self, ext: char) -> bool {
-        match self.content {
-            Char(c)             => {
-                let mut string = c.to_string();
-                string.push(ext);
-                self.content = Grapheme(string);
-                true
-            }
-            Grapheme(ref mut s) => {
-                s.push(ext);
-                true
-            }
-            _                   => false
-        }
-    }
-
-    pub fn repr(&self) -> String {
-        match self.content {
-            Char(c)         => c.to_string(),
-            Grapheme(ref s) => s.clone(),
-            Image { .. }    => String::from("IMG"),
-            Empty           => String::new(),
-            Extension(_)    => String::from("EXT"),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.content == Empty
-    }
-
-    pub fn is_char_extension(&self) -> bool {
-        if let Extension(..) = self.content { true } else { false }
-    }
-
-}
-
-impl Default for CharCell {
-    fn default() -> CharCell {
-        CharCell::new(UseStyles::Custom(Styles::new()))
-    }
-}
-
-impl ToString for CharCell {
-    fn to_string(&self) -> String {
-        match self.content {
-            Char(c)         => c.to_string(),
-            Grapheme(ref s) => s.clone(),
-            _               => String::new()
-        }
+    #[test]
+    fn erase() {
+        let mut cell = character();
+        cell.erase();
+        assert_eq!(cell, CharCell::default());
     }
 }

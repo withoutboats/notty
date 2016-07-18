@@ -15,79 +15,72 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use mime::Mime;
 
-use std::cell::RefCell;
-
 use command::prelude::*;
-use datatypes::{CellData, Coords, MediaPosition};
+use datatypes::{Coords, MediaPosition};
 use datatypes::Movement::Position;
+use terminal::{CharData, WideChar, CharExtender, Image};
 
-pub struct Put(RefCell<Option<CellData>>);
+pub struct Put<T: CharData>(T);
 
-impl Put {
-    pub fn new_char(ch: char) -> Put {
-        Put(RefCell::new(Some(CellData::Char(ch))))
-    }
-    pub fn new_extension(ch: char) -> Put {
-        Put(RefCell::new(Some(CellData::ExtensionChar(ch))))
-    }
-    pub fn new_image(data: Vec<u8>, mime: Mime, pos: MediaPosition, w: u32, h: u32) -> Put {
-        Put(RefCell::new(Some(CellData::Image {
-            pos: pos,
-            width: w,
-            height: h,
-            data: data,
-            mime: mime,
-        })))
+impl Put<char> {
+    pub fn new_char(ch: char) -> Put<char> {
+        Put(ch)
     }
 }
 
-impl Command for Put {
+impl Put<WideChar> {
+    pub fn new_wide_char(ch: char, width: u32) -> Put<WideChar> {
+        Put(WideChar::new(ch, width))
+    }
+}
+
+impl Put<CharExtender> {
+    pub fn new_extender(ch: char) -> Put<CharExtender> {
+        Put(CharExtender::new(ch))
+    }
+}
+
+impl Put<Image> {
+    pub fn new_image(data: Vec<u8>, mime: Mime, pos: MediaPosition, w: u32, h: u32) -> Put<Image> {
+        Put(Image::new(data, mime, pos, w, h))
+    }
+}
+
+impl<T: CharData> Command for Put<T> {
 
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        if let Some(data) = self.0.borrow_mut().take() {
-            terminal.write(data)
-        }
+        terminal.write(&self.0);
         Ok(())
     }
 
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
-        match *self.0.borrow() {
-            Some(CellData::Char(c)) | Some(CellData::ExtensionChar(c))
-                                            => c.to_string(),
-            _                               => String::from("PUT"),
-        }
+        self.0.repr()
     }
 
 }
 
-pub struct PutAt(RefCell<Option<CellData>>, Coords);
+pub struct PutAt<T: CharData>(T, Coords);
 
-impl PutAt {
+impl PutAt<Image> {
 
     pub fn new_image(data: Vec<u8>, mime: Mime, pos: MediaPosition, w: u32, h: u32, at: Coords)
-            -> PutAt {
-        PutAt(RefCell::new(Some(CellData::Image {
-            pos: pos,
-            width: w,
-            height: h,
-            data: data,
-            mime: mime,
-        })), at)
+            -> PutAt<Image> {
+        PutAt(Image::new(data, mime, pos, w, h), at)
     }
 }
 
-impl Command for PutAt {
+impl<T: CharData> Command for PutAt<T> {
 
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        if let Some(data) = self.0.borrow_mut().take() {
-            let coords = terminal.cursor_position();
-            terminal.move_cursor(Position(self.1));
-            terminal.write(data);
-            terminal.move_cursor(Position(coords));
-        }
+        let coords = terminal.cursor().position();
+        terminal.move_cursor(Position(self.1));
+        terminal.write(&self.0);
+        terminal.move_cursor(Position(coords));
         Ok(())
     }
 
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("PUT AT")
     }

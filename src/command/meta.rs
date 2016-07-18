@@ -18,6 +18,7 @@ use std::cell::RefCell;
 use notty_encoding::cmds::SetInputMode;
 
 use command::prelude::*;
+#[cfg(any(test, debug_assertions))]
 use datatypes::InputSettings;
 
 pub struct SetTitle(pub RefCell<Option<String>>);
@@ -29,6 +30,8 @@ impl Command for SetTitle {
         }
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("SET TITLE")
     }
@@ -39,6 +42,8 @@ impl Command for SetInputMode {
         terminal.set_input_mode(self.0);
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         match self.0 {
             InputSettings::Ansi(false)              => String::from("SET MODE ANSI"),
@@ -59,6 +64,8 @@ impl Command for Bell {
         terminal.bell();
         Ok(())
     }
+
+    #[cfg(any(test, debug_assertions))]
     fn repr(&self) -> String {
         String::from("BELL")
     }
