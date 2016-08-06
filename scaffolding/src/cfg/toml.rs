@@ -241,7 +241,7 @@ mod tests {
     use notty_cairo::Config as CairoConfig;
 
     fn test_default_config(config: &CairoConfig) {
-        assert_eq!(config.font, "Inconsolata 10");
+        assert_eq!(config.font, "Monospace 10");
         assert_eq!(config.fg_color, (0xff,0xff,0xff));
         assert_eq!(config.bg_color, (0x00,0x00,0x00));
         assert_eq!(config.cursor_color, (0xbb,0xbb,0xbb));
