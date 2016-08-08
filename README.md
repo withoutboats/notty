@@ -74,7 +74,7 @@ kernel's tty/pty subsystem, to the termios ioctl calls which control it, to the
 terminfo and termcap databases, to the ANSI escape codes they describe, to the
 ancient codebases of the terminal emulators themselves, this is a universe of
 arcane and poorly documented old growth code, much of which is no longer
-actively useful to people in 2015 - your system ships with a terminfo db page
+actively useful to people in the 21st century - your system ships with a terminfo db page
 for more than 2500 different terminal devices, nearly all of them extinct, and
 every new console you open has a baud rate set in the kernel, even though it
 exchanges data in memory. More advanced features of __notty__ will certainly
