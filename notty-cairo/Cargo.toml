@@ -2,6 +2,7 @@
 authors = ["Without Boats <woboats@gmail.com>"]
 name = "notty-cairo"
 version = "0.1.0"
+workspace = "../scaffolding"
 
 [dependencies]
 cairo-rs = "0.1.0"

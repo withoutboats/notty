@@ -23,3 +23,5 @@ path = "../notty-cairo"
 
 [dependencies.tty]
 path = "tty"
+
+[workspace]

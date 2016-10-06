@@ -3,6 +3,7 @@ name = "pangocairo"
 version = "0.1.0"
 authors = ["Without Boats <woboats@gmail.com>"]
 license = "AGPL-3.0+"
+workspace = "../../scaffolding"
 
 [dependencies]
 cairo-sys-rs = "0.3.0"
