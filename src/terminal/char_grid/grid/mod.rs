@@ -110,6 +110,10 @@ impl<T> WriteableGrid for Grid<T> where T: WriteableCell + Default {
 }
 
 impl<T> Resizeable for Grid<T> {
+    fn dims(&self) -> (u32, u32) {
+        (self.width as u32, self.height as u32)
+    }
+
     fn resize_width(&mut self, width: u32) {
         let new_rem = (width as usize).saturating_sub(self.width);
         if let Some(ref mut rem) = self.rem_x {

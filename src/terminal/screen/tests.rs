@@ -6,11 +6,16 @@ pub use super::panel::Panel;
 pub use super::panel::Panel::*;
 pub use super::ring::Ring;
 pub use super::section::ScreenSection;
+pub use super::split::SplitSection;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct MockGrid(pub u32, pub u32);
+pub struct MockFill(pub u32, pub u32);
 
-impl Resizeable for MockGrid {
+impl Resizeable for MockFill {
+    fn dims(&self) -> (u32, u32) {
+        (self.0, self.1)
+    }
+
     fn resize_width(&mut self, width: u32) {
         self.0 = width;
     }
@@ -20,12 +25,12 @@ impl Resizeable for MockGrid {
     }
 }
 
-impl ConstructGrid for MockGrid {
-    fn new(settings: GridSettings) -> MockGrid {
-        MockGrid(settings.width, settings.height)
+impl ConstructGrid for MockFill {
+    fn new(settings: GridSettings) -> MockFill {
+        MockFill(settings.width, settings.height)
     }
 }
 
-pub const GRID: MockGrid = MockGrid(8, 8);
+pub const GRID: MockFill = MockFill(8, 8);
 pub const OLD_AREA: Region = Region { left: 0, top: 2, right: 8, bottom: 10 };
 pub const NEW_AREA: Region = Region { left: 1, top: 1, right: 7, bottom: 11 };
