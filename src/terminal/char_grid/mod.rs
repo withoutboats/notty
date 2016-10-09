@@ -171,6 +171,10 @@ impl<T: ConstructGrid> ConstructGrid for CharGrid<T> {
 }
 
 impl<T: Resizeable> Resizeable for CharGrid<T> {
+    fn dims(&self) -> (u32, u32) {
+        self.view.dims()
+    }
+
     fn resize_width(&mut self, width: u32) {
         self.view.resize_width(width);
         self.grid.resize_width(width);

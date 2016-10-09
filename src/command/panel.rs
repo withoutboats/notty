@@ -61,7 +61,7 @@ impl Command for UnsplitPanel {
 
 impl Command for AdjustPanelSplit {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.adjust_split(self.adjust_tag, self.kind, self.rule);
+        terminal.adjust_split(self.adjust_tag, self.kind);
         Ok(())
     }
 

@@ -28,7 +28,7 @@ use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::*;
 pub use self::input::Tty;
-pub use self::interfaces::{CharData, Styleable};
+pub use self::interfaces::{CharData, Styleable, Resizeable};
 pub use self::screen::{Screen, Cells, Panels};
 pub use self::styles::*;
 
@@ -102,7 +102,7 @@ impl Terminal {
             (_, Some(h)) if h > 0                   => (self.area().right, h),
             (_, _)                                  => (self.area().right, self.area().bottom),
         };
-        self.resize(cols, rows);
+        self.screen.resize(cols, rows);
         self.tty.set_winsize(cols, rows)
     }
 

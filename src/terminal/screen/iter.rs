@@ -53,11 +53,12 @@ impl<'a, T: 'a> Iterator for Panels<'a, T> {
         fn cells<'a, T>(section: &'a ScreenSection<T>,
                         stack: &mut Vec<&'a ScreenSection<T>>) -> Cells<'a, T> {
             match *section.top() {
-                Grid(_) => Cells {
+                Fill(_) => Cells {
                     iter: CoordsIter::from_region(section.area()),
                     section: section
                 },
-                Split { ref left, ref right, .. } => {
+                Split(ref split) => {
+                    let (left, right) = split.children();
                     stack.push(right);
                     cells(left, stack)
                 }
@@ -75,6 +76,6 @@ impl<'a, T: 'a> Iterator for Panels<'a, T> {
 
 impl<'a, T: 'a> ExactSizeIterator for Panels<'a, T> {
     fn len(&self) -> usize {
-        self.stack.iter().cloned().map(ScreenSection::count_grids).sum()
+        self.stack.iter().cloned().map(ScreenSection::count_leaves).sum()
     }
 }

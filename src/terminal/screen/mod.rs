@@ -4,9 +4,10 @@ use datatypes::{Region, SaveGrid, SplitKind, ResizeRule};
 use terminal::{CharGrid};
 use terminal::interfaces::{Resizeable, ConstructGrid};
 
+mod iter;
 mod panel;
 mod section;
-mod iter;
+mod split;
 mod ring;
 #[cfg(test)]
 mod tests;
@@ -50,12 +51,8 @@ impl<T: ConstructGrid> Screen<T> {
 }
 
 impl<T: Resizeable> Screen<T> {
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.screen.resize(Region::new(0, 0, width, height), ResizeRule::Percentage);
-    }
-
-    pub fn adjust_split(&mut self, tag: u64, kind: SplitKind, rule: ResizeRule) {
-        self.find_mut(Some(tag)).map(|section| section.adjust_split(kind, rule));
+    pub fn adjust_split(&mut self, tag: u64, kind: SplitKind) {
+        self.find_mut(Some(tag)).map(|section| section.adjust_split(kind));
     }
 
     pub fn unsplit(&mut self, save: SaveGrid, tag: u64) {
@@ -68,13 +65,31 @@ impl<T: Resizeable> Screen<T> {
     }
 }
 
+impl<T: Resizeable> Resizeable for Screen<T> {
+    fn dims(&self) -> (u32, u32) {
+        self.screen.dims()
+    }
+
+    fn resize_width(&mut self, width: u32) {
+        self.screen.resize_width(width);
+    }
+
+    fn resize_height(&mut self, height: u32) {
+        self.screen.resize_height(height);
+    }
+
+    fn resize(&mut self, width: u32, height: u32) {
+        self.screen.resize(width, height);
+    }
+}
+
 impl<T> Screen<T> {
     pub fn area(&self) -> Region {
         self.screen.area()
     }
 
     pub fn switch(&mut self, tag: u64) {
-        if self.find(Some(tag)).map_or(false, ScreenSection::is_grid) {
+        if self.find(Some(tag)).map_or(false, ScreenSection::is_fill) {
             self.active = tag;
         }
     }
@@ -109,15 +124,15 @@ impl<T> Screen<T> {
 
 }
 
-impl<T> Deref for Screen<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        self.find(None).expect(E_ACTIVE).grid()
+impl Deref for Screen<CharGrid> {
+    type Target = CharGrid;
+    fn deref(&self) -> &CharGrid {
+        self.find(None).expect(E_ACTIVE).fill()
     }
 }
 
-impl<T> DerefMut for Screen<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        self.find_mut(None).expect(E_ACTIVE).grid_mut()
+impl DerefMut for Screen<CharGrid> {
+    fn deref_mut(&mut self) -> &mut CharGrid {
+        self.find_mut(None).expect(E_ACTIVE).fill_mut()
     }
 }

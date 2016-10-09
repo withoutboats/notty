@@ -15,6 +15,7 @@ pub trait Styleable {
 }
 
 pub trait Resizeable {
+    fn dims(&self) -> (u32, u32);
     fn resize_width(&mut self, width: u32);
     fn resize_height(&mut self, height: u32);
 

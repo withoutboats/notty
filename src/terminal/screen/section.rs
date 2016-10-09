@@ -2,19 +2,19 @@ use std::mem;
 use std::ops::Index;
 
 use datatypes::{Flow, Region, Coords, CoordsIter, SaveGrid, SplitKind, ResizeRule, GridSettings};
-use datatypes::SplitKind::*;
 use terminal::interfaces::{ConstructGrid, Resizeable};
 
 use super::panel::Panel;
 use super::panel::Panel::*;
 use super::ring::Ring;
+use super::split::SplitSection;
 
 /// A (rectangular) section of the screen, which contains a ring of panels.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ScreenSection<T> {
     tag: u64,
     area: Region,
-    ring: Ring<Panel<T>>,
+    pub ring: Ring<Panel<T>>,
 }
 
 impl<T: ConstructGrid + Resizeable> ScreenSection<T> {
@@ -24,22 +24,24 @@ impl<T: ConstructGrid + Resizeable> ScreenSection<T> {
         let (kind, l_area, r_area) = self.area.split(kind, rule);
         match save {
             SaveGrid::Left => {
-                let mut l_panel = mem::replace(&mut self.ring.top, DeadGrid);
-                l_panel.resize(self.area, l_area, rule);
-                self.ring.top = Split {
-                    kind: kind,
-                    left: Box::new(ScreenSection::with_data(l_tag, l_area, l_panel)),
-                    right: Box::new(ScreenSection::new(r_tag, r_area, retain_offscreen_state)),
-                }
+                let mut l_panel = mem::replace(&mut self.ring.top, Dead);
+                l_panel.shift_into(l_area);
+                self.ring.top = Split(SplitSection::new(
+                    Box::new(ScreenSection::with_data(l_tag, l_area, l_panel)),
+                    Box::new(ScreenSection::new(r_tag, r_area, retain_offscreen_state)),
+                    self.area,
+                    kind,
+                ));
             }
             SaveGrid::Right => {
-                let mut r_panel = mem::replace(&mut self.ring.top, DeadGrid);
-                r_panel.resize(self.area, r_area, rule);
-                self.ring.top = Split {
-                    kind: kind,
-                    left: Box::new(ScreenSection::new(l_tag, l_area, retain_offscreen_state)),
-                    right: Box::new(ScreenSection::with_data(r_tag, r_area, r_panel)),
-                }
+                let mut r_panel = mem::replace(&mut self.ring.top, Dead);
+                r_panel.shift_into(r_area);
+                self.ring.top = Split(SplitSection::new(
+                    Box::new(ScreenSection::new(l_tag, l_area, retain_offscreen_state)),
+                    Box::new(ScreenSection::with_data(r_tag, r_area, r_panel)),
+                    self.area,
+                    kind,
+                ));
             }
         }
     }
@@ -51,62 +53,50 @@ impl<T: ConstructGrid> ScreenSection<T> {
     /// filled with an empty grid.
     pub fn new(tag: u64, area: Region, retain_offscreen_state: bool)
             -> ScreenSection<T> {
-        let grid = T::new(GridSettings {
+        let fill = T::new(GridSettings {
             width: area.width(),
             height: area.height(),
             retain_offscreen_state: retain_offscreen_state,
             flow: Flow::Moveable,
         });
-        ScreenSection::with_data(tag, area, Grid(grid))
+        ScreenSection::with_data(tag, area, Fill(fill))
     }
 
     /// Push a new empty grid panel on top of this section.
     pub fn push(&mut self, retain_offscreen_state: bool) {
-        let grid = T::new(GridSettings {
+        let fill = T::new(GridSettings {
             width: self.area.width(),
             height: self.area.height(),
             retain_offscreen_state: retain_offscreen_state,
             flow: Flow::Moveable,
         });
-        self.ring.push(Grid(grid));
+        self.ring.push(Fill(fill));
     }
 }
 
 impl<T: Resizeable> ScreenSection<T> {
-    /// Adjust this section of the grid to fit a new area.
-    pub fn resize(&mut self, new_area: Region, rule: ResizeRule) {
-        for panel in &mut self.ring {
-            panel.resize(self.area, new_area, rule);
-        }
-        self.area = new_area;
+    pub fn shift_into(&mut self, area: Region) {
+        self.area = area;
+        self.resize(area.width(), area.height());
     }
 
-    pub fn adjust_split(&mut self, new_kind: SplitKind, rule: ResizeRule) {
-        if let Split { ref mut left, ref mut right, ref mut kind, .. } = self.ring.top {
-            let (new_kind, l_area, r_area) = self.area.split(new_kind, rule);
-            *kind = new_kind;
-            left.resize(l_area, rule);
-            right.resize(r_area, rule);
+    /// Adjust the split in the top panel of this section.
+    pub fn adjust_split(&mut self, new_kind: SplitKind) {
+        if let Split(ref mut split) = self.ring.top {
+            split.adjust_split(new_kind);
         }
     }
 
     /// Remove the split in the top panel of this section.
     pub fn unsplit(&mut self, save: SaveGrid) {
-        let (mut saved_ring, old_area) = match (save, &mut self.ring.top) {
-            (SaveGrid::Left, &mut Split { ref mut left, .. }) =>
-                (mem::replace(&mut left.ring, Ring::new(DeadGrid)), left.area),
-            (SaveGrid::Right, &mut Split { ref mut right, .. }) =>
-                (mem::replace(&mut right.ring, Ring::new(DeadGrid)), right.area),
-            _ => return
-        };
-        for panel in &mut saved_ring {
-            panel.resize(old_area, self.area, ResizeRule::Percentage);
-        }
-        if self.ring.len() == 1 {
-            self.ring = saved_ring;
-        } else {
-            self.ring.pop();
-            self.ring.extend(saved_ring.into_iter().rev());
+        if let Some(split) = self.ring.top.pull_split() {
+            let ring = split.unsplit(save);
+            if self.ring.len() == 1 {
+                self.ring = ring;
+            } else {
+                self.ring.pop();
+                self.ring.extend(ring.into_iter().rev());
+            }
         }
     }
 }
@@ -122,15 +112,15 @@ impl<T> ScreenSection<T> {
 
     /// Returns true if the top panel in this section is a grid, and false if it is split into
     /// multiple grids.
-    pub fn is_grid(&self) -> bool {
-        self.ring.top.is_grid()
+    pub fn is_fill(&self) -> bool {
+        self.ring.top.is_fill()
     }
 
     // Count the number of visible grids in this section of the screen
-    pub fn count_grids(&self) -> usize {
+    pub fn count_leaves(&self) -> usize {
         match self.ring.top {
-            Grid(_)                             => 1,
-            Split { ref left, ref right, .. }   => left.count_grids() + right.count_grids(),
+            Fill(_)                             => 1,
+            Split(ref split)                    => split.count_leaves(),
             _                                   => unreachable!(),
         }
     }
@@ -160,26 +150,26 @@ impl<T> ScreenSection<T> {
     }
 
     /// Get the grid associated with this section - panic if this section is split.
-    pub fn grid(&self) -> &T {
+    pub fn fill(&self) -> &T {
         match self.ring.top {
-            Grid(ref grid) => grid,
-            _ => panic!("Cannot call grid on a split section of the screen"),
+            Fill(ref fill) => fill,
+            _ => panic!("Cannot call fill on a split section of the screen"),
         }
     }
 
     /// Get a mutable reference to the grid associated with this section - panic if this section
     /// is split.
-    pub fn grid_mut(&mut self) -> &mut T {
+    pub fn fill_mut(&mut self) -> &mut T {
         match self.ring.top {
-            Grid(ref mut grid) => grid,
-            _ => panic!("Cannot call grid_mut on a split section of the screen"),
+            Fill(ref mut fill) => fill,
+            _ => panic!("Cannot call fill on a split section of the screen"),
         }
     }
 
     /// Get a reference to the children section of this section if it is split.
     pub fn children(&self) -> Option<(&ScreenSection<T>, &ScreenSection<T>)> {
-        if let Split { ref left, ref right, .. } = self.ring.top {
-            Some((left, right))
+        if let Split(ref split) = self.ring.top {
+            Some(split.children())
         } else { None }
     }
 
@@ -213,26 +203,42 @@ impl<T> ScreenSection<T> {
 
 }
 
+impl<T: Resizeable> Resizeable for ScreenSection<T> {
+    fn dims(&self) -> (u32, u32) {
+        (self.area().width(), self.area().height())
+    }
+    
+    fn resize_width(&mut self, width: u32) {
+        let height = self.area.height();
+        self.area = self.area.resized(width, height);
+        for panel in &mut self.ring {
+            panel.resize_width(width);
+        }
+    }
+
+    fn resize_height(&mut self, height: u32) {
+        let width = self.area.width();
+        self.area = self.area.resized(width, height);
+        for panel in &mut self.ring {
+            panel.resize_height(height);
+        }
+    }
+
+    fn resize(&mut self, width: u32, height: u32) {
+        self.area = self.area.resized(width, height);
+        for panel in &mut self.ring {
+            panel.resize(width, height);
+        }
+    }
+}
+
 impl<T: Index<Coords>> Index<Coords> for ScreenSection<T> {
     type Output = T::Output;
-    fn index(&self, Coords { x, y }: Coords) -> &Self::Output {
+    fn index(&self, coords: Coords) -> &Self::Output {
         match self.ring.top {
-            Grid(ref grid)                                          => {
-                &grid[Coords { x: x, y: y }]
-            }
-            Split { kind: Horizontal(n), ref left, .. } if y < n    => {
-                &left[Coords { x: x, y: y }]
-            }
-            Split { kind: Vertical(n), ref left, .. } if x < n      => {
-                &left[Coords { x: x, y: y }]
-            }
-            Split { kind: Horizontal(n), ref right, .. } if n <= y  => {
-                &right[Coords { x: x, y: y - n }]
-            }
-            Split { kind: Vertical(n), ref right, .. } if n <= x    => {
-                &right[Coords { x: x - n, y: y }]
-            }
-            _                                                       => unreachable!()
+            Fill(ref fill)      => &fill[coords],
+            Split(ref split)    => &split[coords],
+            _ => unreachable!()
         }
     }
 }
@@ -241,7 +247,7 @@ impl<T: Index<Coords>> Index<Coords> for ScreenSection<T> {
 mod tests {
     pub use terminal::screen::tests::*;
 
-    fn split(mut section: ScreenSection<MockGrid>, save: SaveGrid) -> ScreenSection<MockGrid> {
+    fn split(mut section: ScreenSection<MockFill>, save: SaveGrid) -> ScreenSection<MockFill> {
         section.split(save, Horizontal(4), Percentage, 3, 4, false);
         section
     }
@@ -249,8 +255,8 @@ mod tests {
     mod grid {
         use super::*;
 
-        pub fn section() -> ScreenSection<MockGrid> {
-            ScreenSection::with_data(0, Region::new(0, 0, 8, 8), Grid(GRID))
+        pub fn section() -> ScreenSection<MockFill> {
+            ScreenSection::with_data(0, Region::new(0, 0, 8, 8), Fill(GRID))
         }
 
         #[test]
@@ -258,11 +264,12 @@ mod tests {
             assert_eq!(super::split(section(), SaveGrid::Left), ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                ring: Ring::new(Split {
-                    kind: Horizontal(4),
-                    left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
-                    right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
-                })
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
+                    Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
+                    Region::new(0, 0, 8, 8),
+                    Horizontal(4),
+                )))
             })
         }
 
@@ -271,37 +278,39 @@ mod tests {
             assert_eq!(super::split(section(), SaveGrid::Right), ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                ring: Ring::new(Split {
-                    kind: Horizontal(4),
-                    left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
-                    right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
-                })
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
+                    Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
+                    Region::new(0, 0, 8, 8),
+                    Horizontal(4),
+                )))
             })
         }
 
         #[test]
-        fn is_grid() {
-            assert!(section().is_grid())
+        fn is_fill() {
+            assert!(section().is_fill())
         }
 
         #[test]
-        fn count_grids() {
-            assert_eq!(section().count_grids(), 1);
+        fn count_leaves() {
+            assert_eq!(section().count_leaves(), 1);
         }
     }
 
     mod split {
         use super::*;
 
-        pub fn section() -> ScreenSection<MockGrid> {
+        pub fn section() -> ScreenSection<MockFill> {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                ring: Ring::new(Split {
-                    kind: Vertical(4),
-                    left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8), false)),
-                    right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8), false)),
-                }),
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8), false)),
+                    Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8), false)),
+                    Region::new(0, 0, 8, 8),
+                    Vertical(4),
+                ))),
             }
         }
 
@@ -310,20 +319,22 @@ mod tests {
             assert_eq!(super::split(section(), SaveGrid::Left), ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                ring: Ring::new(Split {
-                    kind: Horizontal(4),
-                    left: Box::new(ScreenSection {
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection {
                         tag: 3,
                         area: Region::new(0, 0, 8, 4),
-                        ring: Ring::new(Split {
-                            kind: Vertical(4),
-                            left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 4), false)),
-                            right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 4), false)),
-                        })
+                        ring: Ring::new(Split(SplitSection::new(
+                            Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 4), false)),
+                            Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 4), false)),
+                            Region::new(0, 0, 8, 4),
+                            Vertical(4),
+                        )))
                     }),
-                    right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
-                })
-            })
+                    Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
+                    Region::new(0, 0, 8, 8),
+                    Horizontal(4),
+                )))
+            });
         }
 
         #[test]
@@ -331,37 +342,39 @@ mod tests {
             assert_eq!(super::split(section(), SaveGrid::Right), ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                ring: Ring::new(Split {
-                    kind: Horizontal(4),
-                    left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
-                    right: Box::new(ScreenSection {
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
+                    Box::new(ScreenSection {
                         tag: 4,
                         area: Region::new(0, 4, 8, 8),
-                        ring: Ring::new(Split {
-                            kind: Vertical(4),
-                            left: Box::new(ScreenSection::new(1, Region::new(0, 4, 4, 8), false)),
-                            right: Box::new(ScreenSection::new(2, Region::new(4, 4, 8, 8), false)),
-                        }),
+                        ring: Ring::new(Split(SplitSection::new(
+                            Box::new(ScreenSection::new(1, Region::new(0, 4, 4, 8), false)),
+                            Box::new(ScreenSection::new(2, Region::new(4, 4, 8, 8), false)),
+                            Region::new(0, 4, 8, 8),
+                            Vertical(4),
+                       ))),
                     }),
-                })
-            })
+                    Region::new(0, 0, 8, 8),
+                    Horizontal(4),
+                ))),
+            });
         }
 
         #[test]
-        fn is_grid() {
-            assert!(!section().is_grid())
+        fn is_fill() {
+            assert!(!section().is_fill())
         }
 
         #[test]
-        fn count_grids() {
-            assert_eq!(section().count_grids(), 2);
+        fn count_leaves() {
+            assert_eq!(section().count_leaves(), 2);
         }
     }
 
     mod ring {
         use super::*;
 
-        pub fn section() -> ScreenSection<MockGrid> {
+        pub fn section() -> ScreenSection<MockFill> {
             let mut section = super::split::section();
             section.push(false);
             section
@@ -373,16 +386,18 @@ mod tests {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
                 ring: {
-                    let mut ring = Ring::new(Split {
-                        kind: Vertical(4),
-                        left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8), false)),
-                        right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8), false)),
-                    });
-                    ring.push(Split {
-                        kind: Horizontal(4),
-                        left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
-                        right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
-                    });
+                    let mut ring = Ring::new(Split(SplitSection::new(
+                        Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8), false)),
+                        Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8), false)),
+                        Region::new(0, 0, 8, 8),
+                        Vertical(4),
+                    )));
+                    ring.push(Split(SplitSection::new(
+                        Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
+                        Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
+                        Region::new(0, 0, 8, 8),
+                        Horizontal(4),
+                    )));
                     ring
                 },
             })
@@ -394,29 +409,31 @@ mod tests {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
                 ring: {
-                    let mut ring = Ring::new(Split {
-                        kind: Vertical(4),
-                        left: Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8), false)),
-                        right: Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8), false)),
-                    });
-                    ring.push(Split {
-                        kind: Horizontal(4),
-                        left: Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
-                        right: Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
-                    });
+                    let mut ring = Ring::new(Split(SplitSection::new(
+                        Box::new(ScreenSection::new(1, Region::new(0, 0, 4, 8), false)),
+                        Box::new(ScreenSection::new(2, Region::new(4, 0, 8, 8), false)),
+                        Region::new(0, 0, 8, 8),
+                        Vertical(4),
+                    )));
+                    ring.push(Split(SplitSection::new(
+                        Box::new(ScreenSection::new(3, Region::new(0, 0, 8, 4), false)),
+                        Box::new(ScreenSection::new(4, Region::new(0, 4, 8, 8), false)),
+                        Region::new(0, 0, 8, 8),
+                        Horizontal(4),
+                    )));
                     ring
                 },
             })
         }
 
         #[test]
-        fn is_grid() {
-            assert!(section().is_grid())
+        fn is_fill() {
+            assert!(section().is_fill())
         }
 
         #[test]
-        fn count_grids() {
-            assert_eq!(section().count_grids(), 1);
+        fn count_leaves() {
+            assert_eq!(section().count_leaves(), 1);
         }
     }
 
@@ -473,28 +490,30 @@ mod tests {
     #[test]
     fn resize() {
         run_test(|mut section| {
-            section.resize(Region::new(0, 0, 6, 6), ResizeRule::Percentage);
+            section.resize(6, 6);
             section
         }, [
             ScreenSection::new(0, Region::new(0, 0, 6, 6), false),
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 6, 6),
-                ring: Ring::new(Split {
-                    kind: Vertical(3),
-                    left: Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6), false)),
-                    right: Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6), false)),
-                }),
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6), false)),
+                    Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6), false)),
+                    Region::new(0, 0, 6, 6),
+                    Vertical(3),
+                ))),
             },
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 6, 6),
                 ring: {
-                    let mut ring = Ring::new(Split {
-                        kind: Vertical(3),
-                        left: Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6), false)),
-                        right: Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6), false)),
-                    });
+                    let mut ring = Ring::new(Split(SplitSection::new(
+                        Box::new(ScreenSection::new(1, Region::new(0, 0, 3, 6), false)),
+                        Box::new(ScreenSection::new(2, Region::new(3, 0, 6, 6), false)),
+                        Region::new(0, 0, 6, 6),
+                        Vertical(3),
+                    )));
                     ring.push(Grid(Region::new(0, 0, 6, 6)));
                     ring
                 }
@@ -530,11 +549,12 @@ mod tests {
             ScreenSection {
                 tag: 0,
                 area: Region::new(0, 0, 8, 8),
-                ring: Ring::new(Split {
-                    kind: Horizontal(4),
-                    left: Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false)),
-                    right: Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false)),
-                }),
+                ring: Ring::new(Split(SplitSection::new(
+                    Box::new(ScreenSection::new(1, Region::new(0, 0, 8, 4), false)),
+                    Box::new(ScreenSection::new(2, Region::new(0, 4, 8, 8), false)),
+                    Region::new(0, 0, 8, 8),
+                    Horizontal(4),
+                ))),
             },
             ring_section(),
         ]);

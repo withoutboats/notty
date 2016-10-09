@@ -19,6 +19,13 @@ impl ConstructGrid for View {
 }
 
 impl Resizeable for View {
+    fn dims(&self) -> (u32, u32) {
+        match *self {
+            Moveable(ref region)    => (region.width(), region.height()),
+            Reflowable(_)           => unimplemented!()
+        }
+    }
+
     fn resize_width(&mut self, width: u32) {
         match *self {
             Moveable(ref mut region)    => region.right = region.left + width,

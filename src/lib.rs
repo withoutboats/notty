@@ -19,6 +19,7 @@ extern crate base64;
 extern crate mime;
 extern crate notty_encoding;
 extern crate unicode_width;
+extern crate uuid;
 
 mod command;
 pub mod datatypes;
