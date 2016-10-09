@@ -32,5 +32,4 @@ impl ConstructGrid for MockFill {
 }
 
 pub const GRID: MockFill = MockFill(8, 8);
-pub const OLD_AREA: Region = Region { left: 0, top: 2, right: 8, bottom: 10 };
 pub const NEW_AREA: Region = Region { left: 1, top: 1, right: 7, bottom: 11 };

@@ -22,7 +22,7 @@ use glib::translate::ToGlibPtr;
 use itertools::Itertools;
 
 use notty::datatypes::Coords;
-use notty::terminal::{CellData, Terminal, ImageData, Styleable};
+use notty::terminal::{CellData, CharGrid, Fill, Terminal, ImageData, Styleable, Resizeable};
 
 use pangocairo::wrap::{PangoLayout, PangoAttrList};
 
@@ -59,15 +59,9 @@ impl Renderer {
         terminal.set_winsize(Some(width), Some(height)).unwrap_or_else(|e| panic!("{}", e));
     }
 
-    pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
-
-        if self.char_d.is_none() { self.char_d = Some(self.char_dimensions(canvas)); }
-        let (r, g, b) = gtk_color(self.cfg.bg_color);
-        canvas.set_source_rgb(r, g, b);
-        canvas.paint();
-
-        let col_n = terminal.area().width() as usize;
-        let rows = terminal.cells().chunks(col_n);
+    pub fn draw_grid(&mut self, grid: &CharGrid, canvas: &cairo::Context) {
+        let col_n = grid.dims().0 as usize;
+        let rows = grid.cells().chunks(col_n);
 
         // Remove dead images from the cache.
         for key in self.images.keys().filter(|k| Arc::strong_count(k) == 1).cloned().collect::<Vec<_>>() {
@@ -79,8 +73,8 @@ impl Renderer {
             let mut text = TextRenderer::new(&self.cfg, 0.0, y_pix);
             for (x_pos, cell) in row.enumerate() {
                 let style = *cell.styles();
-                if (Coords { x: x_pos as u32, y: y_pos as u32 } == terminal.cursor().position()) {
-                    let cursor_style = *terminal.cursor().styles();
+                if (Coords { x: x_pos as u32, y: y_pos as u32 } == grid.cursor().position()) {
+                    let cursor_style = *grid.cursor().styles();
                     match *cell.content() {
                         CellData::Empty             => text.push_cursor(' ', style, cursor_style),
                         CellData::Char(ch)          => text.push_cursor(ch, style, cursor_style),
@@ -115,6 +109,21 @@ impl Renderer {
                 }
             }
             text.draw(canvas);
+        }
+    }
+
+    pub fn draw(&mut self, terminal: &Terminal, canvas: &cairo::Context) {
+
+        if self.char_d.is_none() { self.char_d = Some(self.char_dimensions(canvas)); }
+        let (r, g, b) = gtk_color(self.cfg.bg_color);
+        canvas.set_source_rgb(r, g, b);
+        canvas.paint();
+
+        for panel in terminal.panels() {
+            match *panel {
+                Fill::Grid(ref grid)    => self.draw_grid(grid, canvas),
+                _                       => unimplemented!()
+            }
         }
     }
 

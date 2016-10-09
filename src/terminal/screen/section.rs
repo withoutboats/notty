@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::Index;
 
-use datatypes::{Flow, Region, Coords, CoordsIter, SaveGrid, SplitKind, ResizeRule, GridSettings};
+use datatypes::{Flow, Region, Coords, SaveGrid, SplitKind, ResizeRule, GridSettings};
 use terminal::interfaces::{ConstructGrid, Resizeable};
 
 use super::panel::Panel;
@@ -184,14 +184,6 @@ impl<T> ScreenSection<T> {
 
     pub fn rotate_up(&mut self) {
         self.ring.rotate_up();
-    }
-
-    /// Iterate over all of the cells in this section of the screen.
-    pub fn cells(&self) -> super::Cells<T> {
-        super::Cells {
-            iter: CoordsIter::from_region(self.area),
-            section: self,
-        }
     }
 
     /// Iterate over all of the visible leaf panels in this section of the screen.

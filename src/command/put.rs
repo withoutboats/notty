@@ -49,7 +49,9 @@ impl Put<Image> {
 impl<T: CharData> Command for Put<T> {
 
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.write(&self.0);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.write(&self.0);
+        }
         Ok(())
     }
 
@@ -73,10 +75,12 @@ impl PutAt<Image> {
 impl<T: CharData> Command for PutAt<T> {
 
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        let coords = terminal.cursor().position();
-        terminal.move_cursor(Position(self.1));
-        terminal.write(&self.0);
-        terminal.move_cursor(Position(coords));
+        if let Some(grid) = terminal.grid_mut() {
+            let coords = grid.cursor().position();
+            grid.move_cursor(Position(self.1));
+            grid.write(&self.0);
+            grid.move_cursor(Position(coords));
+        }
         Ok(())
     }
 

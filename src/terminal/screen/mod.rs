@@ -1,9 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
 use datatypes::{Region, SaveGrid, SplitKind, ResizeRule};
-use terminal::{CharGrid};
 use terminal::interfaces::{Resizeable, ConstructGrid};
 
+mod fill;
 mod iter;
 mod panel;
 mod section;
@@ -12,13 +12,14 @@ mod ring;
 #[cfg(test)]
 mod tests;
 
-pub use self::iter::{Cells, Panels};
+pub use self::fill::Fill;
+pub use self::iter::Panels;
 
 use self::section::ScreenSection;
 
 const E_ACTIVE: &'static str = "Active screen section must exist.";
 
-pub struct Screen<T=CharGrid> {
+pub struct Screen<T=Fill> {
     active: u64,
     screen: ScreenSection<T>,
 }
@@ -106,10 +107,6 @@ impl<T> Screen<T> {
         self.find_mut(tag).map(ScreenSection::rotate_up);
     }
 
-    pub fn cells(&self) -> Cells<T> {
-        self.screen.cells()
-    }
-
     pub fn panels(&self) -> Panels<T> {
         self.screen.panels()
     }
@@ -124,15 +121,15 @@ impl<T> Screen<T> {
 
 }
 
-impl Deref for Screen<CharGrid> {
-    type Target = CharGrid;
-    fn deref(&self) -> &CharGrid {
+impl Deref for Screen<Fill> {
+    type Target = Fill;
+    fn deref(&self) -> &Fill {
         self.find(None).expect(E_ACTIVE).fill()
     }
 }
 
-impl DerefMut for Screen<CharGrid> {
-    fn deref_mut(&mut self) -> &mut CharGrid {
+impl DerefMut for Screen<Fill> {
+    fn deref_mut(&mut self) -> &mut Fill {
         self.find_mut(None).expect(E_ACTIVE).fill_mut()
     }
 }
