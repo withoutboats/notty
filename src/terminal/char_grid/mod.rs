@@ -29,7 +29,7 @@ mod tooltip;
 mod view;
 mod writers;
 
-pub use self::cell::{CharCell, CellData, ImageData, EMPTY_CELL};
+pub use self::cell::{CharCell, CellData, EMPTY_CELL};
 pub use self::cursor::Cursor;
 pub use self::iter::Cells;
 pub use self::tooltip::Tooltip;
@@ -206,7 +206,7 @@ impl<T: CellGrid<Cell=CharCell>> Index<Coords> for CharGrid<T> {
     type Output = CharCell;
 
     fn index(&self, coords: Coords) -> &CharCell {
-        static DEFAULT_CELL: &'static CharCell = &EMPTY_CELL;
+        const DEFAULT_CELL: &'static CharCell = &EMPTY_CELL;
         self.grid.get(coords).unwrap_or(DEFAULT_CELL)
     }
 }

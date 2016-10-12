@@ -13,12 +13,9 @@
 //  
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-use std::sync::Arc;
-
-use mime::Mime;
-
-use datatypes::{Coords, MediaPosition};
+use datatypes::Coords;
 use terminal::{UseStyles, DEFAULT_STYLES};
+use terminal::image::Image as ImageData;
 use terminal::interfaces::{Cell, Styleable, WriteableCell};
 
 use self::CellData::*;
@@ -117,7 +114,7 @@ impl CharCell {
         match self.content {
             Char(c)         => c.to_string(),
             Grapheme(ref s) => s.clone(),
-            Image { .. }    => String::from("IMG"),
+            Image(_)        => String::from("IMG"),
             Empty           => String::new(),
             Extension(_)    => String::from("EXT"),
         }
@@ -131,19 +128,7 @@ pub enum CellData {
     Char(char),
     Grapheme(String),
     Extension(Coords),
-    Image { 
-        data: Arc<ImageData>,
-        mime: Mime,
-        pos: MediaPosition,
-        width: u32,
-        height: u32,
-    }
-}
-
-#[derive(Eq, PartialEq, Hash, Debug)]
-pub struct ImageData {
-    pub data: Vec<u8>,
-    pub coords: Coords,
+    Image(ImageData),
 }
 
 #[cfg(test)]

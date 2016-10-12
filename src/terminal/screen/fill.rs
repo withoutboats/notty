@@ -1,6 +1,6 @@
 use datatypes::GridSettings;
 use terminal::char_grid::CharGrid;
-use terminal::image::ImageData;
+use terminal::image::Image as ImageData;
 use terminal::interfaces::{Resizeable, ConstructGrid};
 
 use self::Fill::*;

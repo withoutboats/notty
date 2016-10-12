@@ -28,6 +28,7 @@ use Command;
 use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::*;
+pub use self::image::{Image as ImageData, ImageFormat, EncodedData};
 pub use self::input::Tty;
 pub use self::interfaces::{CharData, Styleable, Resizeable};
 pub use self::screen::{Screen, Panels, Fill};

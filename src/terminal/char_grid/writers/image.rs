@@ -1,10 +1,10 @@
 use std::cell::RefCell;
-use std::sync::Arc;
 
 use mime::Mime;
 
 use datatypes::{Coords, Region, CoordsIter, MediaPosition};
-use terminal::{CellData, ImageData, UseStyles};
+use terminal::{CellData, UseStyles};
+use terminal::image::Image as ImageData;
 use terminal::interfaces::{CharData, WriteableGrid, WriteableCell};
 
 
@@ -32,16 +32,11 @@ impl CharData for Image {
         if let Some((data, mime)) = self.data.borrow_mut().take() {
             let coords = grid.best_fit_for_region(Region::new(coords.x, coords.y, coords.x + self.width, coords.y + self.height));
             if let Some(cell) = grid.writeable(coords) {
-                let image = CellData::Image {
-                    data: Arc::new(ImageData {
-                        data: data,
-                        coords: coords,
-                    }),
-                    mime: mime,
-                    pos: self.pos,
-                    width: self.width,
-                    height: self.height,
-                };
+                let image = CellData::Image(ImageData::new(data,
+                                                           mime,
+                                                           self.pos,
+                                                           self.width,
+                                                           self.height));
                 cell.write(image, styles);
             }
             let iter = CoordsIter::from(Region::new(coords.x, coords.y, self.width, self.height));
