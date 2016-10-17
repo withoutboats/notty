@@ -69,7 +69,7 @@ impl KeyEvent {
             (0xffe7, _) | (0xffeb, _)   => KeyEvent::Command(ctor(Key::Meta)),
             (0xffe8, _) | (0xff67, _)   => KeyEvent::Command(ctor(Key::Menu)),
             (0xffe9, _)                 => KeyEvent::Command(ctor(Key::AltLeft)),
-            (0xffea, _)                 => KeyEvent::Command(ctor(Key::AltGr)),
+            (0xffea, _) | (0xfe03, _)   => KeyEvent::Command(ctor(Key::AltGr)),
             (0xffff, _)                 => KeyEvent::Command(ctor(Key::Delete)),
             (x, _)                      => { panic!("Key press: {:x}", x) }
         }
