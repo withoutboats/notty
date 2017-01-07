@@ -56,7 +56,7 @@ multi-terminal managers, and for writing SSH clients in non-UNIX environments.
 Because it implements (most) ANSI escape codes, this terminal is backwards
 compatible with existing command line tools.
 
-A subdirectory, named scaffolding, contains a minimal graphical ternminal using
+A subdirectory, named scaffolding, contains a minimal graphical terminal using
 GTK/pango/cairo, intended for testing __notty__'s features interactively. This
 terminal is buggy and feature poor and not intended for general use.
 
