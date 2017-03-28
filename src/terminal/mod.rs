@@ -18,6 +18,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::atomic::Ordering::Relaxed;
 
 mod char_grid;
+mod image;
 mod input;
 pub(crate) mod interfaces;
 mod screen;
@@ -27,9 +28,10 @@ use Command;
 use datatypes::{InputSettings, Key};
 
 pub use self::char_grid::*;
+pub use self::image::{Image as ImageData, ImageFormat, EncodedData};
 pub use self::input::Tty;
 pub use self::interfaces::{CharData, Styleable, Resizeable};
-pub use self::screen::{Screen, Cells, Panels};
+pub use self::screen::{Screen, Panels, Fill};
 pub use self::styles::*;
 
 use self::input::Input;
@@ -67,8 +69,10 @@ impl Terminal {
     pub fn send_input(&mut self, key: Key, press: bool) -> io::Result<()> {
         if let Some(cmd) = try!(match key {
             Key::DownArrow | Key::UpArrow | Key::Enter if press => {
-                let cursor = self.cursor().position();
-                match match self.tooltip_at_mut(cursor) {
+                match match self.grid_mut().and_then(|grid| {
+                    let cursor = grid.cursor().position();
+                    grid.tooltip_at_mut(cursor)
+                }) {
                     Some(tooltip @ &mut Tooltip::Menu { .. })   => tooltip.interact(&key),
                     _                                           => Err(true)
                 } {

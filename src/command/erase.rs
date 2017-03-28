@@ -19,7 +19,9 @@ use command::prelude::*;
 
 impl Command for Erase {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.erase(self.area);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.erase(self.area);
+        }
         Ok(())
     }
 
@@ -31,7 +33,9 @@ impl Command for Erase {
 
 impl Command for RemoveChars {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.remove_at(self.count);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.remove_at(self.count);
+        }
         Ok(())
     }
 
@@ -43,7 +47,9 @@ impl Command for RemoveChars {
 
 impl Command for RemoveRows {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.remove_rows_at(self.count, self.include);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.remove_rows_at(self.count, self.include);
+        }
         Ok(())
     }
 
@@ -58,7 +64,9 @@ impl Command for RemoveRows {
 
 impl Command for InsertBlank {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.insert_blank_at(self.count);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.insert_blank_at(self.count);
+        }
         Ok(())
     }
 
@@ -70,7 +78,9 @@ impl Command for InsertBlank {
 
 impl Command for InsertRows {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.insert_rows_at(self.count, self.include);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.insert_rows_at(self.count, self.include);
+        }
         Ok(())
     }
 

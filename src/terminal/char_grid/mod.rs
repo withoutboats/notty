@@ -24,12 +24,14 @@ use terminal::interfaces::*;
 mod cell;
 mod cursor;
 mod grid;
+mod iter;
 mod tooltip;
 mod view;
 mod writers;
 
-pub use self::cell::{CharCell, CellData, ImageData, EMPTY_CELL};
+pub use self::cell::{CharCell, CellData, EMPTY_CELL};
 pub use self::cursor::Cursor;
+pub use self::iter::Cells;
 pub use self::tooltip::Tooltip;
 pub use self::writers::*;
 
@@ -129,6 +131,10 @@ impl<T: CellGrid> CharGrid<T> where T::Cell: Styleable {
 }
 
 impl<T> CharGrid<T> {
+    pub fn cells(&self) -> Cells<T> {
+        Cells::new(self)
+    }
+
     pub fn cursor(&self) -> &Cursor {
         &self.cursor
     }
@@ -200,7 +206,7 @@ impl<T: CellGrid<Cell=CharCell>> Index<Coords> for CharGrid<T> {
     type Output = CharCell;
 
     fn index(&self, coords: Coords) -> &CharCell {
-        static DEFAULT_CELL: &'static CharCell = &EMPTY_CELL;
+        const DEFAULT_CELL: &'static CharCell = &EMPTY_CELL;
         self.grid.get(coords).unwrap_or(DEFAULT_CELL)
     }
 }

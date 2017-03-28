@@ -25,7 +25,9 @@ use command::prelude::*;
 
 impl Command for SetCursorStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.cursor_mut().set_style(self.0);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.cursor_mut().set_style(self.0);
+        }
         Ok(())
     }
 
@@ -37,7 +39,9 @@ impl Command for SetCursorStyle {
 
 impl Command for DefaultCursorStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.cursor_mut().reset_style();
+        if let Some(grid) = terminal.grid_mut() {
+            grid.cursor_mut().reset_style();
+        }
         Ok(())
     }
 
@@ -49,7 +53,9 @@ impl Command for DefaultCursorStyle {
 
 impl Command for SetTextStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.set_style(self.0);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.set_style(self.0);
+        }
         Ok(())
     }
 
@@ -61,7 +67,9 @@ impl Command for SetTextStyle {
 
 impl Command for DefaultTextStyle {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.reset_style();
+        if let Some(grid) = terminal.grid_mut() {
+            grid.reset_style();
+        }
         Ok(())
     }
 
@@ -73,7 +81,9 @@ impl Command for DefaultTextStyle {
 
 impl Command for SetStyleInArea {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.set_style_in_area(self.0, self.1);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.set_style_in_area(self.0, self.1);
+        }
         Ok(())
     }
 
@@ -85,7 +95,9 @@ impl Command for SetStyleInArea {
 
 impl Command for DefaultStyleInArea {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.reset_styles_in_area(self.0);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.reset_styles_in_area(self.0);
+        }
         Ok(())
     }
 

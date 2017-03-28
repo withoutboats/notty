@@ -183,11 +183,13 @@ mod test_image {
     use std::str::FromStr;
     use mime::Mime;
     use datatypes::MediaPosition;
+    use terminal::image::{EncodedData, ImageFormat};
 
     // TODO what about when image is wider than grid is allowed to be?
     const FINAL_COORDS: Coords = Coords { x: BEST_FIT_COORDS.x + WIDTH - 1, ..BEST_FIT_COORDS };
     const DATA: &'static [u8] = &[0x0B, 0xEE, 0xFD, 0xAD];
     const MIME: &'static str = "image/jpeg";
+    const IMAGE_FORMAT: ImageFormat = ImageFormat::Jpeg;
     const MEDIA_POSITION: MediaPosition = MediaPosition::Fill;
     const WIDTH: u32 = 5;
     const HEIGHT: u32 = 6;
@@ -215,19 +217,23 @@ mod test_image {
             assert_eq!(region, REGION);
             BEST_FIT_COORDS
         }
-        fn find_cell_to_extend(&self, coords: Coords) -> Option<Coords> { unreachable!() }
+        fn find_cell_to_extend(&self, _: Coords) -> Option<Coords> { unreachable!() }
     }
 
     impl WriteableCell for Cell {
         fn write(&mut self, data: CellData, styles: UseStyles) {
             match *self {
                 Cell::Image     => {
-                    if let CellData::Image { data, mime, pos, width, height } = data {
-                        assert_eq!(DATA, &*data.data);
-                        assert_eq!(MIME, &mime.to_string());
-                        assert_eq!(pos, MEDIA_POSITION);
-                        assert_eq!(width, WIDTH);
-                        assert_eq!(height, HEIGHT);
+                    if let CellData::Image(image)  = data {
+                        assert_eq!(image.pos(), MEDIA_POSITION);
+                        assert_eq!(image.dims(), (WIDTH, HEIGHT));
+                        image.decode(|data| {
+                            assert_eq!(*data, EncodedData {
+                                data: DATA.into(),
+                                format: IMAGE_FORMAT,
+                            });
+                            vec![]
+                        });
                     } else { panic!("instead of image, recieved: {:?}", data) }
                 }
                 Cell::Extension => assert_eq!(data, CellData::Extension(BEST_FIT_COORDS)),

@@ -23,7 +23,9 @@ use datatypes::Movement::*;
 
 impl Command for Move {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.move_cursor(self.movement);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.move_cursor(self.movement);
+        }
         Ok(())
     }
 
@@ -59,7 +61,9 @@ impl Command for Move {
 
 impl Command for ScrollScreen {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        terminal.scroll(self.dir, self.n);
+        if let Some(grid) = terminal.grid_mut() {
+            grid.scroll(self.dir, self.n);
+        }
         Ok(())
     }
 

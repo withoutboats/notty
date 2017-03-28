@@ -35,7 +35,7 @@ pub struct ReportPosition(pub Code);
 
 impl Command for ReportPosition {
     fn apply(&self, terminal: &mut Terminal) -> io::Result<()> {
-        let Coords { x, y } = terminal.cursor().position();
+        let Coords { x, y } = terminal.grid().map_or(Coords { x: 0, y: 0 }, |grid| grid.cursor().position());
         let cmd = match self.0 {
             Code::ANSI  => Cow::Owned(format!("\x1b[{};{}R", y, x)),
             _           => unimplemented!(),
